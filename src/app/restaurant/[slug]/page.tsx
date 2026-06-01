@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -21,7 +20,7 @@ export default function RestaurantPage() {
   useEffect(() => { fetchRestaurant() }, [slug])
 
   async function fetchRestaurant() {
-    const { data: rest } = await supabase
+    const { data: rest, error: restError } = await supabase
       .from('restaurants')
       .select('*')
       .eq('slug', slug)
@@ -30,12 +29,12 @@ export default function RestaurantPage() {
     if (!rest) { router.push('/'); return }
     setRestaurant(rest)
 
-  const { data: cats } = await supabase
-  .from('menu_categories')
-  .select('*, menu_items(*)')
-  .eq('restaurant_id', rest.id)
-  .order('sort_order')
-   
+    const { data: cats, error: catsError } = await supabase
+      .from('menu_categories')
+      .select('*, menu_items(*)')
+      .eq('restaurant_id', rest.id)
+      .order('sort_order')
+
     setCategories(cats || [])
     setLoading(false)
   }
@@ -72,7 +71,6 @@ export default function RestaurantPage() {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Nav */}
       <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/" style={{ fontFamily: 'Syne', fontSize: '22px', fontWeight: 800, letterSpacing: '-1px', textDecoration: 'none' }}>
           <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
@@ -88,7 +86,6 @@ export default function RestaurantPage() {
         )}
       </nav>
 
-      {/* Restaurant banner */}
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px 20px 0' }}>
         <button onClick={() => router.back()} className="btn-ghost" style={{ marginBottom: '14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
           ← Back
@@ -106,7 +103,6 @@ export default function RestaurantPage() {
           </div>
         </div>
 
-        {/* Allergen warning */}
         <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
           <span style={{ fontSize: '16px', flexShrink: 0 }}>ⓘ</span>
           <p style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.5 }}>
@@ -114,16 +110,19 @@ export default function RestaurantPage() {
           </p>
         </div>
 
-        {/* Menu layout */}
         <div style={{ display: 'flex', gap: '20px' }}>
-          {/* Menu */}
           <div style={{ flex: 1, minWidth: 0 }}>
+            {categories.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--sub)', fontSize: '14px' }}>
+                Menu coming soon...
+              </div>
+            )}
             {categories.map(cat => (
               <div key={cat.id}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '1px', margin: '20px 0 10px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
                   {cat.name}
                 </div>
-                {cat.menu_items?.filter((i: any) => i.is_available).map((item: any) => (
+                {cat.menu_items?.map((item: any) => (
                   <div
                     key={item.id}
                     onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
@@ -131,11 +130,7 @@ export default function RestaurantPage() {
                     onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)')}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                   >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>{item.emoji}</div>
-                    )}
+                    <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>{item.emoji}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '3px' }}>{item.name}</div>
                       {item.description && <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px', lineHeight: 1.4 }}>{item.description}</div>}
@@ -159,7 +154,6 @@ export default function RestaurantPage() {
             ))}
           </div>
 
-          {/* Cart sidebar */}
           <div style={{ width: '260px', flexShrink: 0 }}>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px', position: 'sticky', top: '74px' }}>
               <div style={{ fontFamily: 'Syne', fontSize: '15px', fontWeight: 700, marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--border)' }}>Your Order</div>
@@ -193,41 +187,29 @@ export default function RestaurantPage() {
         </div>
       </div>
 
-      {/* Item modal */}
       {selectedItem && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}
           onClick={e => { if (e.target === e.currentTarget) setSelectedItem(null) }}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }} className="animate-bounce-in">
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
             <button onClick={() => setSelectedItem(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             <div style={{ fontSize: '56px', textAlign: 'center', marginBottom: '12px' }}>{selectedItem.emoji}</div>
             <h3 style={{ fontSize: '20px', fontWeight: 800, textAlign: 'center', marginBottom: '6px' }}>{selectedItem.name}</h3>
             {selectedItem.description && <p style={{ fontSize: '13px', color: 'var(--sub)', textAlign: 'center', marginBottom: '12px', lineHeight: 1.5 }}>{selectedItem.description}</p>}
             <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--green)', textAlign: 'center', marginBottom: '20px' }}>£{selectedItem.price.toFixed(2)}</div>
-
             {selectedItem.allergens?.length > 0 && (
               <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px', fontSize: '11px', color: '#fca5a5' }}>
-                ⓘ AI-detected allergens (guide only): {selectedItem.allergens.join(', ')}. Contact restaurant to verify.
+                ⓘ AI-detected allergens (guide only): {selectedItem.allergens.join(', ')}
               </div>
             )}
-
             <div style={{ marginBottom: '16px' }}>
               <label>Special instructions (optional)</label>
-              <textarea
-                value={itemNote}
-                onChange={e => setItemNote(e.target.value)}
-                placeholder="e.g. no onions, extra sauce, well done..."
-                rows={2}
-                className="input"
-                style={{ resize: 'none', marginTop: '4px' }}
-              />
+              <textarea value={itemNote} onChange={e => setItemNote(e.target.value)} placeholder="e.g. no onions, extra sauce..." rows={2} className="input" style={{ resize: 'none', marginTop: '4px' }} />
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '16px' }}>
               <button onClick={() => setItemQty(Math.max(1, itemQty - 1))} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', width: '36px', height: '36px', borderRadius: '8px', fontSize: '20px', cursor: 'pointer' }}>−</button>
               <span style={{ fontSize: '20px', fontWeight: 700, minWidth: '30px', textAlign: 'center' }}>{itemQty}</span>
               <button onClick={() => setItemQty(itemQty + 1)} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', width: '36px', height: '36px', borderRadius: '8px', fontSize: '20px', cursor: 'pointer' }}>+</button>
             </div>
-
             <button onClick={() => addToCart(selectedItem, itemNote, itemQty)} className="btn-primary" style={{ width: '100%', padding: '15px' }}>
               Add to order — £{(selectedItem.price * itemQty).toFixed(2)}
             </button>
