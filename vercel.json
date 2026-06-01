@@ -1,16 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/restaurants/sync?type=availability",
-      "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/restaurants/sync?type=full",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/orders/cleanup",
-      "schedule": "*/3 * * * *"
-    }
-  ]
+  "crons": []
 }
