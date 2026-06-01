@@ -25,6 +25,10 @@ export default function AdminPage() {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
+  const [showImport, setShowImport] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importMerchantId, setImportMerchantId] = useState('')
+  const [importing, setImporting] = useState(false)
 
   const [newRestaurant, setNewRestaurant] = useState({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
   const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
@@ -58,6 +62,25 @@ export default function AdminPage() {
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg('Restaurant added! '); setShowAddRestaurant(false)
     setNewRestaurant({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
+    fetchAll()
+  }
+
+  async function importFromFoodGG() {
+    if (!importUrl || !importMerchantId) { setMsg('Please enter a food.gg URL and select a merchant'); return }
+    setImporting(true)
+    setMsg('Importing... this may take 30 seconds...')
+    const res = await fetch('/api/admin/scrape-foodgg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: importUrl, merchantId: importMerchantId })
+    })
+    const data = await res.json()
+    setImporting(false)
+    if (!res.ok) { setMsg('Error: ' + data.error); return }
+    setMsg(data.message)
+    setShowImport(false)
+    setImportUrl('')
+    setImportMerchantId('')
     fetchAll()
   }
 
@@ -212,7 +235,10 @@ export default function AdminPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Restaurants</h2>
-              <button className="btn-primary" onClick={() => setShowAddRestaurant(true)} style={{ padding: '10px 18px' }}>+ Add Restaurant</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-ghost" onClick={() => setShowImport(true)} style={{ padding: '10px 18px' }}>Import from food.gg</button>
+                <button className="btn-primary" onClick={() => setShowAddRestaurant(true)} style={{ padding: '10px 18px' }}>+ Add Restaurant</button>
+              </div>
             </div>
             {restaurants.map(r => (
               <div key={r.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
@@ -239,7 +265,23 @@ export default function AdminPage() {
               </div>
             ))}
 
-            {/* Add Restaurant Modal */}
+            {/* Import from food.gg Modal */}
+            {showImport && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowImport(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Import from food.gg</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>Paste a food.gg restaurant URL and we will automatically import the restaurant and its full menu.</p>
+                  <div style={{ marginBottom: '12px' }}><label>food.gg URL</label><input className="input" placeholder="https://www.food.gg/wickedwolf" value={importUrl} onChange={e => setImportUrl(e.target.value)} /></div>
+                  <div style={{ marginBottom: '20px' }}><label>Assign to Merchant</label><select className="input" value={importMerchantId} onChange={e => setImportMerchantId(e.target.value)}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowImport(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={importFromFoodGG} disabled={importing} style={{ flex: 2 }}>{importing ? 'Importing...' : 'Import Restaurant'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Restaurant Modal */}}
             {showAddRestaurant && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddRestaurant(false) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
