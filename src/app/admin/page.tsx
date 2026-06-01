@@ -56,7 +56,7 @@ export default function AdminPage() {
     if (!newRestaurant.name || !newRestaurant.slug || !newRestaurant.merchant_id) { setMsg('Please fill in name, slug and merchant'); return }
     const { error } = await supabase.from('restaurants').insert({ ...newRestaurant, min_order: parseFloat(newRestaurant.min_order), delivery_time_mins: parseInt(newRestaurant.delivery_time_mins), pickup_time_mins: parseInt(newRestaurant.pickup_time_mins), is_open: false, is_active: true, accepts_delivery: true, accepts_pickup: true, accepts_preorders: true, slot_capacity: 5 })
     if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Restaurant added! ✅'); setShowAddRestaurant(false)
+    setMsg('Restaurant added! '); setShowAddRestaurant(false)
     setNewRestaurant({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
     fetchAll()
   }
@@ -65,7 +65,7 @@ export default function AdminPage() {
     if (!editRestaurant) return
     const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup }).eq('id', editRestaurant.id)
     if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Restaurant saved! ✅'); setEditRestaurant(null); fetchAll()
+    setMsg('Restaurant saved! '); setEditRestaurant(null); fetchAll()
   }
 
   async function addMerchant() {
@@ -85,7 +85,7 @@ export default function AdminPage() {
     if (!selectedRestaurant || !newCategory.name) { setMsg('Select a restaurant and enter category name'); return }
     const { error } = await supabase.from('menu_categories').insert({ restaurant_id: selectedRestaurant.id, name: newCategory.name, sort_order: parseInt(newCategory.sort_order), is_active: true })
     if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Category added! ✅'); setShowAddCategory(false)
+    setMsg('Category added! '); setShowAddCategory(false)
     setNewCategory({ name: '', sort_order: '1' }); fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
@@ -93,7 +93,7 @@ export default function AdminPage() {
     if (!selectedRestaurant || !newItem.name || !newItem.price || !newItem.category_id) { setMsg('Fill in all required fields'); return }
     const { error } = await supabase.from('menu_items').insert({ restaurant_id: selectedRestaurant.id, category_id: newItem.category_id, name: newItem.name, description: newItem.description, price: parseFloat(newItem.price), emoji: newItem.emoji, calories: newItem.calories ? parseInt(newItem.calories) : null, is_available: true, tags: [], allergens: [] })
     if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Item added! ✅'); setShowAddItem(false)
+    setMsg('Item added! '); setShowAddItem(false)
     setNewItem({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' }); fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
@@ -101,7 +101,7 @@ export default function AdminPage() {
     if (!editItem) return
     const { error } = await supabase.from('menu_items').update({ name: editItem.name, description: editItem.description, price: parseFloat(editItem.price), emoji: editItem.emoji, calories: editItem.calories ? parseInt(editItem.calories) : null, is_available: editItem.is_available, category_id: editItem.category_id }).eq('id', editItem.id)
     if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Item saved! ✅'); setEditItem(null); fetchMenuForRestaurant(selectedRestaurant.id)
+    setMsg('Item saved! '); setEditItem(null); fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
   async function deleteMenuItem(id: string) {
@@ -142,9 +142,9 @@ export default function AdminPage() {
             <div style={{ fontSize: '13px', color: 'var(--sub)', marginTop: '4px' }}>Platform Admin</div>
           </div>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>🔐 Admin Access</h2>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}> Admin Access</h2>
             {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px', marginBottom: '14px', fontSize: '13px', color: 'var(--red)' }}>{authError}</div>}
-            <div style={{ marginBottom: '16px' }}><label>Admin Password</label><input className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
+            <div style={{ marginBottom: '16px' }}><label>Admin Password</label><input className="input" type="password" placeholder="" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
             <button className="btn-primary" onClick={checkPassword} style={{ width: '100%', padding: '13px' }}>Access Admin Panel</button>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function AdminPage() {
           <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
           <span style={{ fontSize: '12px', color: 'var(--sub)', marginLeft: '8px', fontFamily: 'DM Sans' }}>Admin</span>
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants · {merchants.length} merchants</div>
+        <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants  {merchants.length} merchants</div>
       </div>
 
       <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
@@ -178,11 +178,11 @@ export default function AdminPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '14px', marginBottom: '24px' }}>
               {[
                 { label: 'Restaurants', value: restaurants.length, color: 'var(--green)', icon: 'food' },
-                { label: 'Merchants', value: merchants.length, color: 'var(--blue)', icon: '👤' },
-                { label: "Today's Orders", value: todayOrders.length, color: 'var(--orange)', icon: '📦' },
-                { label: 'Total Revenue', value: `£${totalRevenue.toFixed(2)}`, color: 'var(--green)', icon: '💰' },
-                { label: 'Commission', value: `£${totalCommission.toFixed(2)}`, color: 'var(--orange)', icon: '📊' },
-                { label: 'All Orders', value: orders.length, color: 'var(--sub)', icon: '🛒' },
+                { label: 'Merchants', value: merchants.length, color: 'var(--blue)', icon: '' },
+                { label: "Today's Orders", value: todayOrders.length, color: 'var(--orange)', icon: '' },
+                { label: 'Total Revenue', value: `${totalRevenue.toFixed(2)}`, color: 'var(--green)', icon: '' },
+                { label: 'Commission', value: `${totalCommission.toFixed(2)}`, color: 'var(--orange)', icon: '' },
+                { label: 'All Orders', value: orders.length, color: 'var(--sub)', icon: '' },
               ].map(s => (
                 <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
                   <div style={{ fontSize: '22px', marginBottom: '6px' }}>{s.icon}</div>
@@ -196,10 +196,10 @@ export default function AdminPage() {
               <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{o.order_number}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.customer_name} · {new Date(o.created_at).toLocaleString('en-GB')}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.customer_name}  {new Date(o.created_at).toLocaleString('en-GB')}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--green)' }}>£{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--green)' }}>{o.total?.toFixed(2)}</div>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: '32px' }}>{r.emoji}</div>
                     <div>
                       <div style={{ fontSize: '15px', fontWeight: 700 }}>{r.name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{r.cuisine_type} · {r.parish} · /{r.slug}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{r.cuisine_type}  {r.parish}  /{r.slug}</div>
                       <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Merchant: {r.merchants?.name}</div>
                     </div>
                   </div>
@@ -232,8 +232,8 @@ export default function AdminPage() {
                         <div style={{ position: 'absolute', top: '2px', left: r.is_open ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
-                    <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>✏️ Edit</button>
-                    <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>📋 Menu</button>
+                    <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}> Edit</button>
+                    <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}> Menu</button>
                   </div>
                 </div>
               </div>
@@ -247,11 +247,11 @@ export default function AdminPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                     <div><label>Name *</label><input className="input" placeholder="Pizza Palace" value={newRestaurant.name} onChange={e => setNewRestaurant({...newRestaurant, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')})} /></div>
                     <div><label>URL Slug *</label><input className="input" placeholder="pizza-palace" value={newRestaurant.slug} onChange={e => setNewRestaurant({...newRestaurant, slug: e.target.value})} /></div>
-                    <div><label>Cuisine</label><input className="input" placeholder="Italian · Pizza" value={newRestaurant.cuisine_type} onChange={e => setNewRestaurant({...newRestaurant, cuisine_type: e.target.value})} /></div>
-                    <div><label>Emoji</label><input className="input" placeholder="🍕" value={newRestaurant.emoji} onChange={e => setNewRestaurant({...newRestaurant, emoji: e.target.value})} /></div>
+                    <div><label>Cuisine</label><input className="input" placeholder="Italian  Pizza" value={newRestaurant.cuisine_type} onChange={e => setNewRestaurant({...newRestaurant, cuisine_type: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" placeholder="" value={newRestaurant.emoji} onChange={e => setNewRestaurant({...newRestaurant, emoji: e.target.value})} /></div>
                     <div><label>Parish</label><select className="input" value={newRestaurant.parish} onChange={e => setNewRestaurant({...newRestaurant, parish: e.target.value})}>{PARISHES.map(p => <option key={p}>{p}</option>)}</select></div>
                     <div><label>Postcode</label><input className="input" placeholder="GY1" value={newRestaurant.postcode} onChange={e => setNewRestaurant({...newRestaurant, postcode: e.target.value})} /></div>
-                    <div><label>Min Order £</label><input className="input" type="number" value={newRestaurant.min_order} onChange={e => setNewRestaurant({...newRestaurant, min_order: e.target.value})} /></div>
+                    <div><label>Min Order </label><input className="input" type="number" value={newRestaurant.min_order} onChange={e => setNewRestaurant({...newRestaurant, min_order: e.target.value})} /></div>
                     <div><label>Delivery Mins</label><input className="input" type="number" value={newRestaurant.delivery_time_mins} onChange={e => setNewRestaurant({...newRestaurant, delivery_time_mins: e.target.value})} /></div>
                   </div>
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={newRestaurant.description} onChange={e => setNewRestaurant({...newRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
@@ -275,7 +275,7 @@ export default function AdminPage() {
                     <div><label>Cuisine</label><input className="input" value={editRestaurant.cuisine_type} onChange={e => setEditRestaurant({...editRestaurant, cuisine_type: e.target.value})} /></div>
                     <div><label>Emoji</label><input className="input" value={editRestaurant.emoji} onChange={e => setEditRestaurant({...editRestaurant, emoji: e.target.value})} /></div>
                     <div><label>Parish</label><select className="input" value={editRestaurant.parish} onChange={e => setEditRestaurant({...editRestaurant, parish: e.target.value})}>{PARISHES.map(p => <option key={p}>{p}</option>)}</select></div>
-                    <div><label>Min Order £</label><input className="input" type="number" value={editRestaurant.min_order} onChange={e => setEditRestaurant({...editRestaurant, min_order: e.target.value})} /></div>
+                    <div><label>Min Order </label><input className="input" type="number" value={editRestaurant.min_order} onChange={e => setEditRestaurant({...editRestaurant, min_order: e.target.value})} /></div>
                     <div><label>Delivery Mins</label><input className="input" type="number" value={editRestaurant.delivery_time_mins} onChange={e => setEditRestaurant({...editRestaurant, delivery_time_mins: e.target.value})} /></div>
                   </div>
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
@@ -321,7 +321,7 @@ export default function AdminPage() {
               <div key={cat.id} style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '10px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat.name}</div>
-                  <button onClick={() => deleteCategory(cat.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '11px', cursor: 'pointer' }}>🗑 Delete category</button>
+                  <button onClick={() => deleteCategory(cat.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '11px', cursor: 'pointer' }}> Delete category</button>
                 </div>
                 {menuItems.filter(i => i.category_id === cat.id).map(item => (
                   <div key={item.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
@@ -333,12 +333,12 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>£{item.price?.toFixed(2)}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>{item.price?.toFixed(2)}</span>
                       <div onClick={() => toggleItem(item.id, item.is_available)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: item.is_available ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
                         <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
-                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '14px' }}>✏️</button>
-                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px' }}>🗑</button>
+                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '14px' }}></button>
+                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px' }}></button>
                     </div>
                   </div>
                 ))}
@@ -370,8 +370,8 @@ export default function AdminPage() {
                   <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Add Menu Item</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                     <div style={{ gridColumn: 'span 2' }}><label>Item Name *</label><input className="input" placeholder="Margherita Pizza" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
-                    <div><label>Price £ *</label><input className="input" type="number" step="0.01" placeholder="11.99" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} /></div>
-                    <div><label>Emoji</label><input className="input" placeholder="🍕" value={newItem.emoji} onChange={e => setNewItem({...newItem, emoji: e.target.value})} /></div>
+                    <div><label>Price  *</label><input className="input" type="number" step="0.01" placeholder="11.99" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" placeholder="" value={newItem.emoji} onChange={e => setNewItem({...newItem, emoji: e.target.value})} /></div>
                     <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" placeholder="Tomato, mozzarella, fresh basil" value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} /></div>
                     <div><label>Calories (optional)</label><input className="input" type="number" placeholder="820" value={newItem.calories} onChange={e => setNewItem({...newItem, calories: e.target.value})} /></div>
                     <div><label>Category *</label><select className="input" value={newItem.category_id} onChange={e => setNewItem({...newItem, category_id: e.target.value})}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
@@ -391,7 +391,7 @@ export default function AdminPage() {
                   <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Edit {editItem.name}</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                     <div style={{ gridColumn: 'span 2' }}><label>Name</label><input className="input" value={editItem.name} onChange={e => setEditItem({...editItem, name: e.target.value})} /></div>
-                    <div><label>Price £</label><input className="input" type="number" step="0.01" value={editItem.price} onChange={e => setEditItem({...editItem, price: e.target.value})} /></div>
+                    <div><label>Price </label><input className="input" type="number" step="0.01" value={editItem.price} onChange={e => setEditItem({...editItem, price: e.target.value})} /></div>
                     <div><label>Emoji</label><input className="input" value={editItem.emoji} onChange={e => setEditItem({...editItem, emoji: e.target.value})} /></div>
                     <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} /></div>
                     <div><label>Calories</label><input className="input" type="number" value={editItem.calories || ''} onChange={e => setEditItem({...editItem, calories: e.target.value})} /></div>
@@ -423,11 +423,11 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <div style={{ fontSize: '15px', fontWeight: 700 }}>{m.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{m.email} · {m.phone}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>Commission: {m.commission_rate}% · Joined {new Date(m.created_at).toLocaleDateString('en-GB')}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{m.email}  {m.phone}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>Commission: {m.commission_rate}%  Joined {new Date(m.created_at).toLocaleDateString('en-GB')}</div>
                   </div>
                   <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: m.is_trial ? 'rgba(234,179,8,0.15)' : 'rgba(34,197,94,0.15)', color: m.is_trial ? '#EAB308' : 'var(--green)', fontWeight: 600 }}>
-                    {m.is_trial ? '🟡 Trial' : '✅ Live'}
+                    {m.is_trial ? ' Trial' : ' Live'}
                   </span>
                 </div>
               </div>
@@ -461,12 +461,12 @@ export default function AdminPage() {
               <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 700 }}>{o.order_number}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} · {o.customer_email}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} · {o.order_type} · {o.payment_method}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name}  {o.customer_email}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')}  {o.order_type}  {o.payment_method}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>£{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: £{o.commission_amount?.toFixed(2) || '0.00'}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: {o.commission_amount?.toFixed(2) || '0.00'}</div>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
                 </div>
               </div>
@@ -482,11 +482,11 @@ export default function AdminPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '14px', marginBottom: '24px' }}>
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Total Commission</div>
-                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>£{totalCommission.toFixed(2)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{totalCommission.toFixed(2)}</div>
               </div>
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Platform Revenue</div>
-                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>£{totalRevenue.toFixed(2)}</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{totalRevenue.toFixed(2)}</div>
               </div>
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Card Orders</div>
@@ -501,4 +501,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+}
