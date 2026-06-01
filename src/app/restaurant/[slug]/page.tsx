@@ -30,13 +30,12 @@ export default function RestaurantPage() {
     if (!rest) { router.push('/'); return }
     setRestaurant(rest)
 
-    const { data: cats } = await supabase
-      .from('menu_categories')
-      .select('*, menu_items(*)')
-      .eq('restaurant_id', rest.id)
-      .eq('is_active', true)
-      .order('sort_order')
-
+  const { data: cats } = await supabase
+  .from('menu_categories')
+  .select('*, menu_items(*)')
+  .eq('restaurant_id', rest.id)
+  .order('sort_order')
+   
     setCategories(cats || [])
     setLoading(false)
   }
