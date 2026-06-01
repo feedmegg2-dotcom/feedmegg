@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react'
@@ -18,7 +19,7 @@ export default function MerchantLoginPage() {
     setLoading(true)
     setError('')
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
       setError('Invalid email or password. Please try again.')
@@ -26,16 +27,7 @@ export default function MerchantLoginPage() {
       return
     }
 
-    // Check if they're a merchant
-    const { data: merchant } = await supabase.from('merchants').select('id').eq('email', email).single()
-    if (!merchant) {
-      await supabase.auth.signOut()
-      setError('No merchant account found for this email.')
-      setLoading(false)
-      return
-    }
-
-    router.push('/merchant/dashboard')
+    router.push('/merchant/terminal')
   }
 
   return (
@@ -56,12 +48,12 @@ export default function MerchantLoginPage() {
 
           {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>{error}</div>}
 
-          <div className="form-group" style={{ marginBottom: '14px' }}>
+          <div style={{ marginBottom: '14px' }}>
             <label>Email address</label>
             <input className="input" type="email" placeholder="you@restaurant.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} />
           </div>
 
-          <div className="form-group" style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <label>Password</label>
             <input className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} />
           </div>
@@ -77,7 +69,7 @@ export default function MerchantLoginPage() {
 
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--sub)' }}>
           Want to list your restaurant on feedme.gg?{' '}
-          <a href="mailto:feedme.gg@mail.com" style={{ color: 'var(--green)', textDecoration: 'none' }}>Contact us</a>
+          <a href="mailto:hello@feedme.gg" style={{ color: 'var(--green)', textDecoration: 'none' }}>Contact us</a>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '12px' }}>
