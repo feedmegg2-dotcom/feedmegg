@@ -255,7 +255,7 @@ export default function TerminalPage() {
 
       {/* NEW ORDER SCREEN */}
       {screen === 'neworder' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
           <div style={{ width: 'clamp(80px,15vw,120px)', height: 'clamp(80px,15vw,120px)', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(32px,7vw,52px)', marginBottom: '20px' }}>🔔</div>
           <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(24px,5vw,36px)', fontWeight: 700, color: '#22c55e', marginBottom: '8px' }}>NEW ORDER!</div>
           <div style={{ fontSize: 'clamp(12px,2.5vw,16px)', color: '#64748b', marginBottom: '28px' }}>
@@ -310,7 +310,7 @@ export default function TerminalPage() {
 
       {/* WAITING FOR PAYMENT */}
       {screen === 'paying' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
           <div style={{ fontSize: 'clamp(36px,7vw,56px)', marginBottom: '16px' }}>💳</div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#f97316', marginBottom: '6px' }}>Waiting for Payment</div>
           <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>Payment link sent to {currentOrder?.customer_name}</div>
@@ -324,7 +324,7 @@ export default function TerminalPage() {
 
       {/* PAYMENT CONFIRMED */}
       {screen === 'paid' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
           <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px' }}>✅</div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#22c55e', marginBottom: '6px' }}>Payment Confirmed!</div>
           <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>£{currentOrder?.total?.toFixed(2)} received · Printing 3 tickets now...</div>
@@ -469,7 +469,7 @@ export default function TerminalPage() {
 
 function FullScreen({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+    <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
       <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(14px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>{title}</div>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: '#f8fafc', padding: 'clamp(8px,1.5vw,10px) clamp(14px,2.5vw,20px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>✕ Close</button>
