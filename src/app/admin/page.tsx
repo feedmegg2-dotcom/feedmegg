@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -27,7 +28,7 @@ export default function AdminPage() {
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
 
   const [newRestaurant, setNewRestaurant] = useState({ name: '', slug: '', cuisine_type: '', emoji: '🍽️', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
-  const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4' })
+  const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: '🍽️', calories: '', category_id: '' })
 
@@ -69,11 +70,16 @@ export default function AdminPage() {
   }
 
   async function addMerchant() {
-    if (!newMerchant.name || !newMerchant.email) { setMsg('Please fill in name and email'); return }
-    const { error } = await supabase.from('merchants').insert({ ...newMerchant, commission_rate: parseFloat(newMerchant.commission_rate), is_trial: true, is_active: true })
-    if (error) { setMsg('Error: ' + error.message); return }
-    setMsg('Merchant added! ✅'); setShowAddMerchant(false)
-    setNewMerchant({ name: '', email: '', phone: '', commission_rate: '4' }); fetchAll()
+    if (!newMerchant.name || !newMerchant.email || !newMerchant.password) { setMsg('Please fill in name, email and password'); return }
+    const res = await fetch('/api/admin/create-merchant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMerchant)
+    })
+    const data = await res.json()
+    if (!res.ok) { setMsg('Error: ' + data.error); return }
+    setMsg(data.message); setShowAddMerchant(false)
+    setNewMerchant({ name: '', email: '', phone: '', commission_rate: '4', password: '' }); fetchAll()
   }
 
   async function addCategory() {
@@ -436,6 +442,7 @@ export default function AdminPage() {
                     <div><label>Email</label><input className="input" type="email" placeholder="john@restaurant.com" value={newMerchant.email} onChange={e => setNewMerchant({...newMerchant, email: e.target.value})} /></div>
                     <div><label>Phone</label><input className="input" placeholder="+44 1481 000000" value={newMerchant.phone} onChange={e => setNewMerchant({...newMerchant, phone: e.target.value})} /></div>
                     <div><label>Commission %</label><input className="input" type="number" value={newMerchant.commission_rate} onChange={e => setNewMerchant({...newMerchant, commission_rate: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label>Terminal Password (they use this to log in)</label><input className="input" type="password" placeholder="Choose a password for them" value={newMerchant.password} onChange={e => setNewMerchant({...newMerchant, password: e.target.value})} /></div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-ghost" onClick={() => setShowAddMerchant(false)} style={{ flex: 1 }}>Cancel</button>
@@ -495,4 +502,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-}
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
