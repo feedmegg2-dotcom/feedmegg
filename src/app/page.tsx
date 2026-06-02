@@ -6,39 +6,30 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 const CUISINE_FILTERS = [
-  { value: 'all', label: 'All Cuisines' },
-  { value: 'pizza', label: 'Pizza' },
-  { value: 'burger', label: 'Burgers' },
-  { value: 'sushi', label: 'Sushi' },
-  { value: 'indian', label: 'Indian' },
-  { value: 'chinese', label: 'Chinese' },
-  { value: 'mexican', label: 'Mexican' },
-  { value: 'healthy', label: 'Healthy' },
-  { value: 'fried-chicken', label: 'Fried Chicken' },
-  { value: 'kebab', label: 'Kebab' },
+  { key: 'all', label: ' All' },
+  { key: 'pizza', label: ' Pizza' },
+  { key: 'burger', label: ' Burgers' },
+  { key: 'sushi', label: ' Sushi' },
+  { key: 'indian', label: ' Indian' },
+  { key: 'chinese', label: ' Chinese' },
+  { key: 'mexican', label: ' Mexican' },
+  { key: 'healthy', label: ' Healthy' },
 ]
 
 export default function HomePage() {
   const router = useRouter()
   const supabase = createClient()
-  const [allRestaurants, setAllRestaurants] = useState<any[]>([])
-  const [selectedCuisine, setSelectedCuisine] = useState('all')
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
-  const [isMobileView, setIsMobileView] = useState(false)
+  const [restaurants, setRestaurants] = useState<any[]>([])
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [postcode, setPostcode] = useState('')
+  const [cookieAccepted, setCookieAccepted] = useState(true)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
-    setTheme(savedTheme || 'dark')
-    setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
-    window.addEventListener('resize', () => setIsMobileView(window.innerWidth < 768))
+    setCookieAccepted(!!localStorage.getItem('cookie-accepted'))
     fetchRestaurants()
-    return () => window.removeEventListener('resize', () => setIsMobileView(window.innerWidth < 768))
   }, [])
-
-  useEffect(() => {
-    localStorage.setItem('theme', theme)
-  }, [theme])
 
   async function fetchRestaurants() {
     setLoading(true)
@@ -47,368 +38,213 @@ export default function HomePage() {
       .select('*')
       .eq('is_active', true)
       .order('rating', { ascending: false })
-    
-    setAllRestaurants(data || [])
+    setRestaurants(data || [])
     setLoading(false)
   }
 
-  function getRandomRestaurants(count: number) {
-    const shuffled = [...allRestaurants].sort(() => 0.5 - Math.random())
-    return shuffled.slice(0, count)
-  }
+  const filtered = restaurants.filter(r => {
+    const matchFilter = filter === 'all' || r.cuisine_type?.toLowerCase().includes(filter)
+    const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.cuisine_type?.toLowerCase().includes(search.toLowerCase())
+    return matchFilter && matchSearch
+  })
 
-  const isDark = theme === 'dark'
-  const bgColor = isDark ? '#1F2937' : '#FFFFFF'
-  const textColor = isDark ? '#FFFFFF' : '#1F2937'
-  const secondaryText = isDark ? '#D1D5DB' : '#6B7280'
-  const borderColor = isDark ? '#374151' : '#E5E5E5'
-  const cardBg = isDark ? '#111827' : '#FFFFFF'
-  const inputBg = isDark ? '#2D3748' : '#FFFFFF'
-
-  const containerStyle: React.CSSProperties = {
-    background: bgColor,
-    minHeight: '100vh',
-    color: textColor,
-    transition: 'all 0.3s',
-    position: 'relative',
-    overflow: 'hidden'
-  }
-
-  const foodBackgroundStyle: React.CSSProperties = {
-    position: 'fixed',
-    zIndex: 0,
-    pointerEvents: 'none',
-    animation: 'float 8s ease-in-out infinite'
+  function acceptCookies() {
+    localStorage.setItem('cookie-accepted', '1')
+    setCookieAccepted(true)
   }
 
   return (
-    <div style={containerStyle}>
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-30px) rotate(5deg); }
-        }
-      `}</style>
-
-      {/* Food Background Top Right */}
-      <div style={{
-        ...foodBackgroundStyle,
-        top: '-100px',
-        right: '-100px',
-        fontSize: '180px',
-        opacity: isDark ? 0.08 : 0.06,
-        color: isDark ? '#FFFFFF' : '#1F2937'
-      }}>
-        🍕 🍔 🍜 🍱 🍛
-      </div>
-
-      {/* Food Background Bottom Left */}
-      <div style={{
-        ...foodBackgroundStyle,
-        bottom: '-80px',
-        left: '-80px',
-        fontSize: '150px',
-        opacity: isDark ? 0.05 : 0.04,
-        animation: 'float 10s ease-in-out infinite',
-        color: isDark ? '#FFFFFF' : '#1F2937'
-      }}>
-        🍝 🌮 🥗 🍖
-      </div>
-
-      {/* Navigation */}
-      <nav style={{ borderBottom: `1px solid ${borderColor}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: bgColor }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#22C55E' }}>
-            feedme.gg
-          </div>
-          <button
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            style={{ 
-              background: isDark ? '#374151' : '#F3F4F6', 
-              border: `1px solid ${borderColor}`, 
-              color: textColor,
-              padding: '8px 12px', 
-              borderRadius: '8px', 
-              fontSize: '16px',
-              cursor: 'pointer'
-            }}
-          >
-            {isDark ? '☀️' : '🌙'}
-          </button>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+      {/* Nav */}
+      <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ fontFamily: 'Syne', fontSize: '22px', fontWeight: 800, letterSpacing: '-1px' }}>
+          <span style={{ color: 'var(--green)' }}>feed</span>
+          <span style={{ color: 'var(--text)' }}>me.gg</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Link href="/browse" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Restaurants</Link>
+          <Link href="/account" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Account</Link>
+          <Link href="/auth/login" className="btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', textDecoration: 'none' }}>Sign in</Link>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <div style={{ 
-        background: '#1F2937', 
-        padding: '40px 20px', 
-        borderBottom: `1px solid #374151`,
-        position: 'relative',
-        zIndex: 2
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
-          <h1 style={{ 
-            fontSize: isMobileView ? '24px' : '32px', 
-            fontWeight: 700, 
-            color: '#FFFFFF', 
-            marginBottom: isMobileView ? '24px' : '32px', 
-            letterSpacing: '-0.5px'
-          }}>
-            Delivery Online in Guernsey
-          </h1>
-          
-          <div style={{ 
-            padding: isMobileView ? '16px' : '20px', 
-            maxWidth: '900px', 
-            margin: '0 auto', 
-            display: 'grid',
-            gridTemplateColumns: isMobileView ? '1fr' : '2fr 1fr',
-            gap: '12px',
-            alignItems: 'end'
-          }}>
-            <div style={{ textAlign: 'left' }}>
-              <label style={{ 
-                display: 'block', 
-                color: '#FFFFFF', 
-                fontWeight: 700, 
-                fontSize: isMobileView ? '13px' : '14px',
-                marginBottom: '8px'
-              }}>
-                Select what food you would like to eat
-              </label>
-              <select
-                value={selectedCuisine}
-                onChange={e => setSelectedCuisine(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '14px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: '#FFFFFF',
-                  color: '#1F2937',
-                  fontWeight: 500
-                }}
-              >
-                {CUISINE_FILTERS.map(f => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => router.push('/restaurants')}
-              style={{
-                background: '#F5F5F5',
-                color: '#1F2937',
-                border: 'none',
-                padding: '12px 24px',
-                fontSize: isMobileView ? '13px' : '14px',
-                fontWeight: 700,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                width: '100%'
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#E5E5E5')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#F5F5F5')}
-            >
-              All Takeaways
-            </button>
-          </div>
+      {/* Hero */}
+      <div style={{ padding: '60px 20px 40px', textAlign: 'center', maxWidth: '680px', margin: '0 auto', position: 'relative' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--green)', fontSize: '11px', fontWeight: 600, padding: '5px 14px', borderRadius: '20px', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+           Guernsey&apos;s own food delivery
         </div>
-      </div>
+        <h1 style={{ fontSize: '44px', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-2px', marginBottom: '12px' }}>
+          Hungry? <span style={{ color: 'var(--green)' }}>Order now,</span><br />eat in minutes.
+        </h1>
+        <p style={{ fontSize: '16px', color: 'var(--sub)', marginBottom: '32px', lineHeight: 1.6 }}>
+          Fresh food from local Guernsey restaurants,<br />delivered straight to your door.
+        </p>
 
-      {/* Places to Try Section */}
-      <div style={{ background: bgColor, padding: '60px 20px', position: 'relative', zIndex: 2 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '12px', textAlign: 'center' }}>
-            Places to Try
-          </h2>
-          <p style={{ textAlign: 'center', color: secondaryText, fontSize: '16px', marginBottom: '32px', fontStyle: 'italic' }}>
-            Local food at your fingertips
-          </p>
-
-          {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} style={{ background: cardBg, borderRadius: '8px', height: '150px', border: `1px solid ${borderColor}` }} />
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-              {getRandomRestaurants(6).map(r => (
-                <RestaurantItem key={r.id} restaurant={r} isDark={isDark} cardBg={cardBg} borderColor={borderColor} textColor={textColor} secondaryText={secondaryText} />
-              ))}
-            </div>
-          )}
+        {/* Location bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', marginBottom: '10px', cursor: 'pointer' }}>
+          <span style={{ color: 'var(--green)' }}></span>
+          <span style={{ flex: 1, fontSize: '13px', color: 'var(--sub)', textAlign: 'left' }}>
+            Delivering to <strong style={{ color: 'var(--text)' }}>St Peter Port, Guernsey</strong>
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>Change </span>
         </div>
-      </div>
 
-      {/* Browse All Takeaways Section */}
-      <div style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '16px' }}>
-            Browse All Takeaways
-          </h2>
-          <p style={{ color: secondaryText, marginBottom: '24px', fontSize: '16px' }}>
-            Explore all available restaurants in Guernsey
-          </p>
+        {/* Search */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+          <input
+            type="text"
+            placeholder="Search restaurants or cuisines..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 18px', fontSize: '15px', color: 'var(--text)', outline: 'none' }}
+          />
           <button
-            onClick={() => router.push('/restaurants')}
-            style={{
-              background: '#22C55E',
-              color: '#FFFFFF',
-              border: 'none',
-              padding: '14px 40px',
-              fontSize: '16px',
-              fontWeight: 700,
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#16A34A')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#22C55E')}
+            onClick={() => router.push('/browse')}
+            style={{ background: 'var(--green)', color: '#0F172A', border: 'none', padding: '14px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
           >
-            View All Restaurants
+             Search
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {CUISINE_FILTERS.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              style={{
+                background: filter === f.key ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${filter === f.key ? 'rgba(34,197,94,0.35)' : 'var(--border)'}`,
+                color: filter === f.key ? 'var(--green)' : 'var(--sub)',
+                padding: '7px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Trust strip */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '24px', flexWrap: 'wrap' }}>
+          {[' Free to use', ' Guernsey based', ' Secure payments', ' Email confirmation'].map(t => (
+            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--sub)' }}>{t}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Promo banner */}
+      <div style={{ maxWidth: '920px', margin: '0 auto 32px', padding: '0 20px' }}>
+        <div style={{ background: 'linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04))', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '16px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ fontSize: '28px' }}></div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '2px' }}>Free delivery on your first order!</div>
+            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Use code WELCOME at checkout  Valid this week only</div>
+          </div>
+          <button className="btn-primary" style={{ marginLeft: 'auto', padding: '9px 18px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Claim offer
           </button>
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <div style={{ background: bgColor, padding: '60px 20px', position: 'relative', zIndex: 2 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '40px', textAlign: 'center' }}>
-            How It Works
+      {/* Restaurant grid */}
+      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 20px 40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.5px' }}>
+            {search ? `Results for "${search}"` : 'Restaurants near you'}
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
-            <StepCard emoji="🔍" number="1" title="Browse Restaurants" description="Search for your favourite restaurants or filter by cuisine type" isDark={isDark} />
-            <StepCard emoji="🛒" number="2" title="Select Your Items" description="Add items to your basket and add special instructions" isDark={isDark} />
-            <StepCard emoji="💳" number="3" title="Checkout" description="Review your order and complete payment securely" isDark={isDark} />
-            <StepCard emoji="😋" number="4" title="Enjoy Your Food" description="Relax and enjoy your delicious meal delivered fresh to your door" isDark={isDark} />
-          </div>
+          <Link href="/browse" style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+            See all 
+          </Link>
         </div>
+
+        {loading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '16px' }}>
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} style={{ background: 'var(--card)', borderRadius: '16px', height: '220px', animation: 'pulse 1.5s infinite', opacity: 0.5 }} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '16px' }}>
+            {filtered.slice(0, 8).map(r => (
+              <RestaurantCard key={r.id} restaurant={r} />
+            ))}
+          </div>
+        )}
+
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--sub)' }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }}></div>
+            <p>No restaurants found for &quot;{search}&quot;</p>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <footer style={{ background: '#1F2937', color: '#FFFFFF', padding: '40px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
-        <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '16px' }}>© 2026 feedme.gg - Food Delivery in Guernsey</p>
-        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '13px' }}>
-          <Link href="/terms" style={{ color: '#D1D5DB', textDecoration: 'none' }}>Terms</Link>
-          <Link href="/privacy" style={{ color: '#D1D5DB', textDecoration: 'none' }}>Privacy</Link>
-          <Link href="/contact" style={{ color: '#D1D5DB', textDecoration: 'none' }}>Contact</Link>
-        </div>
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '24px 20px', textAlign: 'center', fontSize: '12px', color: 'var(--sub)' }}>
+         2026 feedme.gg  Guernsey&apos;s local food ordering platform &nbsp;&nbsp;
+        <Link href="/terms" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Terms</Link> &nbsp;&nbsp;
+        <Link href="/privacy" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Privacy</Link> &nbsp;&nbsp;
+        <Link href="/contact" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Contact</Link>
       </footer>
+
+      {/* Cookie banner */}
+      {!cookieAccepted && (
+        <div id="cookie-banner">
+          <p style={{ fontSize: '12px', color: 'var(--sub)', flex: 1 }}>
+             We use cookies to improve your experience. By continuing you agree to our{' '}
+            <Link href="/privacy" style={{ color: 'var(--green)', textDecoration: 'none' }}>Privacy Policy</Link>.
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn-ghost" style={{ fontSize: '12px', padding: '7px 14px' }}>Manage</button>
+            <button className="btn-primary" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={acceptCookies}>Accept all</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function RestaurantItem(props: any) {
-  const { restaurant: r, isDark, cardBg, borderColor, textColor, secondaryText } = props
-  const [hovering, setHovering] = useState(false)
-  const slug = r.slug || r.name?.toLowerCase().replace(/\s+/g, '-')
+function RestaurantCard({ restaurant: r }: { restaurant: any }) {
+  const bgMap: Record<string, string> = {
+    pizza: '#2d0a00', burger: '#001a00', sushi: '#001a18',
+    indian: '#1a0800', chinese: '#001228', mexican: '#1a0500',
+    healthy: '#001a08', chips: '#001418',
+  }
+  const cuisineKey = Object.keys(bgMap).find(k => r.cuisine_type?.toLowerCase().includes(k)) || 'other'
+  const bg = bgMap[cuisineKey] || '#1a1a2d'
 
   return (
-    <Link href={`/restaurant/${slug}`} style={{ textDecoration: 'none' }}>
-      <div
-        style={{
-          background: cardBg,
-          border: `1px solid ${borderColor}`,
-          borderRadius: '8px',
-          padding: '16px',
-          display: 'flex',
-          gap: '16px',
-          alignItems: 'flex-start',
-          transition: 'all 0.2s',
-          cursor: 'pointer',
-          boxShadow: hovering ? (isDark ? '0 8px 20px rgba(34,197,94,0.15)' : '0 8px 20px rgba(0,0,0,0.08)') : '0 0',
-          transform: hovering ? 'translateY(-2px)' : 'translateY(0)'
-        }}
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={() => setHovering(false)}
+    <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.4)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}
       >
-        <div style={{
-          width: '80px',
-          height: '80px',
-          background: isDark ? '#2D3748' : '#E5E7EB',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '32px',
-          flexShrink: 0
-        }}>
-          {r.emoji}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: textColor, marginBottom: '4px' }}>
-            {r.name}
-          </div>
-          <div style={{ fontSize: '13px', color: secondaryText, marginBottom: '4px' }}>
-            {r.cuisine_type}
-          </div>
-          <div style={{ fontSize: '12px', color: secondaryText, marginBottom: '8px' }}>
-            {r.address || 'Guernsey'}
-          </div>
-          <span style={{
-            display: 'inline-block',
-            padding: '4px 10px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 700,
-            background: r.is_open ? '#D1FAE5' : '#FEE2E2',
-            color: r.is_open ? '#065F46' : '#991B1B'
-          }}>
-            {r.is_open ? 'OPEN' : 'CLOSED'}
+        <div style={{ height: '130px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '60px', position: 'relative', overflow: 'hidden' }}>
+          {r.logo_url
+            ? <img src={r.logo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+            : (r.emoji || 'food')}
+          <span style={{ position: 'absolute', top: '8px', left: '8px', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: r.is_open ? 'rgba(34,197,94,0.9)' : 'rgba(0,0,0,0.7)', color: r.is_open ? '#0F172A' : 'var(--sub)' }}>
+            {r.is_open ? 'Open' : 'Closed'}
           </span>
+          {r.is_busy && (
+            <span style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: 'rgba(249,115,22,0.9)', color: 'white' }}>
+              Busy
+            </span>
+          )}
+        </div>
+        <div style={{ padding: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+            <div style={{ fontFamily: 'Syne', fontSize: '15px', fontWeight: 700 }}>{r.name}</div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#F59E0B' }}> {r.rating || '4.5'}</div>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '10px' }}>{r.cuisine_type}</div>
+          <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--sub)' }}>
+            <span> {r.delivery_time_mins || 25}-{(r.delivery_time_mins || 25) + 10} min</span>
+            <span> {r.delivery_fee?.toFixed(2) || '2.99'}</span>
+            <span style={{ color: r.is_open ? 'var(--green)' : 'var(--sub)' }}>{r.is_open ? ' Open' : ' Closed'}</span>
+          </div>
         </div>
       </div>
     </Link>
-  )
-}
-
-function StepCard(props: any) {
-  const { emoji, number, title, description, isDark } = props
-  return (
-    <div style={{
-      background: isDark ? '#111827' : '#F9FAFB',
-      padding: '32px 24px',
-      borderRadius: '12px',
-      textAlign: 'center',
-      border: `1px solid ${isDark ? '#374151' : '#E5E5E5'}`,
-      transition: 'all 0.2s'
-    }}
-    onMouseEnter={e => {
-      const el = e.currentTarget as HTMLElement
-      el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)'
-      el.style.transform = 'translateY(-4px)'
-    }}
-    onMouseLeave={e => {
-      const el = e.currentTarget as HTMLElement
-      el.style.boxShadow = '0 0'
-      el.style.transform = 'translateY(0)'
-    }}>
-      <div style={{ fontSize: '40px', marginBottom: '16px' }}>{emoji}</div>
-      <div style={{
-        width: '50px',
-        height: '50px',
-        background: '#22C55E',
-        color: '#FFFFFF',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        fontWeight: 700,
-        margin: '0 auto 16px'
-      }}>
-        {number}
-      </div>
-      <h3 style={{ fontSize: '18px', fontWeight: 700, color: isDark ? '#FFFFFF' : '#1F2937', marginBottom: '8px' }}>
-        {title}
-      </h3>
-      <p style={{ fontSize: '14px', color: isDark ? '#D1D5DB' : '#6B7280', lineHeight: 1.6 }}>
-        {description}
-      </p>
-    </div>
   )
 }
