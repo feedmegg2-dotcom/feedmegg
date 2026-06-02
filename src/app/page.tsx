@@ -25,10 +25,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [postcode, setPostcode] = useState('')
   const [cookieAccepted, setCookieAccepted] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     setCookieAccepted(!!localStorage.getItem('cookie-accepted'))
     fetchRestaurants()
+    setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', () => setIsMobile(window.innerWidth < 768))
   }, [])
 
   async function fetchRestaurants() {
@@ -56,58 +59,62 @@ export default function HomePage() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       {/* Nav */}
-      <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ fontFamily: 'Syne', fontSize: '22px', fontWeight: 800, letterSpacing: '-1px' }}>
+      <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 16px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ fontFamily: 'Syne', fontSize: isMobile ? '18px' : '22px', fontWeight: 800, letterSpacing: '-1px' }}>
           <span style={{ color: 'var(--green)' }}>feed</span>
           <span style={{ color: 'var(--text)' }}>me.gg</span>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Link href="/browse" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Restaurants</Link>
-          <Link href="/account" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Account</Link>
-          <Link href="/auth/login" className="btn-ghost" style={{ fontSize: '12px', padding: '7px 14px', textDecoration: 'none' }}>Sign in</Link>
+        <div style={{ display: 'flex', gap: isMobile ? '4px' : '8px', alignItems: 'center' }}>
+          {!isMobile && (
+            <>
+              <Link href="/browse" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Restaurants</Link>
+              <Link href="/account" style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', textDecoration: 'none' }}>Account</Link>
+            </>
+          )}
+          <Link href="/auth/login" className="btn-ghost" style={{ fontSize: '12px', padding: '7px 12px', textDecoration: 'none' }}>Sign in</Link>
         </div>
       </nav>
 
       {/* Hero */}
-      <div style={{ padding: '60px 20px 40px', textAlign: 'center', maxWidth: '680px', margin: '0 auto', position: 'relative' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--green)', fontSize: '11px', fontWeight: 600, padding: '5px 14px', borderRadius: '20px', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+      <div style={{ padding: isMobile ? '40px 16px 24px' : '60px 20px 40px', textAlign: 'center', maxWidth: '680px', margin: '0 auto', position: 'relative' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--green)', fontSize: '10px', fontWeight: 600, padding: '4px 12px', borderRadius: '20px', marginBottom: '16px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
           ⚡ Guernsey&apos;s own food delivery
         </div>
-        <h1 style={{ fontSize: '44px', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-2px', marginBottom: '12px' }}>
-          Hungry? <span style={{ color: 'var(--green)' }}>Order now,</span><br />eat in minutes.
+        <h1 style={{ fontSize: isMobile ? '28px' : '44px', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: '12px' }}>
+          Hungry? <span style={{ color: 'var(--green)' }}>Order now,</span>{!isMobile && <br />}eat in minutes.
         </h1>
-        <p style={{ fontSize: '16px', color: 'var(--sub)', marginBottom: '32px', lineHeight: 1.6 }}>
-          Fresh food from local Guernsey restaurants,<br />delivered straight to your door.
+        <p style={{ fontSize: isMobile ? '14px' : '16px', color: 'var(--sub)', marginBottom: isMobile ? '24px' : '32px', lineHeight: 1.6 }}>
+          Fresh food from local Guernsey restaurants,{!isMobile && <br />}delivered to your door.
         </p>
 
         {/* Location bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', marginBottom: '10px', cursor: 'pointer' }}>
-          <span style={{ color: 'var(--green)' }}>📍</span>
-          <span style={{ flex: 1, fontSize: '13px', color: 'var(--sub)', textAlign: 'left' }}>
-            Delivering to <strong style={{ color: 'var(--text)' }}>St Peter Port, Guernsey</strong>
+          <span style={{ color: 'var(--green)', flexShrink: 0 }}>📍</span>
+          <span style={{ flex: 1, fontSize: '13px', color: 'var(--sub)', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Delivering to <strong style={{ color: 'var(--text)' }}>St Peter Port</strong>
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>Change ▾</span>
+          {!isMobile && <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600, flexShrink: 0 }}>Change ▾</span>}
         </div>
 
         {/* Search */}
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
           <input
             type="text"
-            placeholder="Search restaurants or cuisines..."
+            placeholder={isMobile ? "Search..." : "Search restaurants or cuisines..."}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 18px', fontSize: '15px', color: 'var(--text)', outline: 'none' }}
+            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '15px', color: 'var(--text)', outline: 'none', borderBottom: isMobile ? '1px solid rgba(255,255,255,0.1)' : 'none' }}
           />
           <button
             onClick={() => router.push('/browse')}
-            style={{ background: 'var(--green)', color: '#0F172A', border: 'none', padding: '14px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+            style={{ background: 'var(--green)', color: '#0F172A', border: 'none', padding: isMobile ? '12px 16px' : '14px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            🔍 Search
+            🔍 {!isMobile && 'Search'}
           </button>
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? '8px' : '0' }}>
           {CUISINE_FILTERS.map(f => (
             <button
               key={f.key}
@@ -116,7 +123,7 @@ export default function HomePage() {
                 background: filter === f.key ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)',
                 border: `1px solid ${filter === f.key ? 'rgba(34,197,94,0.35)' : 'var(--border)'}`,
                 color: filter === f.key ? 'var(--green)' : 'var(--sub)',
-                padding: '7px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+                padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >
               {f.label}
@@ -125,48 +132,50 @@ export default function HomePage() {
         </div>
 
         {/* Trust strip */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '24px', flexWrap: 'wrap' }}>
-          {['✓ Free to use', '🏝️ Guernsey based', '💳 Secure payments', '📧 Email confirmation'].map(t => (
-            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--sub)' }}>{t}</div>
-          ))}
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '24px', flexWrap: 'wrap' }}>
+            {['✓ Free to use', '🏝️ Guernsey based', '💳 Secure payments', '📧 Email confirmation'].map(t => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--sub)' }}>{t}</div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Promo banner */}
-      <div style={{ maxWidth: '920px', margin: '0 auto 32px', padding: '0 20px' }}>
-        <div style={{ background: 'linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04))', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '16px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ fontSize: '28px' }}>🎉</div>
-          <div>
+      <div style={{ maxWidth: '920px', margin: '0 auto 24px', padding: '0 16px' }}>
+        <div style={{ background: 'linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04))', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row', textAlign: isMobile ? 'center' : 'left' }}>
+          <div style={{ fontSize: '24px', flexShrink: 0 }}>🎉</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '2px' }}>Free delivery on your first order!</div>
-            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Use code WELCOME at checkout · Valid this week only</div>
+            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Use code WELCOME at checkout</div>
           </div>
-          <button className="btn-primary" style={{ marginLeft: 'auto', padding: '9px 18px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <button className="btn-primary" style={{ padding: '9px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
             Claim offer
           </button>
         </div>
       </div>
 
       {/* Restaurant grid */}
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 20px 40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.5px' }}>
+      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 16px 40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px' }}>
+          <h2 style={{ fontSize: isMobile ? '16px' : '20px', fontWeight: 700, letterSpacing: '-0.5px', minWidth: 0 }}>
             {search ? `Results for "${search}"` : 'Restaurants near you'}
           </h2>
-          <Link href="/browse" style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/browse" style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
             See all →
           </Link>
         </div>
 
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fill,minmax(160px,1fr))' : 'repeat(auto-fill,minmax(220px,1fr))', gap: '12px' }}>
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} style={{ background: 'var(--card)', borderRadius: '16px', height: '220px', animation: 'pulse 1.5s infinite', opacity: 0.5 }} />
+              <div key={i} style={{ background: 'var(--card)', borderRadius: '16px', height: '200px', animation: 'pulse 1.5s infinite', opacity: 0.5 }} />
             ))}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fill,minmax(160px,1fr))' : 'repeat(auto-fill,minmax(220px,1fr))', gap: isMobile ? '12px' : '16px' }}>
             {filtered.slice(0, 8).map(r => (
-              <RestaurantCard key={r.id} restaurant={r} />
+              <RestaurantCard key={r.id} restaurant={r} isMobile={isMobile} />
             ))}
           </div>
         )}
@@ -180,11 +189,10 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '24px 20px', textAlign: 'center', fontSize: '12px', color: 'var(--sub)' }}>
-        © 2026 feedme.gg · Guernsey&apos;s local food ordering platform &nbsp;·&nbsp;
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '20px 16px', textAlign: 'center', fontSize: '11px', color: 'var(--sub)' }}>
+        © 2026 feedme.gg · Guernsey&apos;s local food ordering{!isMobile && ' platform'} &nbsp;·&nbsp;
         <Link href="/terms" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Terms</Link> &nbsp;·&nbsp;
-        <Link href="/privacy" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Privacy</Link> &nbsp;·&nbsp;
-        <Link href="/contact" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Contact</Link>
+        <Link href="/privacy" style={{ color: 'var(--sub)', textDecoration: 'none' }}>Privacy</Link>
       </footer>
 
       {/* Cookie banner */}
@@ -204,7 +212,7 @@ export default function HomePage() {
   )
 }
 
-function RestaurantCard({ restaurant: r }: { restaurant: any }) {
+function RestaurantCard({ restaurant: r, isMobile }: { restaurant: any; isMobile: boolean }) {
   const bgMap: Record<string, string> = {
     pizza: '#2d0a00', burger: '#001a00', sushi: '#001a18',
     indian: '#1a0800', chinese: '#001228', mexican: '#1a0500',
@@ -215,31 +223,31 @@ function RestaurantCard({ restaurant: r }: { restaurant: any }) {
 
   return (
     <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.4)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', height: '100%' }}
+        onMouseEnter={e => { if (!isMobile) { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.4)'; } }}
+        onMouseLeave={e => { if (!isMobile) { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; } }}
       >
-        <div style={{ height: '130px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '60px', position: 'relative' }}>
+        <div style={{ height: isMobile ? '100px' : '130px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '40px' : '60px', position: 'relative' }}>
           {r.emoji || '🍽️'}
-          <span style={{ position: 'absolute', top: '8px', left: '8px', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: r.is_open ? 'rgba(34,197,94,0.9)' : 'rgba(0,0,0,0.7)', color: r.is_open ? '#0F172A' : 'var(--sub)' }}>
+          <span style={{ position: 'absolute', top: '6px', left: '6px', fontSize: '9px', fontWeight: 700, padding: '3px 6px', borderRadius: '4px', background: r.is_open ? 'rgba(34,197,94,0.9)' : 'rgba(0,0,0,0.7)', color: r.is_open ? '#0F172A' : 'var(--sub)' }}>
             {r.is_open ? 'Open' : 'Closed'}
           </span>
           {r.is_busy && (
-            <span style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: 'rgba(249,115,22,0.9)', color: 'white' }}>
+            <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '9px', fontWeight: 700, padding: '3px 6px', borderRadius: '4px', background: 'rgba(249,115,22,0.9)', color: 'white' }}>
               Busy
             </span>
           )}
         </div>
-        <div style={{ padding: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-            <div style={{ fontFamily: 'Syne', fontSize: '15px', fontWeight: 700 }}>{r.name}</div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#F59E0B' }}>★ {r.rating || '4.5'}</div>
+        <div style={{ padding: isMobile ? '10px' : '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3px', gap: '6px' }}>
+            <div style={{ fontFamily: 'Syne', fontSize: isMobile ? '13px' : '15px', fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#F59E0B', flexShrink: 0 }}>★ {r.rating || '4.5'}</div>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '10px' }}>{r.cuisine_type}</div>
-          <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--sub)' }}>
-            <span>⏱ {r.delivery_time_mins || 25}-{(r.delivery_time_mins || 25) + 10} min</span>
-            <span>🚗 £{r.delivery_fee?.toFixed(2) || '2.99'}</span>
-            <span style={{ color: r.is_open ? 'var(--green)' : 'var(--sub)' }}>{r.is_open ? '● Open' : '○ Closed'}</span>
+          <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.cuisine_type}</div>
+          <div style={{ display: 'flex', gap: isMobile ? '8px' : '12px', fontSize: '10px', color: 'var(--sub)', flexWrap: 'wrap' }}>
+            <span style={{ whiteSpace: 'nowrap' }}>⏱ {r.delivery_time_mins || 25} min</span>
+            {!isMobile && <span>🚗 £{r.delivery_fee?.toFixed(2) || '2.99'}</span>}
+            <span style={{ color: r.is_open ? 'var(--green)' : 'var(--sub)' }}>● {r.is_open ? 'Open' : 'Closed'}</span>
           </div>
         </div>
       </div>
