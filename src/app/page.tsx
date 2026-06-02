@@ -232,9 +232,11 @@ export default function HomePage() {
                 const foundRest = restaurants.find(r => r.name === restName)
                 const restaurantSlug = foundRest?.slug || restName?.toLowerCase().replace(/\s+/g, '-')
                 return (
-                  <Link
+                  <div
                     key={idx}
-                    href={`/restaurant/${restaurantSlug}`}
+                    onClick={() => {
+                      window.location.href = `/restaurant/${restaurantSlug}`
+                    }}
                     style={{
                       textDecoration: 'none',
                       color: 'inherit',
@@ -266,7 +268,7 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
             </div>
