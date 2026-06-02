@@ -61,12 +61,13 @@ export default function HomePage() {
           <div style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: isMobile ? '20px' : '24px', fontWeight: 800, letterSpacing: '-0.5px', color: '#1F2937' }}>
             feedme.gg
           </div>
-          <Link href="/auth/login" style={{ fontSize: '14px', color: '#6B7280', textDecoration: 'none', padding: '8px 16px', borderRadius: '8px', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-          >
-            Sign in
-          </Link>
+          <div onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.background = '#F3F4F6')}
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.background = 'none')}
+            style={{ borderRadius: '8px', transition: 'background 0.2s' }}>
+            <Link href="/auth/login" style={{ fontSize: '14px', color: '#6B7280', textDecoration: 'none', padding: '8px 16px', display: 'block' }}>
+              Sign in
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -81,8 +82,8 @@ export default function HomePage() {
 
         {/* Search Bar - Prominent */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px', maxWidth: '500px', display: 'flex', alignItems: 'center', transition: 'border-color 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#22C55E')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = '#E5E5E5')}
+          onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = '#22C55E')}
+          onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = '#E5E5E5')}
         >
           <input
             type="text"
@@ -113,14 +114,14 @@ export default function HomePage() {
                 flexShrink: 0,
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={e => {
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                 if (filter !== f.key) {
-                  (e.currentTarget as HTMLElement).style.background = '#E5E7EB'
+                  (e.currentTarget as HTMLButtonElement).style.background = '#E5E7EB'
                 }
               }}
-              onMouseLeave={e => {
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
                 if (filter !== f.key) {
-                  (e.currentTarget as HTMLElement).style.background = '#F3F4F6'
+                  (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'
                 }
               }}
             >
@@ -195,6 +196,18 @@ export default function HomePage() {
 }
 
 function RestaurantCard({ restaurant: r }: { restaurant: any }) {
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget as HTMLDivElement
+    el.style.boxShadow = '0 10px 25px rgba(0,0,0,0.08)'
+    el.style.transform = 'translateY(-2px)'
+  }
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget as HTMLDivElement
+    el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'
+    el.style.transform = 'translateY(0)'
+  }
+
   return (
     <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
       <div style={{ 
@@ -206,14 +219,8 @@ function RestaurantCard({ restaurant: r }: { restaurant: any }) {
         transition: 'all 0.2s',
         height: '100%'
       }}
-        onMouseEnter={e => { 
-          (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 25px rgba(0,0,0,0.08)'
-          (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={e => { 
-          (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'
-          (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Restaurant header with emoji background */}
         <div style={{ height: '140px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '56px', position: 'relative' }}>
