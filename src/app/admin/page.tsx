@@ -29,12 +29,25 @@ export default function AdminPage() {
   const [importing, setImporting] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
+
+  // Option groups - per item
   const [editingOptions, setEditingOptions] = useState<any>(null)
   const [optionGroups, setOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [showAddOption, setShowAddOption] = useState<string | null>(null)
   const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, sort_order: '1' })
   const [newOption, setNewOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
+
+  // Shared option groups - restaurant level
+  const [showSharedGroups, setShowSharedGroups] = useState(false)
+  const [sharedGroups, setSharedGroups] = useState<any[]>([])
+  const [showAddSharedGroup, setShowAddSharedGroup] = useState(false)
+  const [showAddSharedOption, setShowAddSharedOption] = useState<string | null>(null)
+  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, sort_order: '1' })
+  const [newSharedOption, setNewSharedOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
+  const [linkingGroup, setLinkingGroup] = useState<any>(null)
+  const [linkedItems, setLinkedItems] = useState<string[]>([])
+
   const [newRestaurant, setNewRestaurant] = useState({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
   const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
@@ -61,15 +74,95 @@ export default function AdminPage() {
     setMenuItems(items || [])
   }
 
+  async function fetchOptionGroups(itemId: string) {
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
+    setOptionGroups(data || [])
+  }
+
+  async function fetchSharedGroups(restId: string) {
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
+    setSharedGroups(data || [])
+  }
+
+  async function addOptionGroup(itemId: string) {
+    if (!newGroup.name) { setMsg('Enter a group name'); return }
+    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewGroup({ name: '', type: 'single', required: false, sort_order: '1' })
+    setShowAddGroup(false)
+    fetchOptionGroups(itemId)
+  }
+
+  async function addOption(groupId: string, itemId: string) {
+    if (!newOption.name) { setMsg('Enter option name'); return }
+    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newOption.name, price_adjustment: parseFloat(newOption.price_adjustment) || 0, sort_order: parseInt(newOption.sort_order), is_available: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewOption({ name: '', price_adjustment: '0', sort_order: '1' })
+    setShowAddOption(null)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOptionGroup(groupId: string, itemId: string) {
+    if (!confirm('Delete this option group and all its options?')) return
+    await supabase.from('item_options').delete().eq('option_group_id', groupId)
+    await supabase.from('item_option_groups').delete().eq('id', groupId)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOption(optionId: string, itemId: string) {
+    await supabase.from('item_options').delete().eq('id', optionId)
+    fetchOptionGroups(itemId)
+  }
+
+  // Shared group functions
+  async function addSharedGroup() {
+    if (!newSharedGroup.name || !selectedRestaurant) { setMsg('Enter a group name'); return }
+    const { error } = await supabase.from('item_option_groups').insert({ restaurant_id: selectedRestaurant.id, menu_item_id: null, name: newSharedGroup.name, type: newSharedGroup.type, required: newSharedGroup.required, sort_order: parseInt(newSharedGroup.sort_order) })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewSharedGroup({ name: '', type: 'multiple', required: false, sort_order: '1' })
+    setShowAddSharedGroup(false)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function addSharedOption(groupId: string) {
+    if (!newSharedOption.name) { setMsg('Enter option name'); return }
+    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newSharedOption.name, price_adjustment: parseFloat(newSharedOption.price_adjustment) || 0, sort_order: parseInt(newSharedOption.sort_order), is_available: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewSharedOption({ name: '', price_adjustment: '0', sort_order: '1' })
+    setShowAddSharedOption(null)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function deleteSharedGroup(groupId: string) {
+    if (!confirm('Delete this shared option group?')) return
+    await supabase.from('item_option_group_links').delete().eq('option_group_id', groupId)
+    await supabase.from('item_options').delete().eq('option_group_id', groupId)
+    await supabase.from('item_option_groups').delete().eq('id', groupId)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function openLinkGroup(group: any) {
+    setLinkingGroup(group)
+    const { data } = await supabase.from('item_option_group_links').select('menu_item_id').eq('option_group_id', group.id)
+    setLinkedItems((data || []).map((d: any) => d.menu_item_id))
+  }
+
+  async function toggleItemLink(itemId: string) {
+    if (!linkingGroup) return
+    if (linkedItems.includes(itemId)) {
+      await supabase.from('item_option_group_links').delete().eq('option_group_id', linkingGroup.id).eq('menu_item_id', itemId)
+      setLinkedItems(prev => prev.filter(id => id !== itemId))
+    } else {
+      await supabase.from('item_option_group_links').insert({ option_group_id: linkingGroup.id, menu_item_id: itemId })
+      setLinkedItems(prev => [...prev, itemId])
+    }
+  }
+
   async function importFromFoodGG() {
     if (!importUrl || !importMerchantId) { setMsg('Please enter a food.gg URL and select a merchant'); return }
     setImporting(true)
     setMsg('Importing... this may take 30 seconds...')
-    const res = await fetch('/api/admin/scrape-foodgg', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: importUrl, merchantId: importMerchantId })
-    })
+    const res = await fetch('/api/admin/scrape-foodgg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: importUrl, merchantId: importMerchantId }) })
     const data = await res.json()
     setImporting(false)
     if (!res.ok) { setMsg('Error: ' + data.error); return }
@@ -98,11 +191,7 @@ export default function AdminPage() {
 
   async function addMerchant() {
     if (!newMerchant.name || !newMerchant.email || !newMerchant.password) { setMsg('Please fill in name, email and password'); return }
-    const res = await fetch('/api/admin/create-merchant', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newMerchant)
-    })
+    const res = await fetch('/api/admin/create-merchant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newMerchant) })
     const data = await res.json()
     if (!res.ok) { setMsg('Error: ' + data.error); return }
     setMsg(data.message); setShowAddMerchant(false)
@@ -163,41 +252,6 @@ export default function AdminPage() {
   const totalRevenue = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.total || 0), 0)
   const totalCommission = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.commission_amount || 0), 0)
   const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString())
-
-  async function fetchOptionGroups(itemId: string) {
-    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
-    setOptionGroups(data || [])
-  }
-
-  async function addOptionGroup(itemId: string) {
-    if (!newGroup.name) { setMsg('Enter a group name'); return }
-    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
-    if (error) { setMsg('Error: ' + error.message); return }
-    setNewGroup({ name: '', type: 'single', required: false, sort_order: '1' })
-    setShowAddGroup(false)
-    fetchOptionGroups(itemId)
-  }
-
-  async function addOption(groupId: string, itemId: string) {
-    if (!newOption.name) { setMsg('Enter option name'); return }
-    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newOption.name, price_adjustment: parseFloat(newOption.price_adjustment) || 0, sort_order: parseInt(newOption.sort_order), is_available: true })
-    if (error) { setMsg('Error: ' + error.message); return }
-    setNewOption({ name: '', price_adjustment: '0', sort_order: '1' })
-    setShowAddOption(null)
-    fetchOptionGroups(itemId)
-  }
-
-  async function deleteOptionGroup(groupId: string, itemId: string) {
-    if (!confirm('Delete this option group and all its options?')) return
-    await supabase.from('item_options').delete().eq('option_group_id', groupId)
-    await supabase.from('item_option_groups').delete().eq('id', groupId)
-    fetchOptionGroups(itemId)
-  }
-
-  async function deleteOption(optionId: string, itemId: string) {
-    await supabase.from('item_options').delete().eq('id', optionId)
-    fetchOptionGroups(itemId)
-  }
 
   if (!authed) {
     return (
@@ -297,23 +351,18 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-
-                    {/* OPEN toggle */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--sub)' }}>
                       Open
                       <div onClick={() => toggleRestaurantOpen(r.id, r.is_open)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: r.is_open ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
                         <div style={{ position: 'absolute', top: '2px', left: r.is_open ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
-
-                    {/* VISIBLE ON SITE toggle */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--sub)' }}>
                       Visible
                       <div onClick={() => toggleRestaurantActive(r.id, r.is_active)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: r.is_active ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
                         <div style={{ position: 'absolute', top: '2px', left: r.is_active ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
-
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
                   </div>
@@ -353,7 +402,7 @@ export default function AdminPage() {
                     <div><label>Delivery Mins</label><input className="input" type="number" value={newRestaurant.delivery_time_mins} onChange={e => setNewRestaurant({...newRestaurant, delivery_time_mins: e.target.value})} /></div>
                   </div>
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={newRestaurant.description} onChange={e => setNewRestaurant({...newRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
-                  <div style={{ marginBottom: '10px' }}><label>Custom Thank You Message</label><input className="input" placeholder="Thank you for your order!" value={newRestaurant.custom_message} onChange={e => setNewRestaurant({...newRestaurant, custom_message: e.target.value})} /></div>
+                  <div style={{ marginBottom: '10px' }}><label>Custom Thank You Message</label><input className="input" value={newRestaurant.custom_message} onChange={e => setNewRestaurant({...newRestaurant, custom_message: e.target.value})} /></div>
                   <div style={{ marginBottom: '20px' }}><label>Merchant *</label><select className="input" value={newRestaurant.merchant_id} onChange={e => setNewRestaurant({...newRestaurant, merchant_id: e.target.value})}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-ghost" onClick={() => setShowAddRestaurant(false)} style={{ flex: 1 }}>Cancel</button>
@@ -407,6 +456,7 @@ export default function AdminPage() {
                   {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
                 {selectedRestaurant && <>
+                  <button className="btn-ghost" onClick={() => { fetchSharedGroups(selectedRestaurant.id); setShowSharedGroups(true) }} style={{ fontSize: '12px', padding: '8px 14px' }}>Shared Toppings</button>
                   <button className="btn-ghost" onClick={() => setShowAddCategory(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Category</button>
                   <button className="btn-primary" onClick={() => setShowAddItem(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Item</button>
                 </>}
@@ -430,23 +480,127 @@ export default function AdminPage() {
                         <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{item.description}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
                       <div onClick={() => toggleItem(item.id, item.is_available)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: item.is_available ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
                         <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
-                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '14px' }}>Edit</button>
-                      <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '14px' }}>Options</button>
-                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px' }}>Del</button>
+                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '12px' }}>Edit</button>
+                      <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '12px' }}>Options</button>
+                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Del</button>
                     </div>
                   </div>
                 ))}
-                {menuItems.filter(i => i.category_id === cat.id).length === 0 && (
-                  <div style={{ fontSize: '12px', color: 'var(--sub)', padding: '10px', fontStyle: 'italic' }}>No items in this category yet</div>
-                )}
               </div>
             ))}
 
+            {/* SHARED TOPPINGS MODAL */}
+            {showSharedGroups && selectedRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) { setShowSharedGroups(false); setLinkingGroup(null) } }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Shared Option Groups</h3>
+                    <button onClick={() => { setShowSharedGroups(false); setLinkingGroup(null) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>
+                    Create option groups once (like Pizza Toppings) and apply them to multiple items at once. Perfect for toppings that apply to all pizzas!
+                  </p>
+
+                  {sharedGroups.map(group => (
+                    <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
+                          {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
+                          <span style={{ fontSize: '11px', color: 'var(--sub)', marginLeft: '8px' }}>{group.item_option_group_links?.length || 0} items linked</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => openLinkGroup(group)} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--green)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' }}>Link to items</button>
+                          <button onClick={() => deleteSharedGroup(group.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                        {group.item_options?.map((opt: any) => (
+                          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                            <span>{opt.name}</span>
+                            {opt.price_adjustment > 0 && <span style={{ color: 'var(--orange)' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {showAddSharedOption === group.id ? (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input className="input" placeholder="Option name e.g. Pepperoni" value={newSharedOption.name} onChange={e => setNewSharedOption({...newSharedOption, name: e.target.value})} style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }} />
+                          <input className="input" type="number" step="0.01" placeholder="Price e.g. 1.50" value={newSharedOption.price_adjustment} onChange={e => setNewSharedOption({...newSharedOption, price_adjustment: e.target.value})} style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }} />
+                          <button className="btn-primary" onClick={() => addSharedOption(group.id)} style={{ fontSize: '12px', padding: '6px 12px' }}>Add</button>
+                          <button className="btn-ghost" onClick={() => setShowAddSharedOption(null)} style={{ fontSize: '12px', padding: '6px 10px' }}>x</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setShowAddSharedOption(group.id); setNewSharedOption({ name: '', price_adjustment: '0', sort_order: '1' }) }} style={{ background: 'none', border: '1px dashed var(--border)', color: 'var(--sub)', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>+ Add option</button>
+                      )}
+                    </div>
+                  ))}
+
+                  {showAddSharedGroup ? (
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Shared Option Group</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Extra Toppings, Choose Your Base" value={newSharedGroup.name} onChange={e => setNewSharedGroup({...newSharedGroup, name: e.target.value})} /></div>
+                        <div><label>Type</label><select className="input" value={newSharedGroup.type} onChange={e => setNewSharedGroup({...newSharedGroup, type: e.target.value})}>
+                          <option value="multiple">Multi select (checkboxes)</option>
+                          <option value="single">Single select (radio)</option>
+                        </select></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="shreq" checked={newSharedGroup.required} onChange={e => setNewSharedGroup({...newSharedGroup, required: e.target.checked})} />
+                          <label htmlFor="shreq" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-ghost" onClick={() => setShowAddSharedGroup(false)} style={{ flex: 1 }}>Cancel</button>
+                        <button className="btn-primary" onClick={addSharedGroup} style={{ flex: 2 }}>Create Group</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddSharedGroup(true)} className="btn-ghost" style={{ width: '100%', padding: '12px', borderStyle: 'dashed' }}>+ Create New Shared Group</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* LINK GROUP TO ITEMS MODAL */}
+            {linkingGroup && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setLinkingGroup(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Link "{linkingGroup.name}" to items</h3>
+                    <button onClick={() => setLinkingGroup(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '16px' }}>Toggle which items show this option group. Ticked items will show this group to customers.</p>
+
+                  {categories.map(cat => (
+                    <div key={cat.id} style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>{cat.name}</div>
+                      {menuItems.filter(i => i.category_id === cat.id).map(item => (
+                        <div key={item.id} onClick={() => toggleItemLink(item.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', background: linkedItems.includes(item.id) ? 'rgba(34,197,94,0.06)' : 'var(--card)', border: `1px solid ${linkedItems.includes(item.id) ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, marginBottom: '5px' }}>
+                          <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${linkedItems.includes(item.id) ? 'var(--green)' : 'var(--border)'}`, background: linkedItems.includes(item.id) ? 'var(--green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {linkedItems.includes(item.id) && <span style={{ color: '#0f172a', fontSize: '10px', fontWeight: 700 }}>v</span>}
+                          </div>
+                          <span style={{ fontSize: '13px' }}>{item.emoji} {item.name}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--sub)', marginLeft: 'auto' }}>GBP{item.price?.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  <button onClick={() => setLinkingGroup(null)} className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '10px' }}>Done</button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Category Modal */}
             {showAddCategory && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddCategory(false) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '400px' }}>
@@ -461,6 +615,7 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Add Item Modal */}
             {showAddItem && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddItem(false) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
@@ -481,6 +636,7 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Edit Item Modal */}
             {editItem && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditItem(null) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
@@ -504,10 +660,8 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-            {/* OPTIONS EDITOR MODAL */}
+            {/* OPTIONS EDITOR MODAL - per item */}
             {editingOptions && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditingOptions(null) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -515,9 +669,8 @@ export default function AdminPage() {
                     <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Options for {editingOptions.name}</h3>
                     <button onClick={() => setEditingOptions(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
                   </div>
-
                   <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
-                    Add option groups like "Choose Your Size", "Add Toppings", "Choose Your Base". Each group can be single-select (radio) or multi-select (checkboxes).
+                    Add option groups specific to this item. For toppings that apply to multiple items use Shared Toppings instead.
                   </div>
 
                   {optionGroups.map(group => (
@@ -528,7 +681,7 @@ export default function AdminPage() {
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
                           {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
                         </div>
-                        <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete group</button>
+                        <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {group.item_options?.map((opt: any) => (
@@ -543,7 +696,7 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           <input className="input" placeholder="Option name" value={newOption.name} onChange={e => setNewOption({...newOption, name: e.target.value})} style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }} />
                           <input className="input" type="number" step="0.01" placeholder="Price +/-" value={newOption.price_adjustment} onChange={e => setNewOption({...newOption, price_adjustment: e.target.value})} style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }} />
-                          <button className="btn-primary" onClick={() => addOption(group.id, editingOptions.id)} style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}>Add</button>
+                          <button className="btn-primary" onClick={() => addOption(group.id, editingOptions.id)} style={{ fontSize: '12px', padding: '6px 12px' }}>Add</button>
                           <button className="btn-ghost" onClick={() => setShowAddOption(null)} style={{ fontSize: '12px', padding: '6px 10px' }}>x</button>
                         </div>
                       ) : (
@@ -553,10 +706,10 @@ export default function AdminPage() {
                   ))}
 
                   {showAddGroup ? (
-                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
                       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Option Group</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Choose Your Size, Add Toppings" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} /></div>
+                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Choose Your Size" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} /></div>
                         <div><label>Type</label><select className="input" value={newGroup.type} onChange={e => setNewGroup({...newGroup, type: e.target.value})}>
                           <option value="single">Single select (radio)</option>
                           <option value="multiple">Multi select (checkboxes)</option>
@@ -577,6 +730,8 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
 
         {/* MERCHANTS */}
         {tab === 'merchants' && (
