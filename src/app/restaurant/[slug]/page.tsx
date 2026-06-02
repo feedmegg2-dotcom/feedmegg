@@ -179,7 +179,11 @@ export default function RestaurantPage() {
       {/* RESTAURANT INFO */}
       <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ fontSize: '52px', flexShrink: 0 }}>{restaurant.emoji}</div>
+          <div style={{ width: '72px', height: '72px', borderRadius: '12px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {restaurant.logo_url
+              ? <img src={restaurant.logo_url} alt={restaurant.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '40px' }}>{restaurant.emoji}</span>}
+          </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>{restaurant.name}</h1>
