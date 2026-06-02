@@ -49,118 +49,108 @@ interface MenuItem {
   tags: string[]
 }
 
-interface MenuSection {
-  name: string
-  items: MenuItem[]
-}
-
-function parseSections(html: string): MenuSection[] {
-  const sections: MenuSection[] = []
-
-  // Split by h2 (main category) and h3 (subcategory)
-  // First find all sections using h2/h3 headers
-  const sectionRegex = /<h[23][^>]*>([\s\S]*?)<\/h[23]>([\s\S]*?)(?=<h[23]|$)/gi
-  let match
-
-  while ((match = sectionRegex.exec(html)) !== null) {
-    const sectionName = cleanText(match[1])
-    const sectionContent = match[2]
-
-    if (!sectionName || sectionName.toLowerCase().includes('order') || sectionName.toLowerCase() === 'menu') continue
-
-    const items = parseItems(sectionContent)
-    if (items.length > 0) {
-      sections.push({ name: sectionName, items })
-    }
-  }
-
-  return sections
-}
-
-function parseItems(html: string): MenuItem[] {
+function parsePageItems(html: string, categoryName: string): MenuItem[] {
   const items: MenuItem[] = []
   
-  // Find all table rows
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
-  let rowMatch
-  let currentItem: { name: string; description: string; tags: string[] } | null = null
-
-  while ((rowMatch = rowRegex.exec(html)) !== null) {
-    const rowHtml = rowMatch[1]
-    if (rowHtml.includes('<th')) continue
-
+  // Find the main table
+  const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i)
+  if (!tableMatch) return items
+  
+  const tableHtml = tableMatch[1]
+  const rows = tableHtml.split(/<tr[^>]*>/i).slice(1)
+  
+  let currentName = ''
+  let currentDesc = ''
+  let currentTags: string[] = []
+  
+  for (const row of rows) {
+    if (row.includes('<th')) continue
+    
     const cells: string[] = []
     const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
-    let cellMatch
-
-    while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-      cells.push(cellMatch[1])
+    let cm
+    while ((cm = cellRegex.exec(row)) !== null) {
+      cells.push(cm[1])
     }
-
+    
     if (cells.length === 0) continue
-
-    const firstCell = cleanText(cells[0])
-    const lastCell = cleanText(cells[cells.length - 1])
-
-    // Check if this is a price row (has Add to basket)
-    const hasPrice = cells[cells.length - 1].includes('Add to basket') || lastCell.match(/£[\d.]+/)
-    const priceMatch = cells[cells.length - 1].match(/£([\d.]+)/)
-
-    if (!hasPrice || !priceMatch) {
-      // This might be an item name row
-      if (firstCell && firstCell.length > 1 && !firstCell.match(/^£/) && !firstCell.includes('Add to basket') && firstCell !== 'Price') {
-        // Detect tags
+    
+    const firstText = cleanText(cells[0])
+    const lastHtml = cells[cells.length - 1]
+    const lastText = cleanText(lastHtml)
+    
+    const hasBasket = lastHtml.includes('Add to basket')
+    const priceMatch = lastHtml.match(/£([\d.]+)/)
+    
+    if (!hasBasket && !priceMatch) {
+      // Item name row
+      if (firstText && firstText.length > 1 && firstText !== 'Price') {
         const tags: string[] = []
-        if (rowHtml.toLowerCase().includes('vegetarian') || firstCell.toLowerCase().includes('vegetarian') || firstCell.toLowerCase().includes('vegan')) {
-          if (firstCell.toLowerCase().includes('vegan')) tags.push('vegan')
-          tags.push('veg')
-        }
-        if (firstCell.toLowerCase().includes('spicy') || rowHtml.toLowerCase().includes('spicy')) tags.push('spicy')
-
-        // Split name from description
-        const lines = firstCell.split(/\s{2,}/).filter(l => l.trim())
-        const cleanName = lines[0]?.replace(/Vegetarian|Vegan|Spicy|Contains Nuts/g, '').trim() || firstCell
-        const desc = lines.slice(1).join(' ').replace(/Vegetarian|Vegan|Spicy|Contains Nuts/g, '').trim()
-
-        currentItem = { name: cleanName, description: desc, tags }
+        if (row.toLowerCase().includes('vegetarian') || firstText.toLowerCase().includes('vegetarian')) tags.push('veg')
+        if (row.toLowerCase().includes('vegan') || firstText.toLowerCase().includes('vegan')) { tags.push('veg'); tags.push('vegan') }
+        if (row.toLowerCase().includes('spicy') || firstText.toLowerCase().includes('spicy')) tags.push('spicy')
+        
+        // Split first line (name) from rest (description)
+        const parts = firstText.split(/\s{3,}/)
+        currentName = parts[0].replace(/Vegetarian|Vegan|Spicy|Contains Nuts/gi, '').trim()
+        currentDesc = parts.slice(1).join(' ').replace(/Vegetarian|Vegan|Spicy|Contains Nuts/gi, '').trim()
+        currentTags = tags
       }
       continue
     }
-
+    
+    if (!priceMatch) continue
     const price = parseFloat(priceMatch[1])
-    if (price <= 0 || price >= 200) continue
-
-    if (currentItem) {
-      // Size variant — append size to name
-      const sizeName = firstCell && firstCell.match(/^\d+"|^Small|^Medium|^Large|^Regular/i)
-        ? `${currentItem.name} ${firstCell}`
-        : currentItem.name
-
+    if (price <= 0 || price >= 500) continue
+    
+    // Check if firstText is a size indicator
+    const isSize = firstText.match(/^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/i)
+    
+    if (currentName && isSize) {
       items.push({
-        name: sizeName,
-        description: currentItem.description,
+        name: `${currentName} ${firstText}`,
+        description: currentDesc,
         price,
-        tags: currentItem.tags,
+        tags: [...currentTags],
       })
-    } else if (firstCell && firstCell.length > 1) {
-      // Single row item with price
-      const tags: string[] = []
-      if (firstCell.toLowerCase().includes('vegan')) tags.push('vegan', 'veg')
-      else if (firstCell.toLowerCase().includes('vegetarian')) tags.push('veg')
-      if (firstCell.toLowerCase().includes('spicy')) tags.push('spicy')
-
-      const cleanName = firstCell.replace(/Vegetarian|Vegan|Spicy|Contains Nuts/g, '').trim()
-
+    } else if (currentName && (firstText === '' || firstText === currentName)) {
       items.push({
-        name: cleanName,
+        name: currentName,
+        description: currentDesc,
+        price,
+        tags: [...currentTags],
+      })
+      currentName = ''
+      currentDesc = ''
+      currentTags = []
+    } else if (firstText && firstText.length > 1) {
+      // Single-row item
+      const tags: string[] = []
+      if (firstText.toLowerCase().includes('vegetarian')) tags.push('veg')
+      if (firstText.toLowerCase().includes('vegan')) { tags.push('veg'); tags.push('vegan') }
+      if (firstText.toLowerCase().includes('spicy')) tags.push('spicy')
+      
+      items.push({
+        name: firstText.replace(/Vegetarian|Vegan|Spicy|Contains Nuts/gi, '').trim(),
         description: '',
         price,
         tags,
       })
     }
   }
-
+  
   return items
+}
+
+function extractCategoryName(html: string): string {
+  const h2 = html.match(/<h2[^>]*>\s*([^<]+)\s*<\/h2>/i)
+  if (h2) {
+    const name = cleanText(h2[1])
+    if (name && !['menu', 'your order', 'order'].includes(name.toLowerCase())) return name
+  }
+  const h3 = html.match(/<h3[^>]*>\s*([^<]+)\s*<\/h3>/i)
+  if (h3) return cleanText(h3[1])
+  return ''
 }
 
 export async function POST(request: NextRequest) {
@@ -183,44 +173,39 @@ export async function POST(request: NextRequest) {
     const nameMatch = mainHtml.match(/<h1[^>]*>\s*([^<]+)\s*<\/h1>/)
     const restaurantName = nameMatch ? nameMatch[1].trim() : slug.replace(/-/g, ' ')
 
-    // Extract cuisine
+    // Extract cuisines
     const cuisines: string[] = []
-    const cuisineRegex = /guernsey-takeaway\/([^"]+)"[^>]*>([^<]+)<\/a>/g
+    const cuisineRegex = /guernsey-takeaway\/[^"]+">([^<]+)<\/a>/g
     let cm
     while ((cm = cuisineRegex.exec(mainHtml)) !== null) {
-      if (!cm[2].includes('Food.gg')) cuisines.push(cm[2].trim())
+      if (!cm[1].includes('Food') && cm[1].length < 30) cuisines.push(cm[1].trim())
     }
 
     // Extract parish
     let parish = 'St Peter Port'
-    const parishes = ['St Martin', 'St Peter Port', 'St Sampson', 'Vale', 'Castel', 'Forest', 'St Saviour', 'Torteval', 'St Pierre du Bois', 'St Andrew']
-    for (const p of parishes) {
+    for (const p of ['St Martin','St Peter Port','St Sampson','Vale','Castel','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']) {
       if (mainHtml.includes(p)) { parish = p; break }
     }
 
-    // Find all menu section URLs
+    // Extract ALL menu section URLs from nav - strip #menu anchors
     const sectionUrls: string[] = []
-    const sectionNames: Record<string, string> = {}
-    const sectionRegex2 = /href="(https:\/\/www\.food\.gg\/[^/]+\/menu\/(\d+))[^"#]*(?:#[^"]*)?"\s*>([^<]+)</g
-    let sm
-    const seen = new Set<string>([baseUrl])
-
-    while ((sm = sectionRegex2.exec(mainHtml)) !== null) {
-      const secUrl = sm[1]
-      const secId = sm[2]
-      const secName = sm[3].trim()
+    const navRegex = /href="(https:\/\/www\.food\.gg\/[^"#]+\/menu\/\d+)[^"]*"/g
+    let nm
+    const seen = new Set<string>()
+    
+    while ((nm = navRegex.exec(mainHtml)) !== null) {
+      const secUrl = nm[1]
       if (!seen.has(secUrl)) {
         seen.add(secUrl)
         sectionUrls.push(secUrl)
-        sectionNames[secId] = secName
       }
     }
 
-    // Check if slug already exists
+    // Check slug doesn't already exist
     const restaurantSlug = slug + '-gg'
     const { data: existing } = await supabase.from('restaurants').select('id').eq('slug', restaurantSlug).single()
     if (existing) {
-      return NextResponse.json({ error: 'Restaurant already imported: ' + restaurantSlug }, { status: 400 })
+      return NextResponse.json({ error: 'Already imported: ' + restaurantSlug }, { status: 400 })
     }
 
     // Create restaurant
@@ -253,27 +238,26 @@ export async function POST(request: NextRequest) {
     let totalItems = 0
     let totalCategories = 0
 
-    // Parse main page sections first
-    const mainSections = parseSections(mainHtml)
-    for (const section of mainSections) {
-      if (section.items.length === 0) continue
+    // Parse main page (Pizzas section)
+    const mainCatName = extractCategoryName(mainHtml) || 'Pizzas'
+    const mainItems = parsePageItems(mainHtml, mainCatName)
+    if (mainItems.length > 0) {
       const { data: cat } = await supabase.from('menu_categories').insert({
         restaurant_id: restaurantId,
-        name: section.name,
+        name: mainCatName,
         sort_order: totalCategories + 1,
         is_active: true,
       }).select().single()
-
       if (cat) {
         totalCategories++
-        for (const item of section.items) {
+        for (const item of mainItems) {
           await supabase.from('menu_items').insert({
             restaurant_id: restaurantId,
             category_id: cat.id,
             name: item.name,
             description: item.description,
             price: item.price,
-            emoji: getEmoji(section.name + ' ' + item.name),
+            emoji: getEmoji(mainCatName + ' ' + item.name),
             is_available: true,
             tags: item.tags,
             allergens: [],
@@ -283,30 +267,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch and parse each additional section
+    // Parse each section page
     for (const secUrl of sectionUrls) {
-      const secHtml = await fetchPage(secUrl)
-      const sections = parseSections(secHtml)
+      try {
+        const secHtml = await fetchPage(secUrl)
+        const catName = extractCategoryName(secHtml)
+        if (!catName) continue
+        
+        const items = parsePageItems(secHtml, catName)
+        if (items.length === 0) continue
 
-      for (const section of sections) {
-        if (section.items.length === 0) continue
         const { data: cat } = await supabase.from('menu_categories').insert({
           restaurant_id: restaurantId,
-          name: section.name,
+          name: catName,
           sort_order: totalCategories + 1,
           is_active: true,
         }).select().single()
 
         if (cat) {
           totalCategories++
-          for (const item of section.items) {
+          for (const item of items) {
             await supabase.from('menu_items').insert({
               restaurant_id: restaurantId,
               category_id: cat.id,
               name: item.name,
               description: item.description,
               price: item.price,
-              emoji: getEmoji(section.name + ' ' + item.name),
+              emoji: getEmoji(catName + ' ' + item.name),
               is_available: true,
               tags: item.tags,
               allergens: [],
@@ -314,6 +301,8 @@ export async function POST(request: NextRequest) {
             totalItems++
           }
         }
+      } catch (e) {
+        // Skip failed sections
       }
     }
 
