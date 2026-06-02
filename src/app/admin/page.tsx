@@ -216,6 +216,18 @@ export default function AdminPage() {
     setMsg('Restaurant saved!'); setEditRestaurant(null); fetchAll()
   }
 
+  async function uploadLogo(restId: string, file: File) {
+    const ext = file.name.split('.').pop()
+    const path = `${restId}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('restaurant-logos').upload(path, file, { upsert: true })
+    if (uploadError) { setMsg('Upload error: ' + uploadError.message); return }
+    const { data: urlData } = supabase.storage.from('restaurant-logos').getPublicUrl(path)
+    const logo_url = urlData.publicUrl
+    await supabase.from('restaurants').update({ logo_url }).eq('id', restId)
+    setMsg('Logo uploaded!')
+    fetchAll()
+  }
+
   async function addMerchant() {
     if (!newMerchant.name || !newMerchant.email || !newMerchant.password) { setMsg('Please fill in name, email and password'); return }
     const res = await fetch('/api/admin/create-merchant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newMerchant) })
@@ -370,7 +382,9 @@ export default function AdminPage() {
               <div key={r.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '32px' }}>{r.emoji}</div>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {r.logo_url ? <img src={r.logo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '28px' }}>{r.emoji}</span>}
+                    </div>
                     <div>
                       <div style={{ fontSize: '15px', fontWeight: 700 }}>{r.name}</div>
                       <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{r.cuisine_type} - {r.parish} - /{r.slug}</div>
@@ -390,6 +404,10 @@ export default function AdminPage() {
                         <div style={{ position: 'absolute', top: '2px', left: r.is_active ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
+                    <label style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>
+                      Logo
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) uploadLogo(r.id, e.target.files[0]) }} />
+                    </label>
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
                     <button onClick={() => aiTagMenu(r.id, r.name)} disabled={aiTagging} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>{aiTagging ? 'Tagging...' : 'AI Tag'}</button>
