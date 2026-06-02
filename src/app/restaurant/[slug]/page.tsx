@@ -18,7 +18,7 @@ export default function RestaurantPage() {
   const [itemQty, setItemQty] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   useEffect(() => { 
     fetchRestaurant()
@@ -72,19 +72,35 @@ export default function RestaurantPage() {
 
   // Filter items based on search and category
   const getFilteredCategories = () => {
-    return categories
-      .filter(cat => !selectedCategory || cat.id === selectedCategory)
-      .map(cat => ({
-        ...cat,
-        menu_items: cat.menu_items?.filter((item: any) => 
-          item.is_available && (
-            !searchQuery || 
-            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        ) || []
-      }))
-      .filter(cat => cat.menu_items.length > 0)
+    let filtered = categories
+
+    // Filter by category if selected
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(cat => cat.id.toString() === selectedCategory)
+    }
+
+    // Map and filter items
+    return filtered
+      .map(cat => {
+        const filteredItems = cat.menu_items?.filter((item: any) => {
+          // Must be available
+          if (!item.is_available) return false
+          
+          // If search query exists, item must match
+          if (searchQuery) {
+            return item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+          }
+          
+          return true
+        }) || []
+
+        return {
+          ...cat,
+          menu_items: filteredItems
+        }
+      })
+      .filter(cat => cat.menu_items.length > 0) // Only show categories with items
   }
 
   const filteredCategories = getFilteredCategories()
@@ -167,8 +183,8 @@ export default function RestaurantPage() {
 
           {/* Category Filter */}
           <select
-            value={selectedCategory || ''}
-            onChange={e => setSelectedCategory(e.target.value ? parseInt(e.target.value) : null)}
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
             style={{ 
               background: 'rgba(255,255,255,0.06)', 
               border: '1px solid var(--border)', 
@@ -181,7 +197,7 @@ export default function RestaurantPage() {
               fontFamily: 'DM Sans, sans-serif'
             }}
           >
-            <option value="">All Categories</option>
+            <option value="all">All Categories</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
@@ -196,6 +212,12 @@ export default function RestaurantPage() {
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--sub)' }}>
                 <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🔍</div>
                 <p>No items found{searchQuery && ` for "${searchQuery}"`}</p>
+                <button 
+                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+                  style={{ marginTop: '16px', background: 'var(--green)', color: '#0F172A', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Reset filters
+                </button>
               </div>
             ) : (
               filteredCategories.map(cat => (
