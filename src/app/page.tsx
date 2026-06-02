@@ -232,43 +232,38 @@ export default function HomePage() {
                 const foundRest = restaurants.find(r => r.name === restName)
                 const restaurantSlug = foundRest?.slug || restName?.toLowerCase().replace(/\s+/g, '-')
                 return (
-                  <div
+                  <button
                     key={idx}
                     onClick={() => {
                       window.location.href = `/restaurant/${restaurantSlug}`
                     }}
                     style={{
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      display: 'block',
-                      borderBottom: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none'
+                      width: '100%',
+                      background: 'transparent',
+                      border: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none',
+                      borderTop: 'none',
+                      color: textColor,
+                      padding: '12px 16px', 
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      gap: '10px',
+                      alignItems: 'center',
+                      textAlign: 'left'
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <div
-                      style={{ 
-                        background: 'none', 
-                        color: textColor,
-                        padding: '12px 16px', 
-                        cursor: 'pointer',
-                        transition: 'background 0.2s',
-                        display: 'flex',
-                        gap: '10px',
-                        alignItems: 'center'
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
-                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
-                          {sugg.name}
-                        </div>
-                        <div style={{ fontSize: '11px', color: secondaryText }}>
-                          {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
-                        </div>
+                    <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
+                        {sugg.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: secondaryText }}>
+                        {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
