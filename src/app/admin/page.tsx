@@ -3,391 +3,843 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
+const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
+const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
+
 export default function AdminPage() {
+  const supabase = createClient()
+  const [tab, setTab] = useState('dashboard')
+  const [authed, setAuthed] = useState(false)
   const [password, setPassword] = useState('')
-  const [authenticated, setAuthenticated] = useState(false)
+  const [authError, setAuthError] = useState('')
   const [restaurants, setRestaurants] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [updating, setUpdating] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<any>({})
+  const [merchants, setMerchants] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [menuItems, setMenuItems] = useState<any[]>([])
+  const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
+  const [msg, setMsg] = useState('')
+  const [showAddRestaurant, setShowAddRestaurant] = useState(false)
+  const [showAddMerchant, setShowAddMerchant] = useState(false)
+  const [showAddItem, setShowAddItem] = useState(false)
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importMerchantId, setImportMerchantId] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [editItem, setEditItem] = useState<any>(null)
+  const [editRestaurant, setEditRestaurant] = useState<any>(null)
 
-  const ADMIN_PASSWORD = 'feedmegg2026admin'
+  // Option groups - per item
+  const [editingOptions, setEditingOptions] = useState<any>(null)
+  const [optionGroups, setOptionGroups] = useState<any[]>([])
+  const [showAddGroup, setShowAddGroup] = useState(false)
+  const [showAddOption, setShowAddOption] = useState<string | null>(null)
+  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, sort_order: '1' })
+  const [newOption, setNewOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true)
-      setPassword('')
-      fetchRestaurants()
+  // Shared option groups - restaurant level
+  const [showSharedGroups, setShowSharedGroups] = useState(false)
+  const [sharedGroups, setSharedGroups] = useState<any[]>([])
+  const [showAddSharedGroup, setShowAddSharedGroup] = useState(false)
+  const [showAddSharedOption, setShowAddSharedOption] = useState<string | null>(null)
+  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, sort_order: '1' })
+  const [newSharedOption, setNewSharedOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
+  const [linkingGroup, setLinkingGroup] = useState<any>(null)
+  const [linkedItems, setLinkedItems] = useState<string[]>([])
+
+  const [newRestaurant, setNewRestaurant] = useState({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_fee: '2.50', delivery_time_mins: '25', pickup_time_mins: '15', opening_time: '11:00', closing_time: '22:00', merchant_id: '', custom_message: 'Thank you for your order!' })
+  const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
+  const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
+  const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' })
+
+  function checkPassword() {
+    if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll() }
+    else setAuthError('Incorrect password')
+  }
+
+  async function fetchAll() {
+    const { data: r } = await supabase.from('restaurants').select('*, merchants(name,email)').order('name')
+    const { data: m } = await supabase.from('merchants').select('*').order('name')
+    const { data: o } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100)
+    setRestaurants(r || [])
+    setMerchants(m || [])
+    setOrders(o || [])
+  }
+
+  async function fetchMenuForRestaurant(restId: string) {
+    const { data: cats } = await supabase.from('menu_categories').select('*').eq('restaurant_id', restId).order('sort_order')
+    const { data: items } = await supabase.from('menu_items').select('*, menu_categories(name)').eq('restaurant_id', restId).order('sort_order')
+    setCategories(cats || [])
+    setMenuItems(items || [])
+  }
+
+  async function fetchOptionGroups(itemId: string) {
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
+    setOptionGroups(data || [])
+  }
+
+  async function fetchSharedGroups(restId: string) {
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
+    setSharedGroups(data || [])
+  }
+
+  async function addOptionGroup(itemId: string) {
+    if (!newGroup.name) { setMsg('Enter a group name'); return }
+    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewGroup({ name: '', type: 'single', required: false, sort_order: '1' })
+    setShowAddGroup(false)
+    fetchOptionGroups(itemId)
+  }
+
+  async function addOption(groupId: string, itemId: string) {
+    if (!newOption.name) { setMsg('Enter option name'); return }
+    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newOption.name, price_adjustment: parseFloat(newOption.price_adjustment) || 0, sort_order: parseInt(newOption.sort_order), is_available: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewOption({ name: '', price_adjustment: '0', sort_order: '1' })
+    setShowAddOption(null)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOptionGroup(groupId: string, itemId: string) {
+    if (!confirm('Delete this option group and all its options?')) return
+    await supabase.from('item_options').delete().eq('option_group_id', groupId)
+    await supabase.from('item_option_groups').delete().eq('id', groupId)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOption(optionId: string, itemId: string) {
+    await supabase.from('item_options').delete().eq('id', optionId)
+    fetchOptionGroups(itemId)
+  }
+
+  // Shared group functions
+  async function addSharedGroup() {
+    if (!newSharedGroup.name || !selectedRestaurant) { setMsg('Enter a group name'); return }
+    const { error } = await supabase.from('item_option_groups').insert({ restaurant_id: selectedRestaurant.id, menu_item_id: null, name: newSharedGroup.name, type: newSharedGroup.type, required: newSharedGroup.required, sort_order: parseInt(newSharedGroup.sort_order) })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewSharedGroup({ name: '', type: 'multiple', required: false, sort_order: '1' })
+    setShowAddSharedGroup(false)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function addSharedOption(groupId: string) {
+    if (!newSharedOption.name) { setMsg('Enter option name'); return }
+    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newSharedOption.name, price_adjustment: parseFloat(newSharedOption.price_adjustment) || 0, sort_order: parseInt(newSharedOption.sort_order), is_available: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewSharedOption({ name: '', price_adjustment: '0', sort_order: '1' })
+    setShowAddSharedOption(null)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function deleteSharedGroup(groupId: string) {
+    if (!confirm('Delete this shared option group?')) return
+    await supabase.from('item_option_group_links').delete().eq('option_group_id', groupId)
+    await supabase.from('item_options').delete().eq('option_group_id', groupId)
+    await supabase.from('item_option_groups').delete().eq('id', groupId)
+    fetchSharedGroups(selectedRestaurant.id)
+  }
+
+  async function openLinkGroup(group: any) {
+    setLinkingGroup(group)
+    const { data } = await supabase.from('item_option_group_links').select('menu_item_id').eq('option_group_id', group.id)
+    setLinkedItems((data || []).map((d: any) => d.menu_item_id))
+  }
+
+  async function toggleItemLink(itemId: string) {
+    if (!linkingGroup) return
+    if (linkedItems.includes(itemId)) {
+      await supabase.from('item_option_group_links').delete().eq('option_group_id', linkingGroup.id).eq('menu_item_id', itemId)
+      setLinkedItems(prev => prev.filter(id => id !== itemId))
     } else {
-      alert('Wrong password')
-      setPassword('')
+      await supabase.from('item_option_group_links').insert({ option_group_id: linkingGroup.id, menu_item_id: itemId })
+      setLinkedItems(prev => [...prev, itemId])
     }
   }
 
-  async function fetchRestaurants() {
-    setLoading(true)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('restaurants')
-      .select('*')
-      .order('name', { ascending: true })
-    setRestaurants(data || [])
-    setLoading(false)
-  }
-
-  function startEdit(restaurant: any) {
-    setEditingId(restaurant.id)
-    setEditForm({
-      delivery_fee: restaurant.delivery_fee || 2.99,
-      opening_time: restaurant.opening_time || '10:00',
-      closing_time: restaurant.closing_time || '23:00',
-      delivery_time_mins: restaurant.delivery_time_mins || 30
-    })
-  }
-
-  async function saveEdit() {
-    if (!editingId) return
-    setUpdating(editingId)
-    try {
-      const response = await fetch('/api/admin/update-restaurant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: editingId, 
-          ...editForm 
-        })
-      })
-      
-      if (response.ok) {
-        setRestaurants(restaurants.map(r => 
-          r.id === editingId ? { ...r, ...editForm } : r
-        ))
-        setEditingId(null)
-        setEditForm({})
-      } else {
-        alert('Failed to update restaurant')
-      }
-    } catch (error) {
-      alert('Error: ' + error)
-    } finally {
-      setUpdating(null)
-    }
-  }
-
-  async function toggleRestaurant(id: string, currentStatus: boolean) {
-    setUpdating(id)
-    try {
-      const response = await fetch('/api/admin/toggle-restaurant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, is_active: !currentStatus })
-      })
-      
-      if (response.ok) {
-        setRestaurants(restaurants.map(r => 
-          r.id === id ? { ...r, is_active: !currentStatus } : r
-        ))
-      } else {
-        alert('Failed to update restaurant')
-      }
-    } catch (error) {
-      alert('Error: ' + error)
-    } finally {
-      setUpdating(null)
-    }
+  async function importFromFoodGG() {
+    if (!importUrl || !importMerchantId) { setMsg('Please enter a food.gg URL and select a merchant'); return }
+    setImporting(true)
+    setMsg('Importing... this may take 30 seconds...')
+    const res = await fetch('/api/admin/scrape-foodgg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: importUrl, merchantId: importMerchantId }) })
+    const data = await res.json()
+    setImporting(false)
+    if (!res.ok) { setMsg('Error: ' + data.error); return }
+    setMsg(data.message)
+    setShowImport(false)
+    setImportUrl('')
+    setImportMerchantId('')
+    fetchAll()
   }
 
   async function deleteRestaurant(id: string, name: string) {
-    if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
-      return
-    }
-    
-    setUpdating(id)
-    try {
-      const response = await fetch('/api/admin/delete-restaurant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      })
-      
-      if (response.ok) {
-        setRestaurants(restaurants.filter(r => r.id !== id))
-      } else {
-        alert('Failed to delete restaurant')
-      }
-    } catch (error) {
-      alert('Error: ' + error)
-    } finally {
-      setUpdating(null)
-    }
+    if (!confirm('Delete ' + name + ' and ALL its menu items? This cannot be undone!')) return
+    await supabase.from('item_option_group_links').delete().eq('menu_item_id', id)
+    await supabase.from('item_options').delete().eq('option_group_id', id)
+    await supabase.from('item_option_groups').delete().eq('restaurant_id', id)
+    await supabase.from('menu_items').delete().eq('restaurant_id', id)
+    await supabase.from('menu_categories').delete().eq('restaurant_id', id)
+    await supabase.from('restaurants').delete().eq('id', id)
+    setMsg(name + ' deleted!')
+    fetchAll()
   }
 
-  if (!authenticated) {
+  async function addRestaurant() {
+    if (!newRestaurant.name || !newRestaurant.slug || !newRestaurant.merchant_id) { setMsg('Please fill in name, slug and merchant'); return }
+    const { error } = await supabase.from('restaurants').insert({ ...newRestaurant, min_order: parseFloat(newRestaurant.min_order), delivery_fee: parseFloat(newRestaurant.delivery_fee) || 2.50, delivery_time_mins: parseInt(newRestaurant.delivery_time_mins), pickup_time_mins: parseInt(newRestaurant.pickup_time_mins), is_open: false, is_active: true, accepts_delivery: true, accepts_pickup: true, accepts_preorders: true, slot_capacity: 5 })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setMsg('Restaurant added!'); setShowAddRestaurant(false)
+    setNewRestaurant({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_fee: '2.50', delivery_time_mins: '25', pickup_time_mins: '15', opening_time: '11:00', closing_time: '22:00', merchant_id: '', custom_message: 'Thank you for your order!' })
+    fetchAll()
+  }
+
+  async function saveRestaurant() {
+    if (!editRestaurant) return
+    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_fee: parseFloat(editRestaurant.delivery_fee) || 0, delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), opening_time: editRestaurant.opening_time || null, closing_time: editRestaurant.closing_time || null, custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null }).eq('id', editRestaurant.id)
+    if (error) { setMsg('Error: ' + error.message); return }
+    setMsg('Restaurant saved!'); setEditRestaurant(null); fetchAll()
+  }
+
+  async function addMerchant() {
+    if (!newMerchant.name || !newMerchant.email || !newMerchant.password) { setMsg('Please fill in name, email and password'); return }
+    const res = await fetch('/api/admin/create-merchant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newMerchant) })
+    const data = await res.json()
+    if (!res.ok) { setMsg('Error: ' + data.error); return }
+    setMsg(data.message); setShowAddMerchant(false)
+    setNewMerchant({ name: '', email: '', phone: '', commission_rate: '4', password: '' }); fetchAll()
+  }
+
+  async function addCategory() {
+    if (!selectedRestaurant || !newCategory.name) { setMsg('Select a restaurant and enter category name'); return }
+    const { error } = await supabase.from('menu_categories').insert({ restaurant_id: selectedRestaurant.id, name: newCategory.name, sort_order: parseInt(newCategory.sort_order), is_active: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setMsg('Category added!'); setShowAddCategory(false)
+    setNewCategory({ name: '', sort_order: '1' }); fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function addMenuItem() {
+    if (!selectedRestaurant || !newItem.name || !newItem.price || !newItem.category_id) { setMsg('Fill in all required fields'); return }
+    const { error } = await supabase.from('menu_items').insert({ restaurant_id: selectedRestaurant.id, category_id: newItem.category_id, name: newItem.name, description: newItem.description, price: parseFloat(newItem.price), emoji: newItem.emoji, calories: newItem.calories ? parseInt(newItem.calories) : null, is_available: true, tags: [], allergens: [] })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setMsg('Item added!'); setShowAddItem(false)
+    setNewItem({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' }); fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function saveMenuItem() {
+    if (!editItem) return
+    const { error } = await supabase.from('menu_items').update({ name: editItem.name, description: editItem.description, price: parseFloat(editItem.price), emoji: editItem.emoji, calories: editItem.calories ? parseInt(editItem.calories) : null, is_available: editItem.is_available, category_id: editItem.category_id }).eq('id', editItem.id)
+    if (error) { setMsg('Error: ' + error.message); return }
+    setMsg('Item saved!'); setEditItem(null); fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function deleteMenuItem(id: string) {
+    if (!confirm('Delete this item?')) return
+    await supabase.from('menu_items').delete().eq('id', id)
+    setMsg('Item deleted'); fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function deleteCategory(id: string) {
+    if (!confirm('Delete this category and all its items?')) return
+    await supabase.from('menu_items').delete().eq('category_id', id)
+    await supabase.from('menu_categories').delete().eq('id', id)
+    setMsg('Category deleted'); fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function toggleItem(id: string, current: boolean) {
+    await supabase.from('menu_items').update({ is_available: !current }).eq('id', id)
+    fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function toggleRestaurantOpen(id: string, current: boolean) {
+    await supabase.from('restaurants').update({ is_open: !current }).eq('id', id)
+    fetchAll()
+  }
+
+  async function toggleRestaurantActive(id: string, current: boolean) {
+    await supabase.from('restaurants').update({ is_active: !current }).eq('id', id)
+    fetchAll()
+  }
+
+  const totalRevenue = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.total || 0), 0)
+  const totalCommission = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.commission_amount || 0), 0)
+  const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString())
+
+  if (!authed) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#1F2937',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <div style={{
-          background: '#111827',
-          border: '1px solid #374151',
-          borderRadius: '12px',
-          padding: '40px',
-          maxWidth: '400px',
-          width: '100%'
-        }}>
-          <h1 style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 700, marginBottom: '32px', textAlign: 'center' }}>
-            Admin Panel
-          </h1>
-          
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', color: '#D1D5DB', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter admin password"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid #374151',
-                  background: '#2D3748',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
+      <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ width: '100%', maxWidth: '380px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontFamily: 'Syne', fontSize: '28px', fontWeight: 800, letterSpacing: '-1px' }}>
+              <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
             </div>
-            
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#22C55E',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#16A34A')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#22C55E')}
-            >
-              Login
-            </button>
-          </form>
+            <div style={{ fontSize: '13px', color: 'var(--sub)', marginTop: '4px' }}>Platform Admin</div>
+          </div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Admin Access</h2>
+            {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px', marginBottom: '14px', fontSize: '13px', color: 'var(--red)' }}>{authError}</div>}
+            <div style={{ marginBottom: '16px' }}><label>Admin Password</label><input className="input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
+            <button className="btn-primary" onClick={checkPassword} style={{ width: '100%', padding: '13px' }}>Access Admin Panel</button>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ background: '#1F2937', minHeight: '100vh', color: '#FFFFFF', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 700 }}>Restaurant Management</h1>
-          <button
-            onClick={() => {
-              setAuthenticated(false)
-              setRestaurants([])
-            }}
-            style={{
-              background: '#EF4444',
-              color: '#FFFFFF',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            Logout
-          </button>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+      <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontFamily: 'Syne', fontSize: '20px', fontWeight: 800 }}>
+          <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
+          <span style={{ fontSize: '12px', color: 'var(--sub)', marginLeft: '8px', fontFamily: 'DM Sans' }}>Admin</span>
         </div>
+        <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants - {merchants.length} merchants</div>
+      </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', color: '#D1D5DB' }}>Loading restaurants...</div>
-        ) : restaurants.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#D1D5DB' }}>No restaurants found</div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: '20px'
-          }}>
-            {restaurants.map(r => (
-              <div
-                key={r.id}
-                style={{
-                  background: '#111827',
-                  border: `2px solid ${r.is_active ? '#22C55E' : '#EF4444'}`,
-                  borderRadius: '12px',
-                  padding: '20px',
-                  transition: 'all 0.3s'
-                }}
-              >
-                {editingId === r.id ? (
-                  <>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: '#FFFFFF' }}>
-                      Edit: {r.name}
-                    </h3>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', color: '#D1D5DB', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Delivery Fee (£)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editForm.delivery_fee}
-                        onChange={e => setEditForm({...editForm, delivery_fee: parseFloat(e.target.value)})}
-                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #374151', background: '#2D3748', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
-                      />
-                    </div>
+      <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ background: 'none', border: 'none', borderBottom: `2px solid ${tab === t ? 'var(--green)' : 'transparent'}`, color: tab === t ? 'var(--green)' : 'var(--sub)', padding: '12px 16px', fontSize: '13px', fontWeight: tab === t ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{t}</button>
+        ))}
+      </div>
 
-                    <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', color: '#D1D5DB', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Delivery Time (mins)</label>
-                      <input
-                        type="number"
-                        value={editForm.delivery_time_mins}
-                        onChange={e => setEditForm({...editForm, delivery_time_mins: parseInt(e.target.value)})}
-                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #374151', background: '#2D3748', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
-                      />
-                    </div>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 20px' }}>
+        {msg && <div onClick={() => setMsg('')} style={{ background: msg.includes('Error') ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${msg.includes('Error') ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: msg.includes('Error') ? 'var(--red)' : 'var(--green)', cursor: 'pointer' }}>{msg} (click to dismiss)</div>}
 
-                    <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', color: '#D1D5DB', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Opening Time</label>
-                      <input
-                        type="time"
-                        value={editForm.opening_time}
-                        onChange={e => setEditForm({...editForm, opening_time: e.target.value})}
-                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #374151', background: '#2D3748', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', color: '#D1D5DB', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Closing Time</label>
-                      <input
-                        type="time"
-                        value={editForm.closing_time}
-                        onChange={e => setEditForm({...editForm, closing_time: e.target.value})}
-                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #374151', background: '#2D3748', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => saveEdit()}
-                        disabled={updating === r.id}
-                        style={{ flex: 1, padding: '10px', background: '#22C55E', color: '#FFFFFF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
-                      >
-                        {updating === r.id ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        style={{ flex: 1, padding: '10px', background: '#6B7280', color: '#FFFFFF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                      <div style={{ fontSize: '40px' }}>{r.emoji}</div>
-                      
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: '#FFFFFF' }}>
-                          {r.name}
-                        </h3>
-                        
-                        <div style={{ fontSize: '14px', color: '#D1D5DB', marginBottom: '4px' }}>
-                          {r.cuisine_type}
-                        </div>
-                        
-                        <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '12px' }}>
-                          {r.address}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', fontSize: '13px', color: '#9CA3AF', flexWrap: 'wrap' }}>
-                          <span>⏱ {r.delivery_time_mins} min</span>
-                          <span>★ {r.rating || '4.5'}</span>
-                          <span>💰 £{r.delivery_fee || '2.99'}</span>
-                          <span>🕐 {r.opening_time || '10:00'} - {r.closing_time || '23:00'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => startEdit(r)}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        background: '#3B82F6',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        marginBottom: '8px'
-                      }}
-                    >
-                      ✏️ Edit Settings
-                    </button>
-
-                    <button
-                      onClick={() => toggleRestaurant(r.id, r.is_active)}
-                      disabled={updating === r.id}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        background: r.is_active ? '#22C55E' : '#6B7280',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: updating === r.id ? 'not-allowed' : 'pointer',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        opacity: updating === r.id ? 0.5 : 1,
-                        marginBottom: '8px'
-                      }}
-                    >
-                      {updating === r.id ? 'Updating...' : r.is_active ? '✓ Active' : '✗ Inactive'}
-                    </button>
-
-                    <button
-                      onClick={() => deleteRestaurant(r.id, r.name)}
-                      disabled={updating === r.id}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        background: '#EF4444',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: updating === r.id ? 'not-allowed' : 'pointer',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        opacity: updating === r.id ? 0.5 : 1
-                      }}
-                    >
-                      {updating === r.id ? 'Deleting...' : '🗑️ Delete'}
-                    </button>
-                  </>
-                )}
+        {/* DASHBOARD */}
+        {tab === 'dashboard' && (
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Platform Overview</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '14px', marginBottom: '24px' }}>
+              {[
+                { label: 'Restaurants', value: restaurants.length, color: 'var(--green)' },
+                { label: 'Active', value: restaurants.filter(r => r.is_active).length, color: 'var(--green)' },
+                { label: 'Merchants', value: merchants.length, color: 'var(--blue)' },
+                { label: "Today's Orders", value: todayOrders.length, color: 'var(--orange)' },
+                { label: 'Total Revenue', value: 'GBP' + totalRevenue.toFixed(2), color: 'var(--green)' },
+                { label: 'Commission', value: 'GBP' + totalCommission.toFixed(2), color: 'var(--orange)' },
+              ].map(s => (
+                <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Recent Orders</h3>
+            {orders.slice(0, 10).map(o => (
+              <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{o.order_number}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.customer_name} - {new Date(o.created_at).toLocaleString('en-GB')}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--green)' }}>GBP{o.total?.toFixed(2)}</div>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
+                </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* RESTAURANTS */}
+        {tab === 'restaurants' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Restaurants</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-ghost" onClick={() => setShowImport(true)} style={{ padding: '10px 18px' }}>Import from food.gg</button>
+                <button className="btn-primary" onClick={() => setShowAddRestaurant(true)} style={{ padding: '10px 18px' }}>+ Add Restaurant</button>
+              </div>
+            </div>
+
+            {restaurants.map(r => (
+              <div key={r.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontSize: '32px' }}>{r.emoji}</div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700 }}>{r.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{r.cuisine_type} - {r.parish} - /{r.slug}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Merchant: {r.merchants?.name}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--sub)' }}>
+                      Open
+                      <div onClick={() => toggleRestaurantOpen(r.id, r.is_open)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: r.is_open ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: r.is_open ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--sub)' }}>
+                      Visible
+                      <div onClick={() => toggleRestaurantActive(r.id, r.is_active)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: r.is_active ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: r.is_active ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                      </div>
+                    </div>
+                    <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
+                    <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
+                    <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Import Modal */}
+            {showImport && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowImport(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Import from food.gg</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>Paste a food.gg restaurant URL and we will automatically import the restaurant and its full menu.</p>
+                  <div style={{ marginBottom: '12px' }}><label>food.gg URL</label><input className="input" placeholder="https://www.food.gg/wickedwolf" value={importUrl} onChange={e => setImportUrl(e.target.value)} /></div>
+                  <div style={{ marginBottom: '20px' }}><label>Assign to Merchant</label><select className="input" value={importMerchantId} onChange={e => setImportMerchantId(e.target.value)}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowImport(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={importFromFoodGG} disabled={importing} style={{ flex: 2 }}>{importing ? 'Importing...' : 'Import Restaurant'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Restaurant Modal */}
+            {showAddRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddRestaurant(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Add New Restaurant</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div><label>Name *</label><input className="input" placeholder="Pizza Palace" value={newRestaurant.name} onChange={e => setNewRestaurant({...newRestaurant, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')})} /></div>
+                    <div><label>URL Slug *</label><input className="input" placeholder="pizza-palace" value={newRestaurant.slug} onChange={e => setNewRestaurant({...newRestaurant, slug: e.target.value})} /></div>
+                    <div><label>Cuisine</label><input className="input" placeholder="Italian, Pizza" value={newRestaurant.cuisine_type} onChange={e => setNewRestaurant({...newRestaurant, cuisine_type: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" placeholder="food" value={newRestaurant.emoji} onChange={e => setNewRestaurant({...newRestaurant, emoji: e.target.value})} /></div>
+                    <div><label>Parish</label><select className="input" value={newRestaurant.parish} onChange={e => setNewRestaurant({...newRestaurant, parish: e.target.value})}>{PARISHES.map(p => <option key={p}>{p}</option>)}</select></div>
+                    <div><label>Postcode</label><input className="input" placeholder="GY1" value={newRestaurant.postcode} onChange={e => setNewRestaurant({...newRestaurant, postcode: e.target.value})} /></div>
+                    <div><label>Min Order GBP</label><input className="input" type="number" value={newRestaurant.min_order} onChange={e => setNewRestaurant({...newRestaurant, min_order: e.target.value})} /></div>
+                    <div><label>Delivery Fee GBP</label><input className="input" type="number" step="0.01" placeholder="2.50" value={newRestaurant.delivery_fee || ''} onChange={e => setNewRestaurant({...newRestaurant, delivery_fee: e.target.value})} /></div>
+                    <div><label>Delivery Mins</label><input className="input" type="number" value={newRestaurant.delivery_time_mins} onChange={e => setNewRestaurant({...newRestaurant, delivery_time_mins: e.target.value})} /></div>
+                    <div><label>Pickup Mins</label><input className="input" type="number" value={newRestaurant.pickup_time_mins} onChange={e => setNewRestaurant({...newRestaurant, pickup_time_mins: e.target.value})} /></div>
+                    <div><label>Opens (e.g. 11:00)</label><input className="input" type="time" value={newRestaurant.opening_time || ''} onChange={e => setNewRestaurant({...newRestaurant, opening_time: e.target.value})} /></div>
+                    <div><label>Closes (e.g. 22:00)</label><input className="input" type="time" value={newRestaurant.closing_time || ''} onChange={e => setNewRestaurant({...newRestaurant, closing_time: e.target.value})} /></div>
+                  </div>
+                  <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={newRestaurant.description} onChange={e => setNewRestaurant({...newRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
+                  <div style={{ marginBottom: '10px' }}><label>Custom Thank You Message</label><input className="input" value={newRestaurant.custom_message} onChange={e => setNewRestaurant({...newRestaurant, custom_message: e.target.value})} /></div>
+                  <div style={{ marginBottom: '20px' }}><label>Merchant *</label><select className="input" value={newRestaurant.merchant_id} onChange={e => setNewRestaurant({...newRestaurant, merchant_id: e.target.value})}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowAddRestaurant(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={addRestaurant} style={{ flex: 2 }}>Add Restaurant</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Restaurant Modal */}
+            {editRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditRestaurant(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Edit {editRestaurant.name}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div><label>Name</label><input className="input" value={editRestaurant.name} onChange={e => setEditRestaurant({...editRestaurant, name: e.target.value})} /></div>
+                    <div><label>Cuisine</label><input className="input" value={editRestaurant.cuisine_type} onChange={e => setEditRestaurant({...editRestaurant, cuisine_type: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" value={editRestaurant.emoji} onChange={e => setEditRestaurant({...editRestaurant, emoji: e.target.value})} /></div>
+                    <div><label>Parish</label><select className="input" value={editRestaurant.parish} onChange={e => setEditRestaurant({...editRestaurant, parish: e.target.value})}>{PARISHES.map(p => <option key={p}>{p}</option>)}</select></div>
+                    <div><label>Min Order GBP</label><input className="input" type="number" value={editRestaurant.min_order} onChange={e => setEditRestaurant({...editRestaurant, min_order: e.target.value})} /></div>
+                    <div><label>Delivery Mins</label><input className="input" type="number" value={editRestaurant.delivery_time_mins} onChange={e => setEditRestaurant({...editRestaurant, delivery_time_mins: e.target.value})} /></div>
+                    <div><label>Pickup Mins</label><input className="input" type="number" value={editRestaurant.pickup_time_mins} onChange={e => setEditRestaurant({...editRestaurant, pickup_time_mins: e.target.value})} /></div>
+                    <div><label>Delivery Fee GBP</label><input className="input" type="number" step="0.01" placeholder="2.50" value={editRestaurant.delivery_fee || ''} onChange={e => setEditRestaurant({...editRestaurant, delivery_fee: e.target.value})} /></div>
+                    <div><label>Opens (e.g. 11:00)</label><input className="input" type="time" value={editRestaurant.opening_time || ''} onChange={e => setEditRestaurant({...editRestaurant, opening_time: e.target.value})} /></div>
+                    <div><label>Closes (e.g. 22:00)</label><input className="input" type="time" value={editRestaurant.closing_time || ''} onChange={e => setEditRestaurant({...editRestaurant, closing_time: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label>food.gg URL (for sync)</label><input className="input" placeholder="https://www.food.gg/restaurantname" value={editRestaurant.foodgg_url || ''} onChange={e => setEditRestaurant({...editRestaurant, foodgg_url: e.target.value})} /></div>
+                  </div>
+                  <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
+                  <div style={{ marginBottom: '14px' }}><label>Custom Thank You Message</label><input className="input" value={editRestaurant.custom_message || ''} onChange={e => setEditRestaurant({...editRestaurant, custom_message: e.target.value})} /></div>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                    {[['is_open','Open for orders'],['is_active','Visible on site'],['accepts_delivery','Delivery'],['accepts_pickup','Pickup']].map(([key, label]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editRestaurant[key]} onChange={e => setEditRestaurant({...editRestaurant, [key]: e.target.checked})} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setEditRestaurant(null)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={saveRestaurant} style={{ flex: 2 }}>Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MENUS */}
+        {tab === 'menus' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Menu Editor</h2>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <select className="input" style={{ width: 'auto', minWidth: '200px' }} value={selectedRestaurant?.id || ''} onChange={e => { const r = restaurants.find(r => r.id === e.target.value); setSelectedRestaurant(r); if (r) fetchMenuForRestaurant(r.id) }}>
+                  <option value="">Select restaurant...</option>
+                  {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                {selectedRestaurant && <>
+                  <button className="btn-ghost" onClick={() => { fetchSharedGroups(selectedRestaurant.id); setShowSharedGroups(true) }} style={{ fontSize: '12px', padding: '8px 14px' }}>Shared Toppings</button>
+                  <button className="btn-ghost" onClick={() => setShowAddCategory(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Category</button>
+                  <button className="btn-primary" onClick={() => setShowAddItem(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Item</button>
+                </>}
+              </div>
+            </div>
+
+            {!selectedRestaurant && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>Select a restaurant to edit its menu</div>}
+
+            {selectedRestaurant && categories.map(cat => (
+              <div key={cat.id} style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat.name}</div>
+                  <button onClick={() => deleteCategory(cat.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '11px', cursor: 'pointer' }}>Delete category</button>
+                </div>
+                {menuItems.filter(i => i.category_id === cat.id).map(item => (
+                  <div key={item.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '24px' }}>{item.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: item.is_available ? 'var(--text)' : 'var(--sub)' }}>{item.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{item.description}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
+                      <div onClick={() => toggleItem(item.id, item.is_available)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: item.is_available ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
+                        <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                      </div>
+                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '12px' }}>Edit</button>
+                      <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '12px' }}>Options</button>
+                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Del</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* SHARED TOPPINGS MODAL */}
+            {showSharedGroups && selectedRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) { setShowSharedGroups(false); setLinkingGroup(null) } }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Shared Option Groups</h3>
+                    <button onClick={() => { setShowSharedGroups(false); setLinkingGroup(null) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>
+                    Create option groups once (like Pizza Toppings) and apply them to multiple items at once. Perfect for toppings that apply to all pizzas!
+                  </p>
+
+                  {sharedGroups.map(group => (
+                    <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
+                          {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
+                          <span style={{ fontSize: '11px', color: 'var(--sub)', marginLeft: '8px' }}>{group.item_option_group_links?.length || 0} items linked</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => openLinkGroup(group)} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--green)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' }}>Link to items</button>
+                          <button onClick={() => deleteSharedGroup(group.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                        {group.item_options?.map((opt: any) => (
+                          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                            <span>{opt.name}</span>
+                            {opt.price_adjustment > 0 && <span style={{ color: 'var(--orange)' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {showAddSharedOption === group.id ? (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input className="input" placeholder="Option name e.g. Pepperoni" value={newSharedOption.name} onChange={e => setNewSharedOption({...newSharedOption, name: e.target.value})} style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }} />
+                          <input className="input" type="number" step="0.01" placeholder="Price e.g. 1.50" value={newSharedOption.price_adjustment} onChange={e => setNewSharedOption({...newSharedOption, price_adjustment: e.target.value})} style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }} />
+                          <button className="btn-primary" onClick={() => addSharedOption(group.id)} style={{ fontSize: '12px', padding: '6px 12px' }}>Add</button>
+                          <button className="btn-ghost" onClick={() => setShowAddSharedOption(null)} style={{ fontSize: '12px', padding: '6px 10px' }}>x</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setShowAddSharedOption(group.id); setNewSharedOption({ name: '', price_adjustment: '0', sort_order: '1' }) }} style={{ background: 'none', border: '1px dashed var(--border)', color: 'var(--sub)', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>+ Add option</button>
+                      )}
+                    </div>
+                  ))}
+
+                  {showAddSharedGroup ? (
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Shared Option Group</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Extra Toppings, Choose Your Base" value={newSharedGroup.name} onChange={e => setNewSharedGroup({...newSharedGroup, name: e.target.value})} /></div>
+                        <div><label>Type</label><select className="input" value={newSharedGroup.type} onChange={e => setNewSharedGroup({...newSharedGroup, type: e.target.value})}>
+                          <option value="multiple">Multi select (checkboxes)</option>
+                          <option value="single">Single select (radio)</option>
+                        </select></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="shreq" checked={newSharedGroup.required} onChange={e => setNewSharedGroup({...newSharedGroup, required: e.target.checked})} />
+                          <label htmlFor="shreq" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-ghost" onClick={() => setShowAddSharedGroup(false)} style={{ flex: 1 }}>Cancel</button>
+                        <button className="btn-primary" onClick={addSharedGroup} style={{ flex: 2 }}>Create Group</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddSharedGroup(true)} className="btn-ghost" style={{ width: '100%', padding: '12px', borderStyle: 'dashed' }}>+ Create New Shared Group</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* LINK GROUP TO ITEMS MODAL */}
+            {linkingGroup && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setLinkingGroup(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Link "{linkingGroup.name}" to items</h3>
+                    <button onClick={() => setLinkingGroup(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '16px' }}>Toggle which items show this option group. Ticked items will show this group to customers.</p>
+
+                  {categories.map(cat => (
+                    <div key={cat.id} style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>{cat.name}</div>
+                      {menuItems.filter(i => i.category_id === cat.id).map(item => (
+                        <div key={item.id} onClick={() => toggleItemLink(item.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', background: linkedItems.includes(item.id) ? 'rgba(34,197,94,0.06)' : 'var(--card)', border: `1px solid ${linkedItems.includes(item.id) ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, marginBottom: '5px' }}>
+                          <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${linkedItems.includes(item.id) ? 'var(--green)' : 'var(--border)'}`, background: linkedItems.includes(item.id) ? 'var(--green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {linkedItems.includes(item.id) && <span style={{ color: '#0f172a', fontSize: '10px', fontWeight: 700 }}>v</span>}
+                          </div>
+                          <span style={{ fontSize: '13px' }}>{item.emoji} {item.name}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--sub)', marginLeft: 'auto' }}>GBP{item.price?.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  <button onClick={() => setLinkingGroup(null)} className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '10px' }}>Done</button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Category Modal */}
+            {showAddCategory && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddCategory(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '400px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Add Category</h3>
+                  <div style={{ marginBottom: '12px' }}><label>Category Name</label><input className="input" placeholder="e.g. Starters, Mains, Desserts" value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} /></div>
+                  <div style={{ marginBottom: '20px' }}><label>Sort Order</label><input className="input" type="number" value={newCategory.sort_order} onChange={e => setNewCategory({...newCategory, sort_order: e.target.value})} /></div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowAddCategory(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={addCategory} style={{ flex: 2 }}>Add Category</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Item Modal */}
+            {showAddItem && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddItem(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Add Menu Item</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ gridColumn: 'span 2' }}><label>Item Name *</label><input className="input" placeholder="Margherita Pizza" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
+                    <div><label>Price GBP *</label><input className="input" type="number" step="0.01" placeholder="11.99" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" placeholder="food" value={newItem.emoji} onChange={e => setNewItem({...newItem, emoji: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" placeholder="Tomato, mozzarella, fresh basil" value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} /></div>
+                    <div><label>Calories (optional)</label><input className="input" type="number" placeholder="820" value={newItem.calories} onChange={e => setNewItem({...newItem, calories: e.target.value})} /></div>
+                    <div><label>Category *</label><select className="input" value={newItem.category_id} onChange={e => setNewItem({...newItem, category_id: e.target.value})}><option value="">Select...</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    <button className="btn-ghost" onClick={() => setShowAddItem(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={addMenuItem} style={{ flex: 2 }}>Add Item</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Item Modal */}
+            {editItem && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditItem(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Edit {editItem.name}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ gridColumn: 'span 2' }}><label>Name</label><input className="input" value={editItem.name} onChange={e => setEditItem({...editItem, name: e.target.value})} /></div>
+                    <div><label>Price GBP</label><input className="input" type="number" step="0.01" value={editItem.price} onChange={e => setEditItem({...editItem, price: e.target.value})} /></div>
+                    <div><label>Emoji</label><input className="input" value={editItem.emoji} onChange={e => setEditItem({...editItem, emoji: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} /></div>
+                    <div><label>Calories</label><input className="input" type="number" value={editItem.calories || ''} onChange={e => setEditItem({...editItem, calories: e.target.value})} /></div>
+                    <div><label>Category</label><select className="input" value={editItem.category_id} onChange={e => setEditItem({...editItem, category_id: e.target.value})}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '13px' }}>
+                    <input type="checkbox" checked={editItem.is_available} onChange={e => setEditItem({...editItem, is_available: e.target.checked})} />
+                    Available for ordering
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setEditItem(null)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={saveMenuItem} style={{ flex: 2 }}>Save Item</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* OPTIONS EDITOR MODAL - per item */}
+            {editingOptions && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditingOptions(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Options for {editingOptions.name}</h3>
+                    <button onClick={() => setEditingOptions(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
+                    Add option groups specific to this item. For toppings that apply to multiple items use Shared Toppings instead.
+                  </div>
+
+                  {optionGroups.map(group => (
+                    <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
+                          {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
+                        </div>
+                        <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                        {group.item_options?.map((opt: any) => (
+                          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                            <span>{opt.name}</span>
+                            {opt.price_adjustment > 0 && <span style={{ color: 'var(--orange)' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                            <button onClick={() => deleteOption(opt.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
+                          </div>
+                        ))}
+                      </div>
+                      {showAddOption === group.id ? (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input className="input" placeholder="Option name" value={newOption.name} onChange={e => setNewOption({...newOption, name: e.target.value})} style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }} />
+                          <input className="input" type="number" step="0.01" placeholder="Price +/-" value={newOption.price_adjustment} onChange={e => setNewOption({...newOption, price_adjustment: e.target.value})} style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }} />
+                          <button className="btn-primary" onClick={() => addOption(group.id, editingOptions.id)} style={{ fontSize: '12px', padding: '6px 12px' }}>Add</button>
+                          <button className="btn-ghost" onClick={() => setShowAddOption(null)} style={{ fontSize: '12px', padding: '6px 10px' }}>x</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setShowAddOption(group.id); setNewOption({ name: '', price_adjustment: '0', sort_order: '1' }) }} style={{ background: 'none', border: '1px dashed var(--border)', color: 'var(--sub)', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>+ Add option</button>
+                      )}
+                    </div>
+                  ))}
+
+                  {showAddGroup ? (
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Option Group</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Choose Your Size" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} /></div>
+                        <div><label>Type</label><select className="input" value={newGroup.type} onChange={e => setNewGroup({...newGroup, type: e.target.value})}>
+                          <option value="single">Single select (radio)</option>
+                          <option value="multiple">Multi select (checkboxes)</option>
+                        </select></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="req" checked={newGroup.required} onChange={e => setNewGroup({...newGroup, required: e.target.checked})} />
+                          <label htmlFor="req" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-ghost" onClick={() => setShowAddGroup(false)} style={{ flex: 1 }}>Cancel</button>
+                        <button className="btn-primary" onClick={() => addOptionGroup(editingOptions.id)} style={{ flex: 2 }}>Add Group</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddGroup(true)} className="btn-ghost" style={{ width: '100%', padding: '12px', borderStyle: 'dashed' }}>+ Add Option Group</button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MERCHANTS */}
+        {tab === 'merchants' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Merchants</h2>
+              <button className="btn-primary" onClick={() => setShowAddMerchant(true)} style={{ padding: '10px 18px' }}>+ Add Merchant</button>
+            </div>
+            {merchants.map(m => (
+              <div key={m.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{m.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{m.email} - {m.phone}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>Commission: {m.commission_rate}% - Joined {new Date(m.created_at).toLocaleDateString('en-GB')}</div>
+                  </div>
+                  <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: m.is_trial ? 'rgba(234,179,8,0.15)' : 'rgba(34,197,94,0.15)', color: m.is_trial ? '#EAB308' : 'var(--green)', fontWeight: 600 }}>
+                    {m.is_trial ? 'Trial' : 'Live'}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {showAddMerchant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddMerchant(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Add Merchant</h3>
+                  <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+                    <div><label>Full Name</label><input className="input" placeholder="John Smith" value={newMerchant.name} onChange={e => setNewMerchant({...newMerchant, name: e.target.value})} /></div>
+                    <div><label>Email</label><input className="input" type="email" placeholder="john@restaurant.com" value={newMerchant.email} onChange={e => setNewMerchant({...newMerchant, email: e.target.value})} /></div>
+                    <div><label>Phone</label><input className="input" placeholder="+44 1481 000000" value={newMerchant.phone} onChange={e => setNewMerchant({...newMerchant, phone: e.target.value})} /></div>
+                    <div><label>Commission %</label><input className="input" type="number" value={newMerchant.commission_rate} onChange={e => setNewMerchant({...newMerchant, commission_rate: e.target.value})} /></div>
+                    <div><label>Terminal Password</label><input className="input" type="password" placeholder="Choose a password for them" value={newMerchant.password} onChange={e => setNewMerchant({...newMerchant, password: e.target.value})} /></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowAddMerchant(false)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-primary" onClick={addMerchant} style={{ flex: 2 }}>Add Merchant</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ORDERS */}
+        {tab === 'orders' && (
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>All Orders</h2>
+            {orders.map(o => (
+              <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{o.order_number}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} - {o.customer_email}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type} - {o.payment_method}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{o.commission_amount?.toFixed(2) || '0.00'}</div>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
+                </div>
+              </div>
+            ))}
+            {orders.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>No orders yet</div>}
+          </div>
+        )}
+
+        {/* COMMISSIONS */}
+        {tab === 'commissions' && (
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Commissions</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '14px', marginBottom: '24px' }}>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Total Commission</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>GBP{totalCommission.toFixed(2)}</div>
+              </div>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Platform Revenue</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>GBP{totalRevenue.toFixed(2)}</div>
+              </div>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px' }}>Card Orders</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--blue)' }}>{orders.filter(o => o.payment_method === 'card').length}</div>
+              </div>
+            </div>
+            <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '10px', padding: '14px', fontSize: '13px', color: 'var(--sub)', lineHeight: 1.6 }}>
+              Commission is charged at 4% on food subtotal for card orders only. Cash orders are excluded. Invoices sent monthly with 7-day payment terms. Trial merchants are not invoiced.
+            </div>
           </div>
         )}
       </div>
