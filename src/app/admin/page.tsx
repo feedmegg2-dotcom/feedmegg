@@ -578,7 +578,7 @@ export default function AdminPage() {
               </div>
             )}
 
-        {/* MERCHANTS */}}
+        {/* MERCHANTS */}
         {tab === 'merchants' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
