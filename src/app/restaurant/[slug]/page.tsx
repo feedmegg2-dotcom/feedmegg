@@ -135,18 +135,33 @@ export default function RestaurantPage() {
   const cardBg = isDark ? '#111827' : '#FFFFFF'
 
   return (
-    <div style={{ background: bgColor, minHeight: '100vh', paddingBottom: '70px', color: textColor, transition: 'all 0.3s', position: 'relative' }}>
+    <div style={{ background: bgColor, minHeight: '100vh', paddingBottom: '70px', color: textColor, transition: 'all 0.3s', position: 'relative', overflow: 'hidden' }}>
+      {/* Food Background - Works in both light and dark */}
       <div style={{
         position: 'fixed',
-        top: '0',
+        top: '-100px',
         right: '-100px',
-        fontSize: '200px',
-        opacity: 0.05,
+        fontSize: '180px',
+        opacity: isDark ? 0.08 : 0.06,
         zIndex: 0,
         pointerEvents: 'none',
-        animation: 'float 8s ease-in-out infinite'
+        animation: 'float 8s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
       }}>
-        🍕 🍔
+        🍕 🍔 🍜 🍱 🍛
+      </div>
+      <div style={{
+        position: 'fixed',
+        bottom: '-80px',
+        left: '-80px',
+        fontSize: '150px',
+        opacity: isDark ? 0.05 : 0.04,
+        zIndex: 0,
+        pointerEvents: 'none',
+        animation: 'float 10s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍝 🌮 🥗 🍖
       </div>
       {/* Nav */}
       <nav style={{ background: '#1F2937', borderBottom: '3px solid #22C55E', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 101 }}>
