@@ -23,7 +23,7 @@ Return exactly this format:
 
 Allergens to check (only include if likely present): gluten, dairy, eggs, nuts, peanuts, soy, fish, shellfish, celery, mustard, sesame, sulphites, lupin, molluscs
 
-For calories, estimate based on typical portion size. If impossible to estimate, use null.
+For calories, always provide a number estimate based on typical restaurant portion size. Never use null - always give your best estimate as a number.
 Return ONLY the JSON object, nothing else.`
         }]
       })
@@ -34,7 +34,7 @@ Return ONLY the JSON object, nothing else.`
     const parsed = JSON.parse(clean)
     return {
       allergens: (parsed.allergens || []).filter((a: string) => ALLERGENS.includes(a.toLowerCase())),
-      calories: parsed.calories || null
+      calories: parsed.calories ? parseInt(String(parsed.calories)) : null
     }
   } catch (e) {
     return { allergens: [], calories: null }
