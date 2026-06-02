@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       const menuNumRegex = /\/menu\/(\d+)/g
       let mu
       while ((mu = menuNumRegex.exec(html)) !== null) {
-        const secUrl = `https://www.food.gg/${foodggSlug}/menu/${mu[1]}`
+        const secUrl = `${foodggUrl.replace(/#.*$/, '')}/menu/${mu[1]}`
         if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
       }
 
