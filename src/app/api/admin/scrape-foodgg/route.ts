@@ -174,17 +174,23 @@ export async function POST(request: NextRequest) {
       if (mainHtml.includes(p)) { parish = p; break }
     }
 
-    // Extract ALL /menu/NUMBER URLs - simplest possible approach
-    const menuUrlRegex = /https?:\/\/www\.food\.gg\/[^/"#\s]+\/menu\/(\d+)/g
+    // Extract ALL /menu/NUMBER URLs - handle both relative and absolute
     const sectionUrls: string[] = []
     const seen = new Set<string>()
+
+    // Match absolute URLs
+    const absRegex = /https?:\/\/www\.food\.gg\/[^/"#\s]+\/menu\/(\d+)/g
     let mu
-    while ((mu = menuUrlRegex.exec(mainHtml)) !== null) {
+    while ((mu = absRegex.exec(mainHtml)) !== null) {
       const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
-      if (!seen.has(secUrl)) {
-        seen.add(secUrl)
-        sectionUrls.push(secUrl)
-      }
+      if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
+    }
+
+    // Match relative URLs like /wickedwolf/menu/2408
+    const relRegex = /\/[^/"#\s]+\/menu\/(\d+)/g
+    while ((mu = relRegex.exec(mainHtml)) !== null) {
+      const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
+      if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
     }
 
     // Check not already imported
@@ -254,7 +260,8 @@ export async function POST(request: NextRequest) {
       success: true, restaurantId, restaurantName,
       categories: totalCategories, items: totalItems,
       sectionsFound: sectionUrls.length,
-      message: `Imported ${restaurantName} with ${totalCategories} categories and ${totalItems} menu items!`,
+      sectionUrls,
+      message: `Imported ${restaurantName} with ${totalCategories} categories and ${totalItems} menu items! (Found ${sectionUrls.length} sections)`,
     })
 
   } catch (error: any) {
