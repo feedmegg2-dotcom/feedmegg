@@ -38,16 +38,21 @@ export async function POST(request: NextRequest) {
     const changes: string[] = []
 
     // 1. CHECK OPEN/CLOSED STATUS
-    const isOpen = !html.includes('Closed Opens') && !html.includes('Currently closed')
-    if (restaurant.is_open !== isOpen) {
-      await supabase.from('restaurants').update({ is_open: isOpen }).eq('id', restaurantId)
-      changes.push(isOpen ? 'Marked as open' : 'Marked as closed')
+    // food.gg shows "Open Closes X:XXpm" when open, "Closed Opens X:XXpm" when closed
+    const isOpen = html.includes('Open Closes') || html.includes('*Open')
+    const isClosed = html.includes('Closed Opens') || html.includes('*Closed') || html.includes('Currently closed')
+    const newOpenStatus = isOpen && !isClosed
+
+    if (restaurant.is_open !== newOpenStatus) {
+      await supabase.from('restaurants').update({ is_open: newOpenStatus }).eq('id', restaurantId)
+      changes.push(newOpenStatus ? 'Marked as open' : 'Marked as closed')
     }
 
     // 2. CHECK DELIVERY/PICKUP TIMES
     // food.gg shows "Average delivery: X minutes" and "Average collection: X minutes"
-    const delivMatch = html.match(/Average delivery[:\s]+(\d+)\s*minutes?/i)
-    const pickMatch = html.match(/Average collection[:\s]+(\d+)\s*minutes?/i)
+    // These appear on both the main page and the /info page
+    const delivMatch = html.match(/Average delivery[^\d]+(\d+)\s*minutes?/i)
+    const pickMatch = html.match(/Average collection[^\d]+(\d+)\s*minutes?/i)
 
     if (delivMatch) {
       const newDelivTime = parseInt(delivMatch[1])
