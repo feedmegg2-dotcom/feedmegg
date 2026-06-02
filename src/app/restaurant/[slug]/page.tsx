@@ -135,9 +135,27 @@ export default function RestaurantPage() {
   const cardBg = isDark ? '#111827' : '#FFFFFF'
 
   return (
-    <div style={{ background: bgColor, minHeight: '100vh', paddingBottom: '70px', color: textColor, transition: 'all 0.3s' }}>
+    <div style={{ background: bgColor, minHeight: '100vh', paddingBottom: '70px', color: textColor, transition: 'all 0.3s', position: 'relative' }}>
+      <div style={{
+        position: 'fixed',
+        top: '0',
+        right: '-100px',
+        fontSize: '200px',
+        opacity: 0.05,
+        zIndex: 0,
+        pointerEvents: 'none',
+        animation: 'float 8s ease-in-out infinite'
+      }}>
+        🍕 🍔
+      </div>
       {/* Nav */}
-      <nav style={{ background: '#1F2937', borderBottom: '3px solid #22C55E', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav style={{ background: '#1F2937', borderBottom: '3px solid #22C55E', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 101 }}>
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+          }
+        `}</style>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: '18px', fontWeight: 800, textDecoration: 'none', color: '#22C55E' }}>
             feedme.gg
@@ -156,7 +174,7 @@ export default function RestaurantPage() {
       </nav>
 
       {/* Restaurant Header */}
-      <div style={{ background: hoverBg, padding: '16px', borderBottom: `1px solid ${borderColor}` }}>
+      <div style={{ background: hoverBg, padding: '16px', borderBottom: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
           <div style={{ fontSize: '32px' }}>{restaurant.emoji}</div>
           <div style={{ flex: 1 }}>
@@ -178,7 +196,7 @@ export default function RestaurantPage() {
       </div>
 
       {/* Search & Filter */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '12px 16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', gap: '10px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '12px 16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', gap: '10px', position: 'relative', zIndex: 2 }}>
         <div style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px' }}>
           <input
             type="text"
@@ -209,7 +227,7 @@ export default function RestaurantPage() {
       </div>
 
       {/* Menu Items */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px', position: 'relative', zIndex: 2 }}>
         {filteredCategories.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 16px', color: secondaryText }}>
             <p>No items found</p>
