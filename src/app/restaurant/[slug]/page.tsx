@@ -19,6 +19,7 @@ export default function RestaurantPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [showCategoryMenu, setShowCategoryMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showBasket, setShowBasket] = useState(false)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
