@@ -9,25 +9,35 @@ async function fetchPage(url: string): Promise<string> {
 function cleanText(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
 }
-function splitNameDesc(text: string): { name: string; desc: string } {
-  // Split on pipe character first (food.gg format: "Name | Description")
-  const pipeIdx = text.indexOf('|')
-  if (pipeIdx > 0) {
+function splitNameDesc(text: string): { name: string; desc: string; size?: string } {
+  // food.gg format: "Name Description - 9"" or "Name Description - 12""
+  // Extract size from end (e.g., 9", 12")
+  const sizeMatch = text.match(/\s*-\s*(\d+")$/)
+  let size = ''
+  let withoutSize = text
+  
+  if (sizeMatch) {
+    size = sizeMatch[1]
+    withoutSize = text.substring(0, sizeMatch.index).trim()
+  }
+  
+  // Split "Name Description" on first space
+  // Name is first word, Description is the rest
+  const firstSpaceIdx = withoutSize.indexOf(' ')
+  if (firstSpaceIdx > 0) {
     return {
-      name: text.substring(0, pipeIdx).trim(),
-      desc: text.substring(pipeIdx + 1).trim()
+      name: withoutSize.substring(0, firstSpaceIdx).trim(),
+      desc: withoutSize.substring(firstSpaceIdx).trim(),
+      size: size || undefined
     }
   }
-  // Fallback to double spaces
-  const splitIdx = text.search(/\s{2,}/)
-  if (splitIdx > 0) {
-    return {
-      name: text.substring(0, splitIdx).trim(),
-      desc: text.substring(splitIdx).trim()
-    }
+  
+  // No space found (single word name)
+  return { 
+    name: withoutSize, 
+    desc: '', 
+    size: size || undefined 
   }
-  // No split found
-  return { name: text, desc: '' }
 }
 function getEmoji(name: string): string {
   const n = name.toLowerCase()
@@ -92,11 +102,15 @@ function parseItems(html: string): MenuItem[] {
         else if (allText.includes('Vegetarian')) tags.push('veg')
         if (allText.includes('Spicy') || firstText.toLowerCase().includes('spicy') || firstText.toLowerCase().includes('chilli')) tags.push('spicy')
         
-        // Use splitNameDesc helper to handle pipe character
+        // Use splitNameDesc helper to extract name, description, and size
         const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
         const split = splitNameDesc(clean)
         currentName = split.name
         currentDesc = split.desc
+        // If size was extracted (e.g., "9""), add it to name
+        if (split.size) {
+          currentName = split.name + ' ' + split.size
+        }
         currentTags = tags
       }
       continue
@@ -146,8 +160,12 @@ function parseItems(html: string): MenuItem[] {
       if (firstText.toLowerCase().includes('spicy')) tags.push('spicy')
       const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
       const split = splitNameDesc(clean)
+      let itemName = split.name
+      if (split.size) {
+        itemName = split.name + ' ' + split.size
+      }
       items.push({ 
-        name: split.name, 
+        name: itemName, 
         description: split.desc, 
         price, 
         tags 
