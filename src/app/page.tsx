@@ -66,7 +66,40 @@ export default function HomePage() {
   const inputBg = isDark ? '#2D3748' : '#FFFFFF'
 
   return (
-    <div style={{ background: bgColor, minHeight: '100vh', color: textColor, transition: 'all 0.3s' }}>
+    <div style={{ background: bgColor, minHeight: '100vh', color: textColor, transition: 'all 0.3s', position: 'relative', overflow: 'hidden' }}>
+      {/* Food Background - Works in both light and dark */}
+      <div style={{
+        position: 'fixed',
+        top: '-100px',
+        right: '-100px',
+        fontSize: '180px',
+        opacity: isDark ? 0.08 : 0.06,
+        zIndex: 0,
+        pointerEvents: 'none',
+        animation: 'float 8s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍕 🍔 🍜 🍱 🍛
+      </div>
+      <div style={{
+        position: 'fixed',
+        bottom: '-80px',
+        left: '-80px',
+        fontSize: '150px',
+        opacity: isDark ? 0.05 : 0.04,
+        zIndex: 0,
+        pointerEvents: 'none',
+        animation: 'float 10s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍝 🌮 🥗 🍖
+      </div>
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-30px) rotate(5deg); }
+        }
+      `}</style>
       {/* Navigation */}
       <nav style={{ borderBottom: `1px solid ${borderColor}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: bgColor }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -100,8 +133,9 @@ export default function HomePage() {
         padding: '40px 20px', 
         borderBottom: `1px solid ${isDark ? '#374151' : '#E5E5E5'}`,
         position: 'relative',
-        overflow: 'hidden'
-      }}>
+        overflow: 'hidden',
+        zIndex: 2
+      }}
         <div style={{
           position: 'absolute',
           top: 0,
@@ -183,7 +217,7 @@ export default function HomePage() {
               </select>
             </div>
             <button
-              onClick={() => router.push('/restaurants')}
+              onClick={() => router.push(`/restaurants?cuisine=${selectedCuisine}`)}
               style={{
                 background: '#F5F5F5',
                 color: '#1F2937',
@@ -207,7 +241,7 @@ export default function HomePage() {
       </div>
 
       {/* Places to Try Section */}
-      <div style={{ background: bgColor, padding: '60px 20px' }}>
+      <div style={{ background: bgColor, padding: '60px 20px', position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '12px', textAlign: 'center' }}>
             Places to Try
@@ -233,7 +267,8 @@ export default function HomePage() {
       </div>
 
       {/* Browse All Takeaways Section */}
-      <div id="all-takeaways" style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}` }}>
+      <div id="all-takeaways" style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
+
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '16px' }}>
             Browse All Takeaways
@@ -263,7 +298,7 @@ export default function HomePage() {
       </div>
 
       {/* How It Works Section */}
-      <div style={{ background: bgColor, padding: '60px 20px' }}>
+      <div style={{ background: bgColor, padding: '60px 20px', position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '40px', textAlign: 'center' }}>
             How It Works
