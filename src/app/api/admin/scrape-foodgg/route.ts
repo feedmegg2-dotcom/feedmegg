@@ -9,45 +9,7 @@ async function fetchPage(url: string): Promise<string> {
 }
 
 function cleanText(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
-}
-
-function splitNameDesc(text: string): { name: string; desc: string; size?: string } {
-  // Decode HTML entities first
-  const decoded = text
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-  
-  // food.gg format: "Name Description - 9"" or "Name Description - 12""
-  // Extract size from end (e.g., 9", 12")
-  const sizeMatch = decoded.match(/\s*-\s*(\d+")$/)
-  let size = ''
-  let withoutSize = decoded
-  
-  if (sizeMatch) {
-    size = sizeMatch[1]
-    withoutSize = decoded.substring(0, sizeMatch.index).trim()
-  }
-  
-  // Split "Name Description" on first space
-  // Name is first word, Description is the rest
-  const firstSpaceIdx = withoutSize.indexOf(' ')
-  if (firstSpaceIdx > 0) {
-    return {
-      name: withoutSize.substring(0, firstSpaceIdx).trim(),
-      desc: withoutSize.substring(firstSpaceIdx).trim(),
-      size: size || undefined
-    }
-  }
-  
-  // No space found (single word name)
-  return { 
-    name: withoutSize, 
-    desc: '', 
-    size: size || undefined 
-  }
+  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
 }
 
 function getEmoji(name: string): string {
@@ -106,7 +68,6 @@ function parseItems(html: string): MenuItem[] {
     const priceMatch = lastHtml.match(/£([\d.]+)/)
     const hasBasket = lastHtml.includes('Add to basket') || lastHtml.includes('add/')
     
-    // Row with name/description but no price (first row of item group)
     if (!hasBasket && !priceMatch) {
       if (firstText && firstText.length > 1 && firstText !== 'Price' && !firstText.match(/^[£\d]/)) {
         const tags: string[] = []
@@ -115,74 +76,51 @@ function parseItems(html: string): MenuItem[] {
         else if (allText.includes('Vegetarian')) tags.push('veg')
         if (allText.includes('Spicy') || firstText.toLowerCase().includes('spicy') || firstText.toLowerCase().includes('chilli')) tags.push('spicy')
         
-        // Use splitNameDesc helper to extract name, description, and size
+        // Split into name and description by double space or specific patterns
         const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
-        const split = splitNameDesc(clean)
-        currentName = split.name
-        currentDesc = split.desc
-        // If size was extracted (e.g., "9""), add it to name
-        if (split.size) {
-          currentName = split.name + ' ' + split.size
+        // Try to split on first occurrence of multiple spaces
+        const splitIdx = clean.search(/\s{2,}/)
+        if (splitIdx > 0) {
+          currentName = clean.substring(0, splitIdx).trim()
+          currentDesc = clean.substring(splitIdx).trim()
+        } else {
+          currentName = clean
+          currentDesc = ''
         }
         currentTags = tags
       }
       continue
     }
     
-    // Row with price but not a size variant
     if (!priceMatch) continue
     const price = parseFloat(priceMatch[1])
     if (price <= 0 || price >= 500) continue
     
-    // Check if first cell is a size (e.g., "9"", "Small", "Medium")
     const isSize = !firstText || /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)
-    
-    // Row with size and price
+    const isVariant = !!(currentName && firstText && firstText.length > 0 && firstText.length < 30)
+
     if (currentName && firstText && /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)) {
-      items.push({ 
-        name: currentName + ' ' + firstText, 
-        description: currentDesc, 
-        price, 
-        tags: [...currentTags] 
-      })
-    } 
-    // Row with price but no size in first cell (single price item)
-    else if (currentName && !firstText) {
-      items.push({ 
-        name: currentName, 
-        description: currentDesc, 
-        price, 
-        tags: [...currentTags] 
-      })
+      items.push({ name: currentName + ' ' + firstText, description: currentDesc, price, tags: [...currentTags] })
+    } else if (currentName && !firstText) {
+      items.push({ name: currentName, description: currentDesc, price, tags: [...currentTags] })
       currentName = ''; currentDesc = ''; currentTags = []
-    } 
-    // Variant row (e.g., "Gravy", "Bacon", "Extra Cheese")
-    else if (currentName && firstText && firstText.length > 0 && firstText.length < 30 && !isSize) {
-      items.push({ 
-        name: currentName + ' - ' + firstText, 
-        description: currentDesc, 
-        price, 
-        tags: [...currentTags] 
-      })
-    } 
-    // New item without currentName set (fallback - treat first cell as full name)
-    else if (firstText && firstText.length > 2) {
+    } else if (currentName && isVariant) {
+      items.push({ name: currentName + ' - ' + firstText, description: currentDesc, price, tags: [...currentTags] })
+    } else if (firstText && firstText.length > 2) {
+      currentName = ''; currentDesc = ''; currentTags = []
+    } else if (currentName && isVariant) {
+      // Variant label e.g. "Gravy", "Bacon", "Mushroom Sauce"
+      items.push({ name: currentName + ' - ' + firstText, description: currentDesc, price, tags: [...currentTags] })
+    } else if (firstText && firstText.length > 2) {
       const tags: string[] = []
       if (firstText.includes('Vegan')) { tags.push('veg'); tags.push('vegan') }
       else if (firstText.includes('Vegetarian')) tags.push('veg')
       if (firstText.toLowerCase().includes('spicy')) tags.push('spicy')
       const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
-      const split = splitNameDesc(clean)
-      let itemName = split.name
-      if (split.size) {
-        itemName = split.name + ' ' + split.size
-      }
-      items.push({ 
-        name: itemName, 
-        description: split.desc, 
-        price, 
-        tags 
-      })
+      const splitIdx = clean.search(/\s{2,}/)
+      const name = splitIdx > 0 ? clean.substring(0, splitIdx).trim() : clean
+      const desc = splitIdx > 0 ? clean.substring(splitIdx).trim() : ''
+      items.push({ name, description: desc, price, tags })
     }
   }
   
@@ -214,17 +152,22 @@ function getCategoryName(html: string): string {
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
+
   try {
     const { url, merchantId } = await request.json()
     if (!url || !merchantId) {
       return NextResponse.json({ error: 'URL and merchantId required' }, { status: 400 })
     }
+
     const baseUrl = url.replace(/\/$/, '').replace(/#.*$/, '')
     const slug = baseUrl.split('/').pop() || ''
+
     const mainHtml = await fetchPage(baseUrl)
+
     // Restaurant name from h1
     const nameMatch = mainHtml.match(/<h1[^>]*>\s*([^<]+)\s*<\/h1>/)
     const restaurantName = nameMatch ? nameMatch[1].trim() : slug.replace(/-/g, ' ')
+
     // Cuisines
     const cuisines: string[] = []
     const cuisineRegex = /guernsey-takeaway\/[^"]+">([^<]+)<\/a>/g
@@ -232,15 +175,18 @@ export async function POST(request: NextRequest) {
     while ((cm = cuisineRegex.exec(mainHtml)) !== null) {
       if (!cm[1].includes('Food') && cm[1].length < 30) cuisines.push(cm[1].trim())
     }
+
     // Parish
     let parish = 'St Peter Port'
     for (const p of ['St Martin','St Peter Port','St Sampson','Vale','Castel','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']) {
       if (mainHtml.includes(p)) { parish = p; break }
     }
+
     // Extract ALL /menu/NUMBER URLs
     // food.gg uses both absolute and relative URLs, with #menu anchors
     const sectionUrls: string[] = []
     const seen = new Set<string>()
+
     // Match /menu/NUMBER anywhere in the HTML (handles #menu suffix)
     const menuNumRegex = /\/menu\/(\d+)/g
     let mu
@@ -248,12 +194,14 @@ export async function POST(request: NextRequest) {
       const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
       if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
     }
+
     // Check not already imported
     const restaurantSlug = slug + '-gg'
     const { data: existing } = await supabase.from('restaurants').select('id').eq('slug', restaurantSlug).single()
     if (existing) {
       return NextResponse.json({ error: 'Already imported: ' + restaurantSlug }, { status: 400 })
     }
+
     // Create restaurant
     const { data: restaurant, error: restError } = await supabase.from('restaurants').insert({
       merchant_id: merchantId,
@@ -269,16 +217,20 @@ export async function POST(request: NextRequest) {
       slot_capacity: 5,
       custom_message: `Thank you for ordering from ${restaurantName}!`,
     }).select().single()
+
     if (restError || !restaurant) {
       return NextResponse.json({ error: 'Failed: ' + restError?.message }, { status: 500 })
     }
+
     const restaurantId = restaurant.id
     let totalItems = 0
     let totalCategories = 0
+
     async function saveCategory(name: string, items: MenuItem[]) {
-      if (items.length === 0 || !name || name === 'Menu') return
+      if (items.length === 0 || !name) return
+      const catName = name === 'Menu' ? 'Menu Items' : name
       const { data: cat } = await supabase.from('menu_categories').insert({
-        restaurant_id: restaurantId, name,
+        restaurant_id: restaurantId, name: catName,
         sort_order: totalCategories + 1, is_active: true,
       }).select().single()
       if (!cat) return
@@ -293,9 +245,25 @@ export async function POST(request: NextRequest) {
         totalItems++
       }
     }
-    // Main page - get category name from title
-    const mainCat = getCategoryName(mainHtml)
-    await saveCategory(mainCat, parseItems(mainHtml))
+
+    // Main page - check for h3 subsections first
+    const hasH3 = mainHtml.includes('<h3')
+    if (hasH3) {
+      // Parse each h3 subsection separately
+      const h3Regex = /<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3|<h2|<\/div>|$)/gi
+      let h3Match
+      while ((h3Match = h3Regex.exec(mainHtml)) !== null) {
+        const subName = cleanText(h3Match[1])
+        if (subName && subName.length > 1) {
+          const subItems = parseItems(h3Match[2])
+          await saveCategory(subName, subItems)
+        }
+      }
+    } else {
+      const mainCat = getCategoryName(mainHtml)
+      await saveCategory(mainCat, parseItems(mainHtml))
+    }
+
     // Each section page
     for (const secUrl of sectionUrls) {
       try {
@@ -304,6 +272,7 @@ export async function POST(request: NextRequest) {
         await saveCategory(catName, parseItems(secHtml))
       } catch (e) { /* skip */ }
     }
+
     return NextResponse.json({
       success: true, restaurantId, restaurantName,
       categories: totalCategories, items: totalItems,
@@ -311,6 +280,7 @@ export async function POST(request: NextRequest) {
       sectionUrls,
       message: `Imported ${restaurantName} with ${totalCategories} categories and ${totalItems} menu items! (Found ${sectionUrls.length} sections)`,
     })
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
