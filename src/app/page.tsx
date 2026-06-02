@@ -111,88 +111,60 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <div style={{ background: '#22C55E', padding: '40px 20px', textAlign: 'center' }}>
+      <div style={{ background: bgColor, padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '32px', letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '32px', letterSpacing: '-0.5px' }}>
             Delivery Online in Guernsey
           </h1>
           
-          <div style={{ background: '#22C55E', padding: '20px', borderRadius: '8px', maxWidth: '900px', margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr' : '1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
-              {/* Cuisine Dropdown */}
-              <div style={{ textAlign: 'left' }}>
-                <label style={{ display: 'block', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
-                  Select what food you would like to eat
-                </label>
-                <select
-                  value={selectedCuisine}
-                  onChange={e => setSelectedCuisine(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: '#FFFFFF',
-                    color: '#1F2937',
-                    fontWeight: 500
-                  }}
-                >
-                  {CUISINE_FILTERS.map(f => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Location Dropdown */}
-              <div style={{ textAlign: 'left' }}>
-                <label style={{ display: 'block', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
-                  Where are you?
-                </label>
-                <select
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: '#FFFFFF',
-                    color: '#1F2937',
-                    fontWeight: 500
-                  }}
-                >
-                  <option>I'll choose later</option>
-                  <option>St Peter Port</option>
-                  <option>St Sampson</option>
-                  <option>Guernsey (All)</option>
-                </select>
-              </div>
-
-              {/* Button */}
-              <Link href="#all-takeaways" style={{ textDecoration: 'none' }}>
-                <button
-                  style={{
-                    background: '#1F2937',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    padding: '12px 24px',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    width: '100%',
-                    whiteSpace: 'nowrap',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#111827')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#1F2937')}
-                >
-                  All Takeaways
-                </button>
-              </Link>
+          <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end', flexDirection: isMobileView ? 'column' : 'row' }}>
+            {/* Cuisine Dropdown */}
+            <div style={{ textAlign: 'left', flex: 1 }}>
+              <label style={{ display: 'block', color: textColor, fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
+                Select what food you would like to eat
+              </label>
+              <select
+                value={selectedCuisine}
+                onChange={e => setSelectedCuisine(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  borderRadius: '4px',
+                  border: `1px solid ${borderColor}`,
+                  cursor: 'pointer',
+                  background: cardBg,
+                  color: textColor,
+                  fontWeight: 500
+                }}
+              >
+                {CUISINE_FILTERS.map(f => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
             </div>
+
+            {/* Browse Button */}
+            <Link href="#all-takeaways" style={{ textDecoration: 'none' }}>
+              <button
+                style={{
+                  background: '#F5F5F5',
+                  color: '#1F2937',
+                  border: 'none',
+                  padding: '12px 32px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#E5E5E5')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#F5F5F5')}
+              >
+                Browse
+              </button>
+            </Link>
           </div>
         </div>
       </div>
