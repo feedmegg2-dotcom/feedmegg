@@ -53,6 +53,12 @@ export default function AdminPage() {
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' })
 
+  // Delivery zones
+  const [showDeliverySettings, setShowDeliverySettings] = useState(false)
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
+  const [editingZone, setEditingZone] = useState<any>(null)
+  const [newZone, setNewZone] = useState({ postcode_prefix: '', delivery_fee: '', delivery_time_mins: '', is_active: true })
+
   function checkPassword() {
     if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll() }
     else setAuthError('Incorrect password')
@@ -82,6 +88,51 @@ export default function AdminPage() {
   async function fetchSharedGroups(restId: string) {
     const { data } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
     setSharedGroups(data || [])
+  }
+
+  async function fetchDeliveryZones(restId: string) {
+    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('postcode_prefix')
+    setDeliveryZones(data || [])
+  }
+
+  async function addDeliveryZone() {
+    if (!newZone.postcode_prefix || !newZone.delivery_fee || !newZone.delivery_time_mins) {
+      setMsg('Fill in all zone fields')
+      return
+    }
+    const { error } = await supabase.from('delivery_zones').insert({
+      restaurant_id: editRestaurant.id,
+      postcode_prefix: newZone.postcode_prefix.toUpperCase(),
+      delivery_fee: parseFloat(newZone.delivery_fee),
+      delivery_time_mins: parseInt(newZone.delivery_time_mins),
+      is_active: newZone.is_active
+    })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewZone({ postcode_prefix: '', delivery_fee: '', delivery_time_mins: '', is_active: true })
+    fetchDeliveryZones(editRestaurant.id)
+  }
+
+  async function updateDeliveryZone() {
+    if (!editingZone.postcode_prefix || !editingZone.delivery_fee || !editingZone.delivery_time_mins) {
+      setMsg('Fill in all zone fields')
+      return
+    }
+    const { error } = await supabase.from('delivery_zones').update({
+      postcode_prefix: editingZone.postcode_prefix.toUpperCase(),
+      delivery_fee: parseFloat(editingZone.delivery_fee),
+      delivery_time_mins: parseInt(editingZone.delivery_time_mins),
+      is_active: editingZone.is_active
+    }).eq('id', editingZone.id)
+    if (error) { setMsg('Error: ' + error.message); return }
+    setEditingZone(null)
+    fetchDeliveryZones(editRestaurant.id)
+  }
+
+  async function deleteDeliveryZone(zoneId: string) {
+    if (!confirm('Delete this delivery zone?')) return
+    const { error } = await supabase.from('delivery_zones').delete().eq('id', zoneId)
+    if (error) { setMsg('Error: ' + error.message); return }
+    fetchDeliveryZones(editRestaurant.id)
   }
 
   async function addOptionGroup(itemId: string) {
@@ -459,7 +510,83 @@ export default function AdminPage() {
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-ghost" onClick={() => setEditRestaurant(null)} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn-ghost" onClick={() => { fetchDeliveryZones(editRestaurant.id); setShowDeliverySettings(true) }} style={{ flex: 1 }}>Delivery Zones</button>
                     <button className="btn-primary" onClick={saveRestaurant} style={{ flex: 2 }}>Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delivery Settings Modal */}
+            {showDeliverySettings && editRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowDeliverySettings(false) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Delivery Zones - {editRestaurant.name}</h3>
+                  
+                  {deliveryZones.map(zone => (
+                    <div key={zone.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '10px' }}>
+                      {editingZone?.id === zone.id ? (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Postcode</label>
+                              <input className="input" placeholder="GY1" style={{ fontSize: '13px' }} value={editingZone.postcode_prefix} onChange={e => setEditingZone({...editingZone, postcode_prefix: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Fee GBP</label>
+                              <input className="input" type="number" step="0.01" style={{ fontSize: '13px' }} value={editingZone.delivery_fee} onChange={e => setEditingZone({...editingZone, delivery_fee: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Mins</label>
+                              <input className="input" type="number" style={{ fontSize: '13px' }} value={editingZone.delivery_time_mins} onChange={e => setEditingZone({...editingZone, delivery_time_mins: e.target.value})} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '10px' }}>
+                            <input type="checkbox" id={`active-${zone.id}`} checked={editingZone.is_active} onChange={e => setEditingZone({...editingZone, is_active: e.target.checked})} />
+                            <label htmlFor={`active-${zone.id}`} style={{ fontSize: '12px', cursor: 'pointer' }}>Active for delivery</label>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button className="btn-ghost" onClick={() => setEditingZone(null)} style={{ flex: 1, padding: '8px', fontSize: '12px' }}>Cancel</button>
+                            <button className="btn-primary" onClick={updateDeliveryZone} style={{ flex: 1, padding: '8px', fontSize: '12px' }}>Update</button>
+                            <button style={{ background: 'var(--red)', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }} onClick={() => deleteDeliveryZone(zone.id)}>Delete</button>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '14px' }}>{zone.postcode_prefix}*</div>
+                            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Fee: GBP{zone.delivery_fee.toFixed(2)} - {zone.delivery_time_mins} mins</div>
+                            {!zone.is_active && <div style={{ fontSize: '11px', color: 'var(--orange)', fontWeight: 600 }}>INACTIVE</div>}
+                          </div>
+                          <button className="btn-ghost" onClick={() => setEditingZone(zone)} style={{ padding: '6px 12px', fontSize: '12px' }}>Edit</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {!editingZone && (
+                    <div style={{ background: 'var(--card)', border: '1px dashed var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '10px', color: 'var(--sub)' }}>Add New Zone</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Postcode</label>
+                          <input className="input" placeholder="GY1" style={{ fontSize: '13px' }} value={newZone.postcode_prefix} onChange={e => setNewZone({...newZone, postcode_prefix: e.target.value})} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Fee GBP</label>
+                          <input className="input" type="number" step="0.01" placeholder="2.50" style={{ fontSize: '13px' }} value={newZone.delivery_fee} onChange={e => setNewZone({...newZone, delivery_fee: e.target.value})} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Mins</label>
+                          <input className="input" type="number" placeholder="25" style={{ fontSize: '13px' }} value={newZone.delivery_time_mins} onChange={e => setNewZone({...newZone, delivery_time_mins: e.target.value})} />
+                        </div>
+                      </div>
+                      <button className="btn-primary" onClick={addDeliveryZone} style={{ width: '100%', padding: '10px', fontSize: '13px' }}>Add Zone</button>
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-ghost" onClick={() => setShowDeliverySettings(false)} style={{ width: '100%' }}>Close</button>
                   </div>
                 </div>
               </div>
