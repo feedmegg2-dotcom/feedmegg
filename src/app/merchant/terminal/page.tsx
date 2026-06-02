@@ -20,6 +20,7 @@ export default function TerminalPage() {
   const [acceptOpen, setAcceptOpen] = useState(false)
   const [countdown, setCountdown] = useState(120)
   const [restaurant, setRestaurant] = useState<any>(null)
+  const [aiTagging, setAiTagging] = useState(false)
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
@@ -29,6 +30,7 @@ export default function TerminalPage() {
   const [toggles, setToggles] = useState({ preorders: true, delivery: true, pickups: true, sync: true })
   const countdownRef = useRef<any>(null)
   const pollRef = useRef<any>(null)
+  const syncRef = useRef<any>(null)
   const audioCtx = useRef<any>(null)
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function TerminalPage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
       if (countdownRef.current) clearInterval(countdownRef.current)
+      if (syncRef.current) clearInterval(syncRef.current)
     }
   }, [])
 
@@ -44,9 +47,14 @@ export default function TerminalPage() {
     if (!session) { router.push('/merchant/login'); return }
     const { data: merchant } = await supabase.from('merchants').select('*, restaurants(*)').eq('id', session.user.id).single()
     if (merchant) {
-      setRestaurant(merchant.restaurants?.[0])
-      fetchMenuItems(merchant.restaurants?.[0]?.id)
-      startPolling(merchant.restaurants?.[0]?.id)
+      const rest = merchant.restaurants?.[0]
+      setRestaurant(rest)
+      if (rest) {
+        setDelivTime(rest.delivery_time_mins || 25)
+        setPickTime(rest.pickup_time_mins || 15)
+      }
+      fetchMenuItems(rest?.id)
+      startPolling(rest?.id)
     }
   }
 
@@ -60,6 +68,40 @@ export default function TerminalPage() {
     if (!restId) return
     pollOrders(restId)
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
+  }
+
+  async function aiTagMenu() {
+    if (!restaurant) return
+    if (!confirm('Run AI tagging on all your menu items? This adds allergen info and calorie estimates. May take a few minutes.')) return
+    setAiTagging(true)
+    try {
+      const res = await fetch('/api/admin/ai-tag-menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId: restaurant.id })
+      })
+      const data = await res.json()
+      alert(data.message || ('Error: ' + data.error))
+    } catch (e) {
+      alert('AI tagging failed')
+    }
+    setAiTagging(false)
+  }
+
+  async function syncFoodGG(restId: string) {
+    try {
+      const res = await fetch('/api/merchant/sync-foodgg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId: restId })
+      })
+      const data = await res.json()
+      if (data.changes?.length > 0) {
+        console.log('food.gg sync:', data.message)
+      }
+    } catch (e) {
+      console.log('Sync failed:', e)
+    }
   }
 
   async function pollOrders(restId: string) {
@@ -121,6 +163,23 @@ export default function TerminalPage() {
     setMenuItems(prev => prev.map(i => i.id === id ? { ...i, is_available: !current } : i))
   }
 
+  // Start/stop food.gg sync when toggle changes
+  useEffect(() => {
+    if (toggles.sync && restaurant?.id) {
+      // Run immediately then every 5 minutes
+      syncFoodGG(restaurant.id)
+      syncRef.current = setInterval(() => syncFoodGG(restaurant.id), 5 * 60 * 1000)
+    } else {
+      if (syncRef.current) {
+        clearInterval(syncRef.current)
+        syncRef.current = null
+      }
+    }
+    return () => {
+      if (syncRef.current) clearInterval(syncRef.current)
+    }
+  }, [toggles.sync, restaurant?.id])
+
   const filteredItems = menuItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()) || i.menu_categories?.name?.toLowerCase().includes(itemSearch.toLowerCase()))
 
   return (
@@ -135,13 +194,13 @@ export default function TerminalPage() {
 
         {/* DELIVERY TIME - twice as large */}
         <button onClick={() => setTimeModal('delivery')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>🚗 Delivery</span>
+          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Delivery</span>
           <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{delivTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
         </button>
 
         {/* PICKUP TIME - twice as large */}
         <button onClick={() => setTimeModal('pickup')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>🚶 Pickup</span>
+          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Pickup</span>
           <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{pickTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
         </button>
 
@@ -162,17 +221,18 @@ export default function TerminalPage() {
         </div>
 
         {/* Cog */}
-        <button onClick={() => setCogOpen(!cogOpen)} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}>⚙</button>
+        <button onClick={() => setCogOpen(!cogOpen)} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}></button>
 
         {cogOpen && (
           <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,220px)' }}>
             {[
-              { icon: '📋', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
-              { icon: '🖨️', label: 'Printer Settings', sub: 'Test, check, configure', screen: 'printer' },
-              { icon: '📊', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
-              { icon: '📁', label: 'Order History', sub: 'Search past orders', screen: 'history' },
+              { icon: '', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
+              { icon: '', label: 'AI Tag Menu', sub: 'Add allergens and calories', screen: 'aitag' },
+              { icon: '', label: 'Printer Settings', sub: 'Test, check, configure', screen: 'printer' },
+              { icon: '', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
+              { icon: '', label: 'Order History', sub: 'Search past orders', screen: 'history' },
             ].map(btn => (
-              <button key={btn.screen} onClick={() => { setScreen(btn.screen as any); setCogOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f8fafc', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
+              <button key={btn.screen} onClick={() => { if (btn.screen === 'aitag') { setCogOpen(false); aiTagMenu() } else { setScreen(btn.screen as any); setCogOpen(false) } }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f8fafc', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}
               >
@@ -206,7 +266,7 @@ export default function TerminalPage() {
         {tab === 'incoming' ? (
           pendingOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
-              <div style={{ fontSize: 'clamp(28px,5vw,40px)', marginBottom: '10px', opacity: 0.3 }}>📭</div>
+              <div style={{ fontSize: 'clamp(28px,5vw,40px)', marginBottom: '10px', opacity: 0.3 }}></div>
               <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pending orders</div>
             </div>
           ) : (
@@ -218,11 +278,11 @@ export default function TerminalPage() {
                     {o.scheduled_for ? `Pre-order ${new Date(o.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Live order'}
                   </span>
                 </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name} · {o.order_type === 'delivery' ? '🚗 Delivery' : '🚶 Collection'} · {o.payment_method}</div>
-                <div style={{ fontSize: 'clamp(10px,1.6vw,11px)', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{o.order_items?.map((i: any) => `${i.quantity}× ${i.name}`).join(', ')}</div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name}  {o.order_type === 'delivery' ? ' Delivery' : ' Collection'}  {o.payment_method}</div>
+                <div style={{ fontSize: 'clamp(10px,1.6vw,11px)', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{o.order_items?.map((i: any) => `${i.quantity} ${i.name}`).join(', ')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>£{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#475569' }}>Tap to open →</div>
+                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#475569' }}>Tap to open </div>
                 </div>
               </div>
             ))
@@ -230,7 +290,7 @@ export default function TerminalPage() {
         ) : (
           acceptedOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
-              <div style={{ fontSize: 'clamp(28px,5vw,40px)', marginBottom: '10px', opacity: 0.3 }}>✅</div>
+              <div style={{ fontSize: 'clamp(28px,5vw,40px)', marginBottom: '10px', opacity: 0.3 }}></div>
               <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No accepted orders today</div>
             </div>
           ) : (
@@ -239,13 +299,13 @@ export default function TerminalPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
                   <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'paid' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'paid' ? '#22c55e' : '#f97316' }}>
-                    {o.status === 'paid' ? '✓ Paid' : 'Waiting payment...'}
+                    {o.status === 'paid' ? ' Paid' : 'Waiting payment...'}
                   </span>
                 </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name} · {o.order_type === 'delivery' ? '🚗 Delivery' : '🚶 Collection'}</div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name}  {o.order_type === 'delivery' ? ' Delivery' : ' Collection'}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>£{o.total?.toFixed(2)}</div>
-                  {o.status === 'paid' && <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#22c55e' }}>🖨 3 tickets printed</span>}
+                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
+                  {o.status === 'paid' && <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#22c55e' }}> 3 tickets printed</span>}
                 </div>
               </div>
             ))
@@ -255,14 +315,14 @@ export default function TerminalPage() {
 
       {/* NEW ORDER SCREEN */}
       {screen === 'neworder' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
-          <div style={{ width: 'clamp(80px,15vw,120px)', height: 'clamp(80px,15vw,120px)', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(32px,7vw,52px)', marginBottom: '20px' }}>🔔</div>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+          <div style={{ width: 'clamp(80px,15vw,120px)', height: 'clamp(80px,15vw,120px)', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(32px,7vw,52px)', marginBottom: '20px' }}></div>
           <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(24px,5vw,36px)', fontWeight: 700, color: '#22c55e', marginBottom: '8px' }}>NEW ORDER!</div>
           <div style={{ fontSize: 'clamp(12px,2.5vw,16px)', color: '#64748b', marginBottom: '28px' }}>
-            {currentOrder ? `${currentOrder.customer_name} · £${currentOrder.total?.toFixed(2)}` : 'Tap to view'}
+            {currentOrder ? `${currentOrder.customer_name}  ${currentOrder.total?.toFixed(2)}` : 'Tap to view'}
           </div>
           <button onClick={() => setScreen('detail')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,18px) clamp(28px,6vw,48px)', borderRadius: '14px', fontSize: 'clamp(14px,3vw,20px)', fontWeight: 700, cursor: 'pointer' }}>
-            View Order →
+            View Order 
           </button>
         </div>
       )}
@@ -271,7 +331,7 @@ export default function TerminalPage() {
       {screen === 'detail' && currentOrder && (
         <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 9 }}>
           <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(8px,2vw,14px)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
+            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}> Back</button>
             <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>Order {currentOrder.order_number}</div>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(10px,2vw,16px)' }}>
@@ -279,30 +339,30 @@ export default function TerminalPage() {
               <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#f8fafc', marginBottom: '5px' }}>{currentOrder.customer_name}</div>
               <div style={{ fontSize: 'clamp(10px,1.8vw,13px)', color: '#64748b', lineHeight: 1.8 }}>
                 {currentOrder.customer_phone}<br />
-                {currentOrder.order_type === 'delivery' ? `🚗 ${currentOrder.delivery_address}` : '🚶 Collection'}
+                {currentOrder.order_type === 'delivery' ? ` ${currentOrder.delivery_address}` : ' Collection'}
                 {currentOrder.delivery_what3words && <><br /><span style={{ color: '#ef4444', fontWeight: 600 }}>/// {currentOrder.delivery_what3words}</span></>}
-                <br />💳 {currentOrder.payment_method}
+                <br /> {currentOrder.payment_method}
               </div>
             </div>
             <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px', fontWeight: 600 }}>Items</div>
             {currentOrder.order_items?.map((item: any) => (
               <div key={item.id} style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: 'clamp(8px,1.5vw,12px)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '20px', height: '20px', borderRadius: '5px', border: '1.5px solid #22c55e', background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '11px', color: '#22c55e' }}>✓</div>
+                <div style={{ width: '20px', height: '20px', borderRadius: '5px', border: '1.5px solid #22c55e', background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '11px', color: '#22c55e' }}></div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 500, color: '#f8fafc' }}>{item.quantity}× {item.name}</div>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 500, color: '#f8fafc' }}>{item.quantity} {item.name}</div>
                   {item.special_instructions && <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#f97316', fontStyle: 'italic', marginTop: '2px' }}>&quot;{item.special_instructions}&quot;</div>}
                 </div>
-                <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 600, color: '#22c55e' }}>£{item.subtotal?.toFixed(2)}</div>
+                <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 600, color: '#22c55e' }}>{item.subtotal?.toFixed(2)}</div>
               </div>
             ))}
           </div>
           <div style={{ background: '#060b18', borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}><span>Subtotal</span><span>£{currentOrder.subtotal?.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '8px' }}><span>Delivery</span><span>{currentOrder.order_type === 'delivery' ? `£${currentOrder.delivery_fee?.toFixed(2)}` : 'Free'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(16px,3vw,20px)', fontWeight: 700, color: '#f8fafc', marginBottom: '12px' }}><span>Total</span><span style={{ color: '#22c55e' }}>£{currentOrder.total?.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}><span>Subtotal</span><span>{currentOrder.subtotal?.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '8px' }}><span>Delivery</span><span>{currentOrder.order_type === 'delivery' ? `${currentOrder.delivery_fee?.toFixed(2)}` : 'Free'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(16px,3vw,20px)', fontWeight: 700, color: '#f8fafc', marginBottom: '12px' }}><span>Total</span><span style={{ color: '#22c55e' }}>{currentOrder.total?.toFixed(2)}</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
-              <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>✓ Accept Order</button>
-              <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer' }}>✗ Reject</button>
+              <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}> Accept Order</button>
+              <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer' }}> Reject</button>
             </div>
           </div>
         </div>
@@ -310,8 +370,8 @@ export default function TerminalPage() {
 
       {/* WAITING FOR PAYMENT */}
       {screen === 'paying' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
-          <div style={{ fontSize: 'clamp(36px,7vw,56px)', marginBottom: '16px' }}>💳</div>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+          <div style={{ fontSize: 'clamp(36px,7vw,56px)', marginBottom: '16px' }}></div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#f97316', marginBottom: '6px' }}>Waiting for Payment</div>
           <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>Payment link sent to {currentOrder?.customer_name}</div>
           <div style={{ fontSize: 'clamp(44px,9vw,64px)', fontWeight: 700, color: '#f97316', marginBottom: '8px' }}>{countdown}</div>
@@ -324,10 +384,10 @@ export default function TerminalPage() {
 
       {/* PAYMENT CONFIRMED */}
       {screen === 'paid' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 100 }}>
-          <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px' }}>✅</div>
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
+          <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px' }}></div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#22c55e', marginBottom: '6px' }}>Payment Confirmed!</div>
-          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>£{currentOrder?.total?.toFixed(2)} received · Printing 3 tickets now...</div>
+          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>{currentOrder?.total?.toFixed(2)} received  Printing 3 tickets now...</div>
           <div style={{ background: '#0f172a', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '16px 24px', marginBottom: '20px', textAlign: 'left' }}>
             <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Printing</div>
             <PrintRow label="Kitchen ticket" delay={800} />
@@ -340,11 +400,11 @@ export default function TerminalPage() {
         </div>
       )}
 
-      {/* FULL SCREEN PANELS — with close button */}
+      {/* FULL SCREEN PANELS  with close button */}
       {screen === 'items' && (
         <FullScreen title="Menu Items" onBack={() => setScreen('main')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px' }}>
-            <span style={{ color: '#475569' }}>🔍</span>
+            <span style={{ color: '#475569' }}></span>
             <input type="text" value={itemSearch} onChange={e => setItemSearch(e.target.value)} placeholder="Search items..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
           </div>
           {filteredItems.map(item => (
@@ -357,7 +417,7 @@ export default function TerminalPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#22c55e' }}>£{item.price?.toFixed(2)}</span>
+                <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#22c55e' }}>{item.price?.toFixed(2)}</span>
                 <div onClick={() => toggleMenuItem(item.id, item.is_available)} style={{ width: '32px', height: '17px', borderRadius: '9px', background: item.is_available ? '#22c55e' : '#334155', position: 'relative', cursor: 'pointer' }}>
                   <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '17px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                 </div>
@@ -370,10 +430,10 @@ export default function TerminalPage() {
       {screen === 'printer' && (
         <FullScreen title="Printer Settings" onBack={() => setScreen('main')}>
           <div style={{ background: 'rgba(34,197,94,0.08)', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '12px 14px', marginBottom: '14px', fontSize: 'clamp(11px,1.8vw,13px)', color: '#94a3b8' }}>
-            🖨 <strong style={{ color: '#f8fafc' }}>Epson TM-T20III</strong> — Connected ✓
+             <strong style={{ color: '#f8fafc' }}>Epson TM-T20III</strong>  Connected 
           </div>
-          {['🖨 Print test tickets', '🔌 Check connection', '📄 Edit kitchen ticket', '📄 Edit restaurant ticket', '📄 Edit customer ticket'].map(btn => (
-            <button key={btn} onClick={() => alert(`${btn} — coming soon`)} style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', color: '#f8fafc', padding: 'clamp(10px,2vw,14px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          {[' Print test tickets', ' Check connection', ' Edit kitchen ticket', ' Edit restaurant ticket', ' Edit customer ticket'].map(btn => (
+            <button key={btn} onClick={() => alert(`${btn}  coming soon`)} style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', color: '#f8fafc', padding: 'clamp(10px,2vw,14px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               {btn}
             </button>
           ))}
@@ -389,7 +449,7 @@ export default function TerminalPage() {
       {screen === 'history' && (
         <FullScreen title="Order History" onBack={() => setScreen('main')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px' }}>
-            <span style={{ color: '#475569' }}>🔍</span>
+            <span style={{ color: '#475569' }}></span>
             <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search orders..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
           </div>
           {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())).map(o => (
@@ -399,7 +459,7 @@ export default function TerminalPage() {
                 <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569' }}>{o.customer_name}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>£{o.total?.toFixed(2)}</div>
+                <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
                 <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: o.status === 'paid' ? '#22c55e' : '#ef4444' }}>{o.status}</span>
               </div>
             </div>
@@ -450,7 +510,16 @@ export default function TerminalPage() {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '14px' }}>
             {[10,15,20,25,30,45,60,90].map(t => (
-              <button key={t} onClick={() => { if (timeModal === 'delivery') setDelivTime(t); else setPickTime(t); setTimeModal(null) }} style={{ background: (timeModal === 'delivery' ? delivTime : pickTime) === t ? 'rgba(34,197,94,0.08)' : '#0f172a', border: `1.5px solid ${(timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: 'clamp(10px,2vw,14px)', textAlign: 'center', cursor: 'pointer', fontSize: 'clamp(12px,2vw,15px)', color: (timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : '#94a3b8' }}>
+              <button key={t} onClick={async () => {
+                if (timeModal === 'delivery') {
+                  setDelivTime(t)
+                  if (restaurant) await supabase.from('restaurants').update({ delivery_time_mins: t }).eq('id', restaurant.id)
+                } else {
+                  setPickTime(t)
+                  if (restaurant) await supabase.from('restaurants').update({ pickup_time_mins: t }).eq('id', restaurant.id)
+                }
+                setTimeModal(null)
+              }} style={{ background: (timeModal === 'delivery' ? delivTime : pickTime) === t ? 'rgba(34,197,94,0.08)' : '#0f172a', border: `1.5px solid ${(timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: 'clamp(10px,2vw,14px)', textAlign: 'center', cursor: 'pointer', fontSize: 'clamp(12px,2vw,15px)', color: (timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : '#94a3b8' }}>
                 {t}m
               </button>
             ))}
@@ -469,10 +538,10 @@ export default function TerminalPage() {
 
 function FullScreen({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
+    <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
       <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(14px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>{title}</div>
-        <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: '#f8fafc', padding: 'clamp(8px,1.5vw,10px) clamp(14px,2.5vw,20px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>✕ Close</button>
+        <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: '#f8fafc', padding: 'clamp(8px,1.5vw,10px) clamp(14px,2.5vw,20px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}> Close</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(10px,2vw,16px)' }}>{children}</div>
     </div>
@@ -494,7 +563,7 @@ function PrintRow({ label, delay }: { label: string; delay: number }) {
   useEffect(() => { const t = setTimeout(() => setDone(true), delay); return () => clearTimeout(t) }, [])
   return (
     <div style={{ fontSize: 'clamp(11px,2vw,13px)', color: done ? '#22c55e' : '#64748b', marginBottom: '6px', transition: 'color 0.3s' }}>
-      {done ? '✓' : '🖨'} {label}{done ? ' printed' : '...'}
+      {done ? '' : ''} {label}{done ? ' printed' : '...'}
     </div>
   )
 }
@@ -507,15 +576,15 @@ function EODReport({ orders, onClear }: { orders: any[]; onClear: () => void }) 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', marginBottom: '16px', width: '100%', maxWidth: '320px' }}>
-        {[['Card sales', `£${card.toFixed(2)}`, '#22c55e'], ['Cash sales', `£${cash.toFixed(2)}`, '#f97316'], ['Total orders', String(paid.length + cancelled.length), '#f8fafc'], ['Cancelled', String(cancelled.length), '#ef4444'], ['Total revenue', `£${(card + cash).toFixed(2)}`, '#22c55e']].map(([label, val, color], i, arr) => (
+        {[['Card sales', `${card.toFixed(2)}`, '#22c55e'], ['Cash sales', `${cash.toFixed(2)}`, '#f97316'], ['Total orders', String(paid.length + cancelled.length), '#f8fafc'], ['Cancelled', String(cancelled.length), '#ef4444'], ['Total revenue', `${(card + cash).toFixed(2)}`, '#22c55e']].map(([label, val, color], i, arr) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: i === arr.length - 1 ? 'clamp(13px,2.5vw,16px)' : 'clamp(11px,2vw,14px)', fontWeight: i === arr.length - 1 ? 700 : 400, color: '#64748b', padding: 'clamp(4px,1vw,6px) 0', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none', borderTop: i === arr.length - 1 ? '0.5px solid rgba(255,255,255,0.08)' : 'none', marginTop: i === arr.length - 1 ? '4px' : 0 }}>
             <span>{label}</span><span style={{ color }}>{val}</span>
           </div>
         ))}
       </div>
-      <button onClick={() => alert('End of day report printed!')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>🖨 Print Report</button>
+      <button onClick={() => alert('End of day report printed!')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}> Print Report</button>
       <button onClick={() => { if (confirm('Clear accepted orders? All records saved in history.')) onClear() }} style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316', padding: 'clamp(8px,1.5vw,12px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', cursor: 'pointer' }}>
-        ✓ Perform End of Day & Clear Orders
+         Perform End of Day & Clear Orders
       </button>
     </div>
   )
