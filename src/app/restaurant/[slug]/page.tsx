@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -24,6 +24,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [cookieAccepted, setCookieAccepted] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
@@ -36,10 +38,19 @@ export default function HomePage() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   async function fetchData() {
     setLoading(true)
     
-    // Fetch restaurants
     const { data: rests } = await supabase
       .from('restaurants')
       .select('*')
@@ -47,10 +58,9 @@ export default function HomePage() {
       .order('rating', { ascending: false })
     setRestaurants(rests || [])
 
-    // Fetch all menu items with restaurant info
     const { data: items } = await supabase
       .from('menu_items')
-      .select('*, menu_categories(restaurant_id, restaurant:restaurants(id, name, slug, emoji, cuisine_type, delivery_time_mins, rating, is_open))')
+      .select('*, menu_categories(restaurant_id, restaurant:restaurants(id, name, slug, emoji, cuisine_type))')
       .eq('is_available', true)
     setMenuItems(items || [])
     
@@ -62,17 +72,52 @@ export default function HomePage() {
     setCookieAccepted(true)
   }
 
+  // Get suggestions as you type
+  const getSuggestions = () => {
+    if (!search.trim()) return []
+
+    const searchLower = search.toLowerCase()
+    const suggestions: any[] = []
+
+    // Find matching menu items
+    menuItems.slice(0, 5).forEach(item => {
+      if (item.name.toLowerCase().includes(searchLower) || (item.description && item.description.toLowerCase().includes(searchLower))) {
+        const cat = item.menu_categories as any
+        const restName = cat?.restaurant?.name
+        suggestions.push({
+          type: 'item',
+          name: item.name,
+          restaurant: restName,
+          description: item.description,
+          emoji: cat?.restaurant?.emoji || '🍽️'
+        })
+      }
+    })
+
+    // Find matching restaurants
+    restaurants.slice(0, 3).forEach(r => {
+      if (r.name.toLowerCase().includes(searchLower)) {
+        suggestions.push({
+          type: 'restaurant',
+          name: r.name,
+          cuisine: r.cuisine_type,
+          emoji: r.emoji
+        })
+      }
+    })
+
+    return suggestions.slice(0, 8)
+  }
+
   // Search through menu items
   const getSearchResults = () => {
     if (!search.trim()) {
-      // No search - show restaurants filtered by cuisine
       return restaurants.filter(r => {
         const matchFilter = filter === 'all' || r.cuisine_type?.toLowerCase().includes(filter)
         return matchFilter
       })
     }
 
-    // Search through menu items and get unique restaurants
     const searchLower = search.toLowerCase()
     const matchingItems = menuItems.filter(item => 
       item.name.toLowerCase().includes(searchLower) || 
@@ -92,9 +137,10 @@ export default function HomePage() {
       return matchFilter && matchSearch
     })
 
-    return results.length > 0 ? results : []
+    return results
   }
 
+  const suggestions = getSuggestions()
   const displayResults = getSearchResults()
 
   const isDark = theme === 'dark'
@@ -149,24 +195,75 @@ export default function HomePage() {
           Fast delivery, fresh food. Order now and eat in minutes.
         </p>
 
-        {/* Search */}
-        <div style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', maxWidth: '500px', display: 'flex', alignItems: 'center', boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <input
-            type="text"
-            placeholder="Type what food would you like..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '14px', color: textColor, outline: 'none' }}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              style={{ background: 'none', border: 'none', color: secondaryText, fontSize: '16px', cursor: 'pointer', padding: '8px 12px' }}
-            >
-              ✕
-            </button>
+        {/* Search with Suggestions */}
+        <div style={{ position: 'relative', marginBottom: '20px', maxWidth: '500px' }}>
+          <div style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Type what food would you like..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value)
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '14px', color: textColor, outline: 'none' }}
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('')
+                  setShowSuggestions(false)
+                }}
+                style={{ background: 'none', border: 'none', color: secondaryText, fontSize: '16px', cursor: 'pointer', padding: '8px 12px' }}
+              >
+                ✕
+              </button>
+            )}
+            <div style={{ padding: '0 16px', color: secondaryText }}>🔍</div>
+          </div>
+
+          {/* Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: cardBg, border: `1px solid ${borderColor}`, borderTop: 'none', borderRadius: '0 0 12px 12px', marginTop: '-1px', boxShadow: isDark ? '0 8px 20px rgba(0,0,0,0.3)' : '0 8px 20px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '400px', overflowY: 'auto' }}>
+              {suggestions.map((sugg, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSearch(sugg.name)
+                    setShowSuggestions(false)
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    background: 'none', 
+                    border: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none',
+                    borderTop: 'none',
+                    color: textColor,
+                    padding: '12px 16px', 
+                    textAlign: 'left', 
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center'
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
+                      {sugg.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: secondaryText }}>
+                      {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-          <div style={{ padding: '0 16px', color: secondaryText }}>🔍</div>
         </div>
 
         {/* Filter Dropdown & View All */}
