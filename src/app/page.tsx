@@ -21,15 +21,19 @@ export default function HomePage() {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [cookieAccepted, setCookieAccepted] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
+    setTheme(savedTheme || 'light')
     setCookieAccepted(!!localStorage.getItem('cookie-accepted'))
     fetchRestaurants()
-    setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', () => setIsMobile(window.innerWidth < 768))
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   async function fetchRestaurants() {
     setLoading(true)
@@ -53,58 +57,90 @@ export default function HomePage() {
     setCookieAccepted(true)
   }
 
+  const colors = theme === 'dark' ? {
+    bg: '#1F2937',
+    text: '#FFFFFF',
+    textSecondary: '#D1D5DB',
+    border: '#374151',
+    bgCard: '#111827',
+    bgHover: '#2D3748',
+    bgInput: '#374151'
+  } : {
+    bg: '#FFFFFF',
+    text: '#1F2937',
+    textSecondary: '#6B7280',
+    border: '#E5E5E5',
+    bgCard: '#FFFFFF',
+    bgHover: '#F3F4F6',
+    bgInput: '#F3F4F6'
+  }
+
   return (
-    <div style={{ background: '#FFFFFF', minHeight: '100vh' }}>
-      {/* Clean Nav */}
-      <nav style={{ borderBottom: '1px solid #E5E5E5', padding: isMobile ? '16px' : '20px', position: 'sticky', top: 0, zIndex: 100, background: '#FFFFFF' }}>
+    <div style={{ background: colors.bg, minHeight: '100vh', color: colors.text, transition: 'all 0.3s' }}>
+      {/* Nav */}
+      <nav style={{ borderBottom: `1px solid ${colors.border}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: colors.bg }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: isMobile ? '20px' : '24px', fontWeight: 800, letterSpacing: '-0.5px', color: '#1F2937' }}>
+          <div style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#22C55E' }}>
             feedme.gg
           </div>
-          <div onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.background = '#F3F4F6')}
-            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.background = 'none')}
-            style={{ borderRadius: '8px', transition: 'background 0.2s' }}>
-            <Link href="/auth/login" style={{ fontSize: '14px', color: '#6B7280', textDecoration: 'none', padding: '8px 16px', display: 'block' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              style={{ 
+                background: colors.bgInput, 
+                border: `1px solid ${colors.border}`, 
+                color: colors.text,
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                fontSize: '16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+              }}
+              title={theme === 'light' ? 'Dark mode' : 'Light mode'}
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+            <Link href="/auth/login" style={{ fontSize: '14px', color: colors.textSecondary, textDecoration: 'none', padding: '8px 16px', borderRadius: '8px', transition: 'background 0.2s' }}>
               Sign in
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section - Simple & Clean */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '32px 16px' : '60px 20px 40px', textAlign: 'left' }}>
-        <h1 style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 700, marginBottom: '16px', color: '#1F2937', lineHeight: 1.2, letterSpacing: '-0.5px' }}>
+      {/* Hero Section */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px 30px', textAlign: 'left' }}>
+        <h1 style={{ fontSize: '36px', fontWeight: 700, marginBottom: '12px', color: colors.text, lineHeight: 1.2, letterSpacing: '-0.5px' }}>
           Order from Guernsey's best restaurants
         </h1>
-        <p style={{ fontSize: '16px', color: '#6B7280', marginBottom: '32px', maxWidth: '500px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '16px', color: colors.textSecondary, marginBottom: '24px', maxWidth: '500px', lineHeight: 1.6 }}>
           Fast delivery, fresh food. Order now and eat in minutes.
         </p>
 
-        {/* Search Bar - Prominent */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px', maxWidth: '500px', display: 'flex', alignItems: 'center', transition: 'border-color 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-          onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = '#22C55E')}
-          onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = '#E5E5E5')}
-        >
+        {/* Search Bar */}
+        <div style={{ background: colors.bgInput, border: `1px solid ${colors.border}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', maxWidth: '500px', display: 'flex', alignItems: 'center', transition: 'border-color 0.2s', boxShadow: theme === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
           <input
             type="text"
             placeholder="Search restaurants..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, background: 'none', border: 'none', padding: '16px 20px', fontSize: '15px', color: '#1F2937', outline: 'none' }}
+            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '14px', color: colors.text, outline: 'none' }}
           />
-          <div style={{ padding: '0 20px', color: '#9CA3AF', fontSize: '18px' }}>🔍</div>
+          <div style={{ padding: '0 16px', color: colors.textSecondary, fontSize: '16px' }}>🔍</div>
         </div>
 
-        {/* Category Filters - Clean pills */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? '8px' : '0' }}>
+        {/* Category Filters */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: '8px' }}>
           {CUISINE_FILTERS.map(f => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
               style={{
-                background: filter === f.key ? '#22C55E' : '#F3F4F6',
-                border: 'none',
-                color: filter === f.key ? '#FFFFFF' : '#374151',
+                background: filter === f.key ? '#22C55E' : colors.bgInput,
+                border: `1px solid ${colors.border}`,
+                color: filter === f.key ? '#FFFFFF' : colors.text,
                 padding: '10px 16px',
                 borderRadius: '20px',
                 fontSize: '13px',
@@ -114,16 +150,6 @@ export default function HomePage() {
                 flexShrink: 0,
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-                if (filter !== f.key) {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#E5E7EB'
-                }
-              }}
-              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-                if (filter !== f.key) {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'
-                }
-              }}
             >
               {f.label}
             </button>
@@ -131,20 +157,20 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Restaurant Grid - Minimal cards */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '0 16px 40px' : '0 20px 60px' }}>
-        <h2 style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 600, color: '#1F2937', marginBottom: '24px', letterSpacing: '-0.3px' }}>
+      {/* Restaurant Grid */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px 40px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, color: colors.text, marginBottom: '20px', letterSpacing: '-0.3px' }}>
           {search ? `Results for "${search}"` : filter !== 'all' ? filter.charAt(0).toUpperCase() + filter.slice(1) + ' restaurants' : `Available now`}
         </h2>
 
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} style={{ background: '#F3F4F6', borderRadius: '12px', height: '200px', animation: 'pulse 1.5s infinite' }} />
+              <div key={i} style={{ background: colors.bgCard, borderRadius: '12px', height: '200px', animation: 'pulse 1.5s infinite', border: `1px solid ${colors.border}` }} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9CA3AF' }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: colors.textSecondary }}>
             <p style={{ fontSize: '16px', marginBottom: '16px' }}>
               {search ? `No restaurants found for "${search}"` : `No restaurants available`}
             </p>
@@ -156,29 +182,29 @@ export default function HomePage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
             {filtered.map(r => (
-              <RestaurantCard key={r.id} restaurant={r} />
+              <RestaurantCard key={r.id} restaurant={r} colors={colors} />
             ))}
           </div>
         )}
       </div>
 
-      {/* Footer - Simple */}
-      <footer style={{ borderTop: '1px solid #E5E5E5', padding: '40px 20px', textAlign: 'center', background: '#F9FAFB' }}>
+      {/* Footer */}
+      <footer style={{ borderTop: `1px solid ${colors.border}`, padding: '32px 20px', textAlign: 'center', background: colors.bgHover }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '16px' }}>© 2026 feedme.gg</p>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '16px' }}>© 2026 feedme.gg</p>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '13px' }}>
-            <Link href="/terms" style={{ color: '#6B7280', textDecoration: 'none' }}>Terms</Link>
-            <Link href="/privacy" style={{ color: '#6B7280', textDecoration: 'none' }}>Privacy</Link>
-            <Link href="/contact" style={{ color: '#6B7280', textDecoration: 'none' }}>Contact</Link>
+            <Link href="/terms" style={{ color: colors.textSecondary, textDecoration: 'none' }}>Terms</Link>
+            <Link href="/privacy" style={{ color: colors.textSecondary, textDecoration: 'none' }}>Privacy</Link>
+            <Link href="/contact" style={{ color: colors.textSecondary, textDecoration: 'none' }}>Contact</Link>
           </div>
         </div>
       </footer>
 
       {/* Cookie banner */}
       {!cookieAccepted && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1F2937', color: '#FFFFFF', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', zIndex: 999, flexWrap: 'wrap' }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: theme === 'dark' ? '#111827' : '#1F2937', color: '#FFFFFF', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', zIndex: 999, flexWrap: 'wrap', borderTop: '1px solid #22C55E' }}>
           <p style={{ fontSize: '13px' }}>
             We use cookies to improve your experience.{' '}
             <Link href="/privacy" style={{ color: '#22C55E', textDecoration: 'none', fontWeight: 600 }}>Learn more</Link>
@@ -195,55 +221,47 @@ export default function HomePage() {
   )
 }
 
-function RestaurantCard({ restaurant: r }: { restaurant: any }) {
-  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget as HTMLDivElement
-    el.style.boxShadow = '0 10px 25px rgba(0,0,0,0.08)'
-    el.style.transform = 'translateY(-2px)'
-  }
-
-  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget as HTMLDivElement
-    el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'
-    el.style.transform = 'translateY(0)'
-  }
+function RestaurantCard({ restaurant: r, colors }: { restaurant: any; colors: any }) {
+  const [hovering, setHovering] = useState(false)
 
   return (
     <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
       <div style={{ 
-        background: '#FFFFFF', 
-        border: '1px solid #E5E5E5', 
+        background: colors.bgCard, 
+        border: `1px solid ${colors.border}`, 
         borderRadius: '12px', 
         overflow: 'hidden', 
         cursor: 'pointer', 
         transition: 'all 0.2s',
-        height: '100%'
+        height: '100%',
+        boxShadow: hovering ? (colors.bg === '#1F2937' ? '0 8px 20px rgba(34,197,94,0.15)' : '0 10px 25px rgba(0,0,0,0.08)') : '0 1px 3px rgba(0,0,0,0.06)',
+        transform: hovering ? 'translateY(-2px)' : 'translateY(0)'
       }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
       >
-        {/* Restaurant header with emoji background */}
-        <div style={{ height: '140px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '56px', position: 'relative' }}>
+        {/* Restaurant header */}
+        <div style={{ height: '120px', background: colors.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px', position: 'relative' }}>
           {r.emoji || '🍽️'}
           {r.is_open && (
-            <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: '#22C55E', color: '#FFFFFF' }}>
+            <span style={{ position: 'absolute', top: '12px', right: '12px', fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: '#22C55E', color: '#FFFFFF' }}>
               Open
             </span>
           )}
         </div>
 
         {/* Content */}
-        <div style={{ padding: '16px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937', marginBottom: '4px', letterSpacing: '-0.3px' }}>
+        <div style={{ padding: '14px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: colors.text, marginBottom: '4px', letterSpacing: '-0.3px' }}>
             {r.name}
           </h3>
-          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '12px' }}>
+          <p style={{ fontSize: '12px', color: colors.textSecondary, marginBottom: '10px' }}>
             {r.cuisine_type}
           </p>
           
           {/* Meta info */}
-          <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6B7280' }}>
-            <div>⏱ {r.delivery_time_mins || 25} mins</div>
+          <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: colors.textSecondary' }}>
+            <div>⏱ {r.delivery_time_mins || 25} min</div>
             <div>★ {r.rating || '4.5'}</div>
           </div>
         </div>
