@@ -96,7 +96,7 @@ export default function HomePage() {
           {!isMobile && <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600, flexShrink: 0 }}>Change ▾</span>}
         </div>
 
-        {/* Search */}
+        {/* Search - Real-time filtering */}
         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
           <input
             type="text"
@@ -105,12 +105,19 @@ export default function HomePage() {
             onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '15px', color: 'var(--text)', outline: 'none', borderBottom: isMobile ? '1px solid rgba(255,255,255,0.1)' : 'none' }}
           />
-          <button
-            onClick={() => router.push('/browse')}
-            style={{ background: 'var(--green)', color: '#0F172A', border: 'none', padding: isMobile ? '12px 16px' : '14px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            🔍 {!isMobile && 'Search'}
-          </button>
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{ background: 'none', border: 'none', color: 'var(--sub)', padding: '14px 16px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              ✕
+            </button>
+          )}
+          {!search && (
+            <div style={{ background: 'var(--green)', color: '#0F172A', padding: isMobile ? '12px 16px' : '14px 24px', fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+              🔍 {!isMobile && 'Search'}
+            </div>
+          )}
         </div>
 
         {/* Filters */}
@@ -159,11 +166,13 @@ export default function HomePage() {
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 16px 40px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px' }}>
           <h2 style={{ fontSize: isMobile ? '16px' : '20px', fontWeight: 700, letterSpacing: '-0.5px', minWidth: 0 }}>
-            {search ? `Results for "${search}"` : 'Restaurants near you'}
+            {search ? `Results for "${search}"` : filter !== 'all' ? filter.charAt(0).toUpperCase() + filter.slice(1) : 'Restaurants near you'}
           </h2>
-          <Link href="/browse" style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            See all →
-          </Link>
+          {filtered.length > 8 && (
+            <Link href="/browse" style={{ color: 'var(--green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              See all →
+            </Link>
+          )}
         </div>
 
         {loading ? (
@@ -172,18 +181,24 @@ export default function HomePage() {
               <div key={i} style={{ background: 'var(--card)', borderRadius: '16px', height: '200px', animation: 'pulse 1.5s infinite', opacity: 0.5 }} />
             ))}
           </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--sub)' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.3 }}>🔍</div>
+            <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+              {search ? `No restaurants found for "${search}"` : `No ${filter} restaurants available`}
+            </p>
+            <button
+              onClick={() => { setSearch(''); setFilter('all'); }}
+              style={{ background: 'var(--green)', color: '#0F172A', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fill,minmax(160px,1fr))' : 'repeat(auto-fill,minmax(220px,1fr))', gap: isMobile ? '12px' : '16px' }}>
-            {filtered.slice(0, 8).map(r => (
+            {filtered.slice(0, 12).map(r => (
               <RestaurantCard key={r.id} restaurant={r} isMobile={isMobile} />
             ))}
-          </div>
-        )}
-
-        {!loading && filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--sub)' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.3 }}>🔍</div>
-            <p>No restaurants found for &quot;{search}&quot;</p>
           </div>
         )}
       </div>
