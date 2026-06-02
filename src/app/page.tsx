@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -18,44 +18,130 @@ const CUISINE_FILTERS = [
 export default function HomePage() {
   const supabase = createClient()
   const [restaurants, setRestaurants] = useState<any[]>([])
+  const [menuItems, setMenuItems] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [cookieAccepted, setCookieAccepted] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
     setTheme(savedTheme || 'light')
     setCookieAccepted(!!localStorage.getItem('cookie-accepted'))
-    fetchRestaurants()
+    fetchData()
   }, [])
 
   useEffect(() => {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  async function fetchRestaurants() {
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  async function fetchData() {
     setLoading(true)
-    const { data } = await supabase
+    
+    const { data: rests } = await supabase
       .from('restaurants')
       .select('*')
       .eq('is_active', true)
       .order('rating', { ascending: false })
-    setRestaurants(data || [])
+    setRestaurants(rests || [])
+
+    const { data: items } = await supabase
+      .from('menu_items')
+      .select('*, menu_categories(restaurant_id, restaurant:restaurants(id, name, slug, emoji, cuisine_type))')
+      .eq('is_available', true)
+    setMenuItems(items || [])
+    
     setLoading(false)
   }
-
-  const filtered = restaurants.filter(r => {
-    const matchFilter = filter === 'all' || r.cuisine_type?.toLowerCase().includes(filter)
-    const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.cuisine_type?.toLowerCase().includes(search.toLowerCase())
-    return matchFilter && matchSearch
-  })
 
   function acceptCookies() {
     localStorage.setItem('cookie-accepted', '1')
     setCookieAccepted(true)
   }
+
+  // Get suggestions as you type
+  const getSuggestions = () => {
+    if (!search.trim()) return []
+
+    const searchLower = search.toLowerCase()
+    const suggestions: any[] = []
+
+    // Find matching menu items
+    menuItems.slice(0, 5).forEach(item => {
+      if (item.name.toLowerCase().includes(searchLower) || (item.description && item.description.toLowerCase().includes(searchLower))) {
+        const cat = item.menu_categories as any
+        const restName = cat?.restaurant?.name
+        suggestions.push({
+          type: 'item',
+          name: item.name,
+          restaurant: restName,
+          description: item.description,
+          emoji: cat?.restaurant?.emoji || '🍽️'
+        })
+      }
+    })
+
+    // Find matching restaurants
+    restaurants.slice(0, 3).forEach(r => {
+      if (r.name.toLowerCase().includes(searchLower)) {
+        suggestions.push({
+          type: 'restaurant',
+          name: r.name,
+          cuisine: r.cuisine_type,
+          emoji: r.emoji
+        })
+      }
+    })
+
+    return suggestions.slice(0, 8)
+  }
+
+  // Search through menu items
+  const getSearchResults = () => {
+    if (!search.trim()) {
+      return restaurants.filter(r => {
+        const matchFilter = filter === 'all' || r.cuisine_type?.toLowerCase().includes(filter)
+        return matchFilter
+      })
+    }
+
+    const searchLower = search.toLowerCase()
+    const matchingItems = menuItems.filter(item => 
+      item.name.toLowerCase().includes(searchLower) || 
+      (item.description && item.description.toLowerCase().includes(searchLower))
+    )
+
+    const restaurantIds = new Set(
+      matchingItems.map(item => {
+        const cat = item.menu_categories as any
+        return cat?.restaurant_id
+      }).filter(Boolean)
+    )
+
+    const results = restaurants.filter(r => {
+      const matchFilter = filter === 'all' || r.cuisine_type?.toLowerCase().includes(filter)
+      const matchSearch = restaurantIds.has(r.id)
+      return matchFilter && matchSearch
+    })
+
+    return results
+  }
+
+  const suggestions = getSuggestions()
+  const displayResults = getSearchResults()
 
   const isDark = theme === 'dark'
   const bgColor = isDark ? '#1F2937' : '#FFFFFF'
@@ -109,47 +195,130 @@ export default function HomePage() {
           Fast delivery, fresh food. Order now and eat in minutes.
         </p>
 
-        {/* Search */}
-        <div style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', maxWidth: '500px', display: 'flex', alignItems: 'center', boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <input
-            type="text"
-            placeholder="Search restaurants..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '14px', color: textColor, outline: 'none' }}
-          />
-          <div style={{ padding: '0 16px', color: secondaryText }}>🔍</div>
+        {/* Search with Suggestions */}
+        <div style={{ position: 'relative', marginBottom: '20px', maxWidth: '500px' }}>
+          <div style={{ background: inputBg, border: `1px solid ${borderColor}`, borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Type what food would you like..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value)
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              style={{ flex: 1, background: 'none', border: 'none', padding: '14px 16px', fontSize: '14px', color: textColor, outline: 'none' }}
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('')
+                  setShowSuggestions(false)
+                }}
+                style={{ background: 'none', border: 'none', color: secondaryText, fontSize: '16px', cursor: 'pointer', padding: '8px 12px' }}
+              >
+                ✕
+              </button>
+            )}
+            <div style={{ padding: '0 16px', color: secondaryText }}>🔍</div>
+          </div>
+
+          {/* Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: cardBg, border: `1px solid ${borderColor}`, borderTop: 'none', borderRadius: '0 0 12px 12px', marginTop: '-1px', boxShadow: isDark ? '0 8px 20px rgba(0,0,0,0.3)' : '0 8px 20px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '400px', overflowY: 'auto' }}>
+              {suggestions.map((sugg, idx) => {
+                const restName = sugg.type === 'restaurant' ? sugg.name : sugg.restaurant
+                const foundRest = restaurants.find(r => r.name === restName)
+                const restaurantSlug = foundRest?.slug || restName?.toLowerCase().replace(/\s+/g, '-')
+                return (
+                  <Link
+                    key={idx}
+                    href={`/restaurant/${restaurantSlug}`}
+                    style={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      display: 'block',
+                      borderBottom: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none'
+                    }}
+                  >
+                    <div
+                      style={{ 
+                        background: 'none', 
+                        color: textColor,
+                        padding: '12px 16px', 
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
+                          {sugg.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: secondaryText }}>
+                          {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {CUISINE_FILTERS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              style={{
-                background: filter === f.key ? '#22C55E' : inputBg,
-                border: `1px solid ${borderColor}`,
-                color: filter === f.key ? '#FFFFFF' : textColor,
-                padding: '10px 16px',
-                borderRadius: '20px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s'
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter Dropdown & View All */}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{
+              background: inputBg,
+              border: `1px solid ${borderColor}`,
+              color: textColor,
+              padding: '10px 14px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer'
+            }}
+          >
+            {CUISINE_FILTERS.map(f => (
+              <option key={f.key} value={f.key}>{f.label}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => { setSearch(''); setFilter('all'); }}
+            style={{
+              background: '#22C55E',
+              color: '#FFFFFF',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#1ea853')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#22C55E')}
+          >
+            View All Menus
+          </button>
         </div>
       </div>
 
-      {/* Restaurant Grid */}
+      {/* Results */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px 40px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: 600, color: textColor, marginBottom: '20px' }}>
-          {search ? `Results for "${search}"` : filter !== 'all' ? filter.charAt(0).toUpperCase() + filter.slice(1) : 'Available now'}
+          {search ? `Restaurants serving "${search}"` : filter !== 'all' ? filter.charAt(0).toUpperCase() + filter.slice(1) + ' restaurants' : 'All restaurants'}
         </h2>
 
         {loading ? (
@@ -158,19 +327,21 @@ export default function HomePage() {
               <div key={i} style={{ background: cardBg, borderRadius: '12px', height: '200px', border: `1px solid ${borderColor}` }} />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : displayResults.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: secondaryText }}>
-            <p>No restaurants found</p>
+            <p style={{ fontSize: '16px', marginBottom: '16px' }}>
+              {search ? `No restaurants serving "${search}"` : 'No restaurants found'}
+            </p>
             <button
               onClick={() => { setSearch(''); setFilter('all'); }}
-              style={{ marginTop: '16px', background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+              style={{ background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
             >
               Clear filters
             </button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {filtered.map(r => (
+            {displayResults.map(r => (
               <RestaurantCard key={r.id} restaurant={r} isDark={isDark} cardBg={cardBg} borderColor={borderColor} hoverBg={hoverBg} textColor={textColor} secondaryText={secondaryText} />
             ))}
           </div>
@@ -209,9 +380,10 @@ export default function HomePage() {
 function RestaurantCard(props: any) {
   const { restaurant: r, isDark, cardBg, borderColor, hoverBg, textColor, secondaryText } = props
   const [hovering, setHovering] = useState(false)
+  const slug = r.slug || r.name?.toLowerCase().replace(/\s+/g, '-')
 
   return (
-    <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
+    <Link href={`/restaurant/${slug}`} style={{ textDecoration: 'none' }}>
       <div
         style={{ 
           background: cardBg, 
