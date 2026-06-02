@@ -65,41 +65,56 @@ export default function HomePage() {
   const cardBg = isDark ? '#111827' : '#FFFFFF'
   const inputBg = isDark ? '#2D3748' : '#FFFFFF'
 
+  const containerStyle: React.CSSProperties = {
+    background: bgColor,
+    minHeight: '100vh',
+    color: textColor,
+    transition: 'all 0.3s',
+    position: 'relative',
+    overflow: 'hidden'
+  }
+
+  const foodBackgroundStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 0,
+    pointerEvents: 'none',
+    animation: 'float 8s ease-in-out infinite'
+  }
+
   return (
-    <div style={{ background: bgColor, minHeight: '100vh', color: textColor, transition: 'all 0.3s', position: 'relative', overflow: 'hidden' }}>
-      {/* Food Background - Works in both light and dark */}
-      <div style={{
-        position: 'fixed',
-        top: '-100px',
-        right: '-100px',
-        fontSize: '180px',
-        opacity: isDark ? 0.08 : 0.06,
-        zIndex: 0,
-        pointerEvents: 'none',
-        animation: 'float 8s ease-in-out infinite',
-        color: isDark ? '#FFFFFF' : '#1F2937'
-      }}>
-        🍕 🍔 🍜 🍱 🍛
-      </div>
-      <div style={{
-        position: 'fixed',
-        bottom: '-80px',
-        left: '-80px',
-        fontSize: '150px',
-        opacity: isDark ? 0.05 : 0.04,
-        zIndex: 0,
-        pointerEvents: 'none',
-        animation: 'float 10s ease-in-out infinite',
-        color: isDark ? '#FFFFFF' : '#1F2937'
-      }}>
-        🍝 🌮 🥗 🍖
-      </div>
+    <div style={containerStyle}>
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-30px) rotate(5deg); }
         }
       `}</style>
+
+      {/* Food Background Top Right */}
+      <div style={{
+        ...foodBackgroundStyle,
+        top: '-100px',
+        right: '-100px',
+        fontSize: '180px',
+        opacity: isDark ? 0.08 : 0.06,
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍕 🍔 🍜 🍱 🍛
+      </div>
+
+      {/* Food Background Bottom Left */}
+      <div style={{
+        ...foodBackgroundStyle,
+        bottom: '-80px',
+        left: '-80px',
+        fontSize: '150px',
+        opacity: isDark ? 0.05 : 0.04,
+        animation: 'float 10s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍝 🌮 🥗 🍖
+      </div>
+
       {/* Navigation */}
       <nav style={{ borderBottom: `1px solid ${borderColor}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: bgColor }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -115,11 +130,7 @@ export default function HomePage() {
               padding: '8px 12px', 
               borderRadius: '8px', 
               fontSize: '16px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s'
+              cursor: 'pointer'
             }}
           >
             {isDark ? '☀️' : '🌙'}
@@ -131,47 +142,17 @@ export default function HomePage() {
       <div style={{ 
         background: '#1F2937', 
         padding: '40px 20px', 
-        borderBottom: `1px solid ${isDark ? '#374151' : '#E5E5E5'}`,
+        borderBottom: `1px solid #374151`,
         position: 'relative',
-        overflow: 'hidden',
         zIndex: 2
-      }}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(31, 41, 55, 0.95) 100%)',
-          zIndex: 1
-        }} />
-        <div style={{
-          position: 'absolute',
-          top: '-20px',
-          right: '-50px',
-          fontSize: '120px',
-          opacity: 0.08,
-          zIndex: 0,
-          animation: 'float 6s ease-in-out infinite',
-          pointerEvents: 'none'
-        }}>
-          🍕 🍔 🍜 🍱 🍛 🍝 🌮 🥗
-        </div>
-        <style>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-20px) rotate(5deg); }
-          }
-        `}</style>
-
-        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
           <h1 style={{ 
             fontSize: isMobileView ? '24px' : '32px', 
             fontWeight: 700, 
             color: '#FFFFFF', 
             marginBottom: isMobileView ? '24px' : '32px', 
-            letterSpacing: '-0.5px',
-            transition: 'font-size 0.3s'
+            letterSpacing: '-0.5px'
           }}>
             Delivery Online in Guernsey
           </h1>
@@ -191,8 +172,7 @@ export default function HomePage() {
                 color: '#FFFFFF', 
                 fontWeight: 700, 
                 fontSize: isMobileView ? '13px' : '14px',
-                marginBottom: '8px',
-                transition: 'font-size 0.3s'
+                marginBottom: '8px'
               }}>
                 Select what food you would like to eat
               </label>
@@ -228,7 +208,6 @@ export default function HomePage() {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'background 0.2s',
                 width: '100%'
               }}
               onMouseEnter={e => (e.currentTarget.style.background = '#E5E5E5')}
@@ -267,8 +246,7 @@ export default function HomePage() {
       </div>
 
       {/* Browse All Takeaways Section */}
-      <div id="all-takeaways" style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
-
+      <div style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '16px' }}>
             Browse All Takeaways
@@ -286,8 +264,7 @@ export default function HomePage() {
               fontSize: '16px',
               fontWeight: 700,
               borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'background 0.2s'
+              cursor: 'pointer'
             }}
             onMouseEnter={e => (e.currentTarget.style.background = '#16A34A')}
             onMouseLeave={e => (e.currentTarget.style.background = '#22C55E')}
@@ -313,7 +290,7 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer style={{ background: '#1F2937', color: '#FFFFFF', padding: '40px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}` }}>
+      <footer style={{ background: '#1F2937', color: '#FFFFFF', padding: '40px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
         <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '16px' }}>© 2026 feedme.gg - Food Delivery in Guernsey</p>
         <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '13px' }}>
           <Link href="/terms" style={{ color: '#D1D5DB', textDecoration: 'none' }}>Terms</Link>
@@ -401,12 +378,14 @@ function StepCard(props: any) {
       transition: 'all 0.2s'
     }}
     onMouseEnter={e => {
-      e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)'
-      e.currentTarget.style.transform = 'translateY(-4px)'
+      const el = e.currentTarget as HTMLElement
+      el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)'
+      el.style.transform = 'translateY(-4px)'
     }}
     onMouseLeave={e => {
-      e.currentTarget.style.boxShadow = '0 0'
-      e.currentTarget.style.transform = 'translateY(0)'
+      const el = e.currentTarget as HTMLElement
+      el.style.boxShadow = '0 0'
+      el.style.transform = 'translateY(0)'
     }}>
       <div style={{ fontSize: '40px', marginBottom: '16px' }}>{emoji}</div>
       <div style={{
