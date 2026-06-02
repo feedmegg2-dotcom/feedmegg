@@ -17,6 +17,8 @@ export default function RestaurantPage() {
   const [itemNote, setItemNote] = useState('')
   const [itemQty, setItemQty] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
 
   useEffect(() => { 
     fetchRestaurant()
@@ -67,6 +69,25 @@ export default function RestaurantPage() {
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const deliveryFee = 2.99
+
+  // Filter items based on search and category
+  const getFilteredCategories = () => {
+    return categories
+      .filter(cat => !selectedCategory || cat.id === selectedCategory)
+      .map(cat => ({
+        ...cat,
+        menu_items: cat.menu_items?.filter((item: any) => 
+          item.is_available && (
+            !searchQuery || 
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        ) || []
+      }))
+      .filter(cat => cat.menu_items.length > 0)
+  }
+
+  const filteredCategories = getFilteredCategories()
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--sub)' }}>
@@ -122,48 +143,100 @@ export default function RestaurantPage() {
           </p>
         </div>
 
+        {/* Search and Filter Bar */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
+          {/* Search */}
+          <div style={{ flex: 1, display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', alignItems: 'center', padding: '0 14px' }}>
+            <span style={{ color: 'var(--sub)', fontSize: '16px', marginRight: '8px' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search items..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ flex: 1, background: 'none', border: 'none', padding: '12px 0', fontSize: '14px', color: 'var(--text)', outline: 'none' }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '16px', cursor: 'pointer', padding: '4px 8px' }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory || ''}
+            onChange={e => setSelectedCategory(e.target.value ? parseInt(e.target.value) : null)}
+            style={{ 
+              background: 'rgba(255,255,255,0.06)', 
+              border: '1px solid var(--border)', 
+              borderRadius: '10px', 
+              padding: '12px 14px', 
+              fontSize: '14px', 
+              color: 'var(--text)', 
+              cursor: 'pointer',
+              minWidth: isMobile ? '100%' : '200px',
+              fontFamily: 'DM Sans, sans-serif'
+            }}
+          >
+            <option value="">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Menu layout - responsive */}
         <div style={{ display: 'flex', gap: isMobile ? '0' : '20px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
           {/* Menu */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {categories.map(cat => (
-              <div key={cat.id}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '1px', margin: '20px 0 10px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  {cat.name}
-                </div>
-                {cat.menu_items?.filter((i: any) => i.is_available).map((item: any) => (
-                  <div
-                    key={item.id}
-                    onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
-                    style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: isMobile ? '12px' : '14px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '10px' : '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                    onMouseEnter={e => !isMobile && (e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)')}
-                    onMouseLeave={e => !isMobile && (e.currentTarget.style.borderColor = 'var(--border)')}
-                  >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '24px' : '28px', flexShrink: 0 }}>{item.emoji}</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: isMobile ? '13px' : '14px', fontWeight: 600, marginBottom: '3px' }}>{item.name}</div>
-                      {item.description && <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '6px', lineHeight: 1.3, display: isMobile ? '-webkit-box' : 'block', WebkitLineClamp: isMobile ? 1 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</div>}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--orange)' }}>£{item.price.toFixed(2)}</span>
-                        {item.tags?.slice(0, 2).map((tag: string) => (
-                          <span key={tag} style={{ fontSize: '9px', padding: '2px 5px', borderRadius: '3px', background: tag === 'veg' || tag === 'vegan' ? 'rgba(34,197,94,0.15)' : tag === 'spicy' ? 'rgba(249,115,22,0.15)' : 'rgba(234,179,8,0.15)', color: tag === 'veg' || tag === 'vegan' ? 'var(--green)' : tag === 'spicy' ? 'var(--orange)' : '#EAB308' }}>
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); addToCart(item, '', 1) }}
-                      style={{ background: 'var(--green)', color: '#0F172A', border: 'none', width: '32px', height: '32px', borderRadius: '8px', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
-                    >+</button>
-                  </div>
-                ))}
+            {filteredCategories.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--sub)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🔍</div>
+                <p>No items found{searchQuery && ` for "${searchQuery}"`}</p>
               </div>
-            ))}
+            ) : (
+              filteredCategories.map(cat => (
+                <div key={cat.id}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '1px', margin: '20px 0 10px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    {cat.name}
+                  </div>
+                  {cat.menu_items.map((item: any) => (
+                    <div
+                      key={item.id}
+                      onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
+                      style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: isMobile ? '12px' : '14px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '10px' : '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                      onMouseEnter={e => !isMobile && (e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)')}
+                      onMouseLeave={e => !isMobile && (e.currentTarget.style.borderColor = 'var(--border)')}
+                    >
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '24px' : '28px', flexShrink: 0 }}>{item.emoji}</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: isMobile ? '13px' : '14px', fontWeight: 600, marginBottom: '3px' }}>{item.name}</div>
+                        {item.description && <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '6px', lineHeight: 1.3, display: isMobile ? '-webkit-box' : 'block', WebkitLineClamp: isMobile ? 1 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</div>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--orange)' }}>£{item.price.toFixed(2)}</span>
+                          {item.tags?.slice(0, 2).map((tag: string) => (
+                            <span key={tag} style={{ fontSize: '9px', padding: '2px 5px', borderRadius: '3px', background: tag === 'veg' || tag === 'vegan' ? 'rgba(34,197,94,0.15)' : tag === 'spicy' ? 'rgba(249,115,22,0.15)' : 'rgba(234,179,8,0.15)', color: tag === 'veg' || tag === 'vegan' ? 'var(--green)' : tag === 'spicy' ? 'var(--orange)' : '#EAB308' }}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); addToCart(item, '', 1) }}
+                        style={{ background: 'var(--green)', color: '#0F172A', border: 'none', width: '32px', height: '32px', borderRadius: '8px', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
+                      >+</button>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Cart sidebar - stacks on mobile */}
