@@ -29,6 +29,12 @@ export default function AdminPage() {
   const [importing, setImporting] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
+  const [editingOptions, setEditingOptions] = useState<any>(null)
+  const [optionGroups, setOptionGroups] = useState<any[]>([])
+  const [showAddGroup, setShowAddGroup] = useState(false)
+  const [showAddOption, setShowAddOption] = useState<string | null>(null)
+  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, sort_order: '1' })
+  const [newOption, setNewOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
   const [newRestaurant, setNewRestaurant] = useState({ name: '', slug: '', cuisine_type: '', emoji: 'food', description: '', parish: 'St Peter Port', postcode: 'GY1', min_order: '10', delivery_time_mins: '25', pickup_time_mins: '15', merchant_id: '', custom_message: 'Thank you for your order!' })
   const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
@@ -157,6 +163,41 @@ export default function AdminPage() {
   const totalRevenue = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.total || 0), 0)
   const totalCommission = orders.filter(o => ['paid','complete'].includes(o.status)).reduce((s, o) => s + (o.commission_amount || 0), 0)
   const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString())
+
+  async function fetchOptionGroups(itemId: string) {
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
+    setOptionGroups(data || [])
+  }
+
+  async function addOptionGroup(itemId: string) {
+    if (!newGroup.name) { setMsg('Enter a group name'); return }
+    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewGroup({ name: '', type: 'single', required: false, sort_order: '1' })
+    setShowAddGroup(false)
+    fetchOptionGroups(itemId)
+  }
+
+  async function addOption(groupId: string, itemId: string) {
+    if (!newOption.name) { setMsg('Enter option name'); return }
+    const { error } = await supabase.from('item_options').insert({ option_group_id: groupId, name: newOption.name, price_adjustment: parseFloat(newOption.price_adjustment) || 0, sort_order: parseInt(newOption.sort_order), is_available: true })
+    if (error) { setMsg('Error: ' + error.message); return }
+    setNewOption({ name: '', price_adjustment: '0', sort_order: '1' })
+    setShowAddOption(null)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOptionGroup(groupId: string, itemId: string) {
+    if (!confirm('Delete this option group and all its options?')) return
+    await supabase.from('item_options').delete().eq('option_group_id', groupId)
+    await supabase.from('item_option_groups').delete().eq('id', groupId)
+    fetchOptionGroups(itemId)
+  }
+
+  async function deleteOption(optionId: string, itemId: string) {
+    await supabase.from('item_options').delete().eq('id', optionId)
+    fetchOptionGroups(itemId)
+  }
 
   if (!authed) {
     return (
@@ -395,6 +436,7 @@ export default function AdminPage() {
                         <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                       <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '14px' }}>Edit</button>
+                      <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '14px' }}>Options</button>
                       <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '14px' }}>Del</button>
                     </div>
                   </div>
@@ -465,7 +507,78 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* MERCHANTS */}
+            {/* OPTIONS EDITOR MODAL */}
+            {editingOptions && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditingOptions(null) }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Options for {editingOptions.name}</h3>
+                    <button onClick={() => setEditingOptions(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
+                    Add option groups like "Choose Your Size", "Add Toppings", "Choose Your Base". Each group can be single-select (radio) or multi-select (checkboxes).
+                  </div>
+
+                  {optionGroups.map(group => (
+                    <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
+                          {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
+                        </div>
+                        <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete group</button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                        {group.item_options?.map((opt: any) => (
+                          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                            <span>{opt.name}</span>
+                            {opt.price_adjustment > 0 && <span style={{ color: 'var(--orange)' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                            <button onClick={() => deleteOption(opt.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
+                          </div>
+                        ))}
+                      </div>
+                      {showAddOption === group.id ? (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input className="input" placeholder="Option name" value={newOption.name} onChange={e => setNewOption({...newOption, name: e.target.value})} style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }} />
+                          <input className="input" type="number" step="0.01" placeholder="Price +/-" value={newOption.price_adjustment} onChange={e => setNewOption({...newOption, price_adjustment: e.target.value})} style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }} />
+                          <button className="btn-primary" onClick={() => addOption(group.id, editingOptions.id)} style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}>Add</button>
+                          <button className="btn-ghost" onClick={() => setShowAddOption(null)} style={{ fontSize: '12px', padding: '6px 10px' }}>x</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setShowAddOption(group.id); setNewOption({ name: '', price_adjustment: '0', sort_order: '1' }) }} style={{ background: 'none', border: '1px dashed var(--border)', color: 'var(--sub)', borderRadius: '6px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>+ Add option</button>
+                      )}
+                    </div>
+                  ))}
+
+                  {showAddGroup ? (
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Option Group</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Choose Your Size, Add Toppings" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} /></div>
+                        <div><label>Type</label><select className="input" value={newGroup.type} onChange={e => setNewGroup({...newGroup, type: e.target.value})}>
+                          <option value="single">Single select (radio)</option>
+                          <option value="multiple">Multi select (checkboxes)</option>
+                        </select></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="req" checked={newGroup.required} onChange={e => setNewGroup({...newGroup, required: e.target.checked})} />
+                          <label htmlFor="req" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-ghost" onClick={() => setShowAddGroup(false)} style={{ flex: 1 }}>Cancel</button>
+                        <button className="btn-primary" onClick={() => addOptionGroup(editingOptions.id)} style={{ flex: 2 }}>Add Group</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowAddGroup(true)} className="btn-ghost" style={{ width: '100%', padding: '12px', borderStyle: 'dashed' }}>+ Add Option Group</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+        {/* MERCHANTS */}}
         {tab === 'merchants' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
