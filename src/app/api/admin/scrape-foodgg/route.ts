@@ -76,16 +76,40 @@ function parseItems(html: string): MenuItem[] {
         else if (allText.includes('Vegetarian')) tags.push('veg')
         if (allText.includes('Spicy') || firstText.toLowerCase().includes('spicy') || firstText.toLowerCase().includes('chilli')) tags.push('spicy')
         
-        // Split into name and description by double space or specific patterns
+        // Split name from description
+        // food.gg raw HTML has name and description in SEPARATE <span> or <strong> tags
+        // After cleanText they appear as: "Name Description" with the name usually bold
+        // We detect the split by finding where Title Case words end and description begins
         const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
-        // Try to split on first occurrence of multiple spaces
-        const splitIdx = clean.search(/\s{2,}/)
-        if (splitIdx > 0) {
-          currentName = clean.substring(0, splitIdx).trim()
-          currentDesc = clean.substring(splitIdx).trim()
+        
+        // Look for the actual HTML spans in the original cell
+        const nameSpan = tds[0].match(/<strong[^>]*>([^<]+)<\/strong>|<b[^>]*>([^<]+)<\/b>/)
+        if (nameSpan) {
+          // Has bold tag - bold part is the name
+          currentName = cleanText(nameSpan[1] || nameSpan[2] || '').trim()
+          currentDesc = clean.replace(currentName, '').trim()
         } else {
-          currentName = clean
-          currentDesc = ''
+          // No bold tag - use capitalisation heuristic
+          // Split at first word that starts lowercase (that word begins the description)
+          const words = clean.split(' ')
+          let nameEnd = words.length
+          for (let wi = 1; wi < words.length; wi++) {
+            const w = words[wi]
+            if (w.length > 1 && w[0] === w[0].toLowerCase() && w[0] !== w[0].toUpperCase() && !/^\d/.test(w)) {
+              nameEnd = wi
+              break
+            }
+          }
+          // Also check for common description patterns like "with", "in", "served", "&"
+          for (let wi = 1; wi < nameEnd; wi++) {
+            const wLower = words[wi].toLowerCase()
+            if (['with','in','served','topped','on','and','a','an','the','fresh','our','homemade'].includes(wLower)) {
+              nameEnd = wi
+              break
+            }
+          }
+          currentName = words.slice(0, nameEnd).join(' ').trim()
+          currentDesc = words.slice(nameEnd).join(' ').trim()
         }
         currentTags = tags
       }
