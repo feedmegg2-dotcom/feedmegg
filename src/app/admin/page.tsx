@@ -196,7 +196,7 @@ export default function AdminPage() {
 
   async function saveRestaurant() {
     if (!editRestaurant) return
-    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup }).eq('id', editRestaurant.id)
+    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null }).eq('id', editRestaurant.id)
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg('Restaurant saved!'); setEditRestaurant(null); fetchAll()
   }
@@ -437,6 +437,8 @@ export default function AdminPage() {
                     <div><label>Parish</label><select className="input" value={editRestaurant.parish} onChange={e => setEditRestaurant({...editRestaurant, parish: e.target.value})}>{PARISHES.map(p => <option key={p}>{p}</option>)}</select></div>
                     <div><label>Min Order GBP</label><input className="input" type="number" value={editRestaurant.min_order} onChange={e => setEditRestaurant({...editRestaurant, min_order: e.target.value})} /></div>
                     <div><label>Delivery Mins</label><input className="input" type="number" value={editRestaurant.delivery_time_mins} onChange={e => setEditRestaurant({...editRestaurant, delivery_time_mins: e.target.value})} /></div>
+                    <div><label>Pickup Mins</label><input className="input" type="number" value={editRestaurant.pickup_time_mins} onChange={e => setEditRestaurant({...editRestaurant, pickup_time_mins: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label>food.gg URL (for sync)</label><input className="input" placeholder="https://www.food.gg/restaurantname" value={editRestaurant.foodgg_url || ''} onChange={e => setEditRestaurant({...editRestaurant, foodgg_url: e.target.value})} /></div>
                   </div>
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
                   <div style={{ marginBottom: '14px' }}><label>Custom Thank You Message</label><input className="input" value={editRestaurant.custom_message || ''} onChange={e => setEditRestaurant({...editRestaurant, custom_message: e.target.value})} /></div>
