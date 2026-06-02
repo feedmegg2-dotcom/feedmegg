@@ -197,7 +197,7 @@ export default function HomePage() {
               </select>
             </div>
             <button
-              onClick={() => router.push(`/restaurants?cuisine=${selectedCuisine}`)}
+              onClick={() => router.push('/restaurants')}
               style={{
                 background: '#F5F5F5',
                 color: '#1F2937',
