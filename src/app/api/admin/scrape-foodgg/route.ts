@@ -96,13 +96,21 @@ function parseItems(html: string): MenuItem[] {
     const price = parseFloat(priceMatch[1])
     if (price <= 0 || price >= 500) continue
     
-    const isSize = /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)
-    
-    if (currentName && isSize) {
-      items.push({ name: `${currentName} ${firstText}`, description: currentDesc, price, tags: [...currentTags] })
-    } else if (currentName && (!firstText || firstText.length < 4 || firstText === currentName)) {
+    const isSize = !firstText || /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)
+    const isVariant = !!(currentName && firstText && firstText.length > 0 && firstText.length < 30)
+
+    if (currentName && firstText && /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)) {
+      items.push({ name: currentName + ' ' + firstText, description: currentDesc, price, tags: [...currentTags] })
+    } else if (currentName && !firstText) {
       items.push({ name: currentName, description: currentDesc, price, tags: [...currentTags] })
       currentName = ''; currentDesc = ''; currentTags = []
+    } else if (currentName && isVariant) {
+      items.push({ name: currentName + ' - ' + firstText, description: currentDesc, price, tags: [...currentTags] })
+    } else if (firstText && firstText.length > 2) {
+      currentName = ''; currentDesc = ''; currentTags = []
+    } else if (currentName && isVariant) {
+      // Variant label e.g. "Gravy", "Bacon", "Mushroom Sauce"
+      items.push({ name: currentName + ' - ' + firstText, description: currentDesc, price, tags: [...currentTags] })
     } else if (firstText && firstText.length > 2) {
       const tags: string[] = []
       if (firstText.includes('Vegan')) { tags.push('veg'); tags.push('vegan') }
