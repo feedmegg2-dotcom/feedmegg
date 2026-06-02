@@ -62,7 +62,7 @@ export default function RestaurantPage() {
     setOptionGroups(allGroups)
     // Set defaults for required single-select groups
     const defaults: Record<string, string[]> = {}
-    for (const g of (groups || [])) {
+    for (const g of (allGroups || [])) {
       if (g.required && g.type === 'single' && g.item_options?.length > 0) {
         defaults[g.id] = [g.item_options[0].id]
       }
