@@ -238,12 +238,18 @@ export default function RestaurantPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '2px' }}>{item.name}</div>
                   {item.description && <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>}
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center', marginTop: '4px' }}>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#f97316' }}>GBP{item.price.toFixed(2)}</span>
-                    {item.calories && <span style={{ fontSize: '10px', color: '#475569', background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: '4px' }}>~{item.calories} kcal</span>}
-                    {item.tags?.map((tag: string) => (
-                      <span key={tag} style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: tag === 'veg' || tag === 'vegan' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)', color: tag === 'veg' || tag === 'vegan' ? '#22c55e' : '#f97316' }}>{tag}</span>
-                    ))}
+                    {item.calories && <span style={{ fontSize: '10px', color: '#64748b', background: 'rgba(255,255,255,0.04)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>~{item.calories} kcal</span>}
+                    {item.tags?.includes('vegan') && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>Vegan</span>}
+                    {item.tags?.includes('veg') && !item.tags?.includes('vegan') && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>Veg</span>}
+                    {item.tags?.includes('spicy') && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>Spicy</span>}
+                    {item.tags?.includes('gf') && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(234,179,8,0.15)', color: '#EAB308' }}>GF</span>}
+                    {item.allergens?.length > 0 && (
+                      <span style={{ fontSize: '10px', color: '#94a3b8', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                        Contains: {item.allergens.slice(0,3).join(', ')}{item.allergens.length > 3 ? '...' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); openItem(item) }} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', width: '32px', height: '32px', borderRadius: '8px', fontSize: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>+</button>
@@ -293,9 +299,21 @@ export default function RestaurantPage() {
               </div>
             </div>
 
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              {selectedItem.calories && <span style={{ fontSize: '11px', color: '#64748b', background: 'rgba(255,255,255,0.04)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>~{selectedItem.calories} kcal</span>}
+              {selectedItem.tags?.includes('vegan') && <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>Vegan</span>}
+              {selectedItem.tags?.includes('veg') && !selectedItem.tags?.includes('vegan') && <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>Vegetarian</span>}
+              {selectedItem.tags?.includes('spicy') && <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>Spicy</span>}
+              {selectedItem.tags?.includes('gf') && <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(234,179,8,0.15)', color: '#EAB308' }}>Gluten Free</span>}
+            </div>
             {selectedItem.allergens?.length > 0 && (
-              <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px', fontSize: '11px', color: '#fca5a5' }}>
-                AI-detected allergens (guide only): {selectedItem.allergens.join(', ')}
+              <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '10px', color: '#ef4444', fontWeight: 600, marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>AI-detected allergens (guide only)</div>
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                  {selectedItem.allergens.map((a: string) => (
+                    <span key={a} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: '#fca5a5', textTransform: 'capitalize' }}>{a}</span>
+                  ))}
+                </div>
               </div>
             )}
 
