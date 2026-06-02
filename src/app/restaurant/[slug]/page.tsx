@@ -37,12 +37,29 @@ export default function RestaurantPage() {
     setItemNote('')
     setSelectedOptions({})
     setOptionsLoading(true)
-    const { data: groups } = await supabase
+    // Fetch item-specific option groups
+    const { data: directGroups } = await supabase
       .from('item_option_groups')
       .select('*, item_options(*)')
       .eq('menu_item_id', item.id)
       .order('sort_order')
-    setOptionGroups(groups || [])
+    // Fetch shared option groups linked to this item
+    const { data: links } = await supabase
+      .from('item_option_group_links')
+      .select('option_group_id')
+      .eq('menu_item_id', item.id)
+    const sharedGroupIds = (links || []).map((l: any) => l.option_group_id)
+    let sharedGroups: any[] = []
+    if (sharedGroupIds.length > 0) {
+      const { data: sg } = await supabase
+        .from('item_option_groups')
+        .select('*, item_options(*)')
+        .in('id', sharedGroupIds)
+        .order('sort_order')
+      sharedGroups = sg || []
+    }
+    const allGroups = [...(directGroups || []), ...sharedGroups]
+    setOptionGroups(allGroups)
     // Set defaults for required single-select groups
     const defaults: Record<string, string[]> = {}
     for (const g of (groups || [])) {
