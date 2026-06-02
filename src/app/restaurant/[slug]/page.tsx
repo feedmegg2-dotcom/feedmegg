@@ -17,7 +17,8 @@ export default function RestaurantPage() {
   const [itemNote, setItemNote] = useState('')
   const [itemQty, setItemQty] = useState(1)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
-  const [showBasket, setShowBasket] = useState(false)
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
@@ -100,6 +101,8 @@ export default function RestaurantPage() {
   if (!restaurant) return <div style={{background:bgColor,minHeight:'100vh',color:textColor}}>Loading...</div>
 
   const groupedMenu: Record<string, any[]> = menu.reduce((acc: Record<string, any[]>, item: any) => {
+    const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()) || (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    if (!matchesSearch) return acc
     const cat = item.category || 'Other'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(item)
@@ -140,14 +143,24 @@ export default function RestaurantPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div style={{background:bgColor,padding:'16px 20px',borderBottom:`1px solid ${borderColor}`,position:'relative',zIndex:2}}>
+        <div style={{maxWidth:'1200px',margin:'0 auto',display:'flex',gap:'8px'}}>
+          <input type="text" placeholder="Search menu..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{flex:1,padding:'12px 16px',borderRadius:'8px',border:`1px solid ${borderColor}`,background:inputBg,color:textColor,fontSize:'14px',outline:'none'}} />
+          {searchQuery && <button onClick={()=>setSearchQuery('')} style={{padding:'12px 16px',background:isDark?'#374151':'#F3F4F6',color:textColor,border:'none',borderRadius:'8px',cursor:'pointer',fontWeight:600}}>Clear</button>}
+        </div>
+      </div>
+
       {/* Menu */}
       <div style={{padding:'40px 20px 120px 20px',position:'relative',zIndex:2}}>
         <div style={{maxWidth:'1200px',margin:'0 auto'}}>
           {loading ? (
             <div>Loading menu...</div>
+          ) : Object.keys(groupedMenu).length === 0 ? (
+            <div style={{textAlign:'center',padding:'40px 20px',color:secondaryText}}>No items found matching "{searchQuery}"</div>
           ) : (
             Object.entries(groupedMenu).map(([category, items]) => (
-              <div key={category} style={{marginBottom:'40px'}}>
+              <div key={category} id={`cat-${category}`} style={{marginBottom:'40px'}}>
                 <h2 style={{fontSize:'22px',fontWeight:700,color:textColor,marginBottom:'20px',paddingBottom:'12px',borderBottom:`1px solid ${borderColor}`}}>{category}</h2>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'16px'}}>
                   {(items as any[]).map((item: any) => (
@@ -166,9 +179,25 @@ export default function RestaurantPage() {
 
       {/* Bottom Action Bar */}
       <div style={{position:'fixed',bottom:0,left:0,right:0,background:cardBg,borderTop:`1px solid ${borderColor}`,padding:'12px 20px',zIndex:101,display:'flex',gap:'12px',maxWidth:'100%'}}>
-        <button onClick={()=>{document.querySelector('[role="menu"]')?.scrollIntoView({behavior:'smooth'})}} style={{flex:1,padding:'14px',background:isDark?'#374151':'#F3F4F6',color:textColor,border:'none',borderRadius:'8px',fontWeight:700,fontSize:'14px',cursor:'pointer'}}>Menu</button>
+        <button onClick={()=>setShowCategoryMenu(true)} style={{flex:1,padding:'14px',background:isDark?'#374151':'#F3F4F6',color:textColor,border:'none',borderRadius:'8px',fontWeight:700,fontSize:'14px',cursor:'pointer'}}>Menu</button>
         <button onClick={()=>setShowBasket(true)} style={{flex:1,padding:'14px',background:'#22C55E',color:'#fff',border:'none',borderRadius:'8px',fontWeight:700,fontSize:'14px',cursor:'pointer'}}>Basket {cartCount > 0 && `(${cartCount})`}</button>
       </div>
+
+      {/* Category Menu Modal */}
+      {showCategoryMenu && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:200,display:'flex',alignItems:'flex-end'}} onClick={()=>setShowCategoryMenu(false)}>
+          <div style={{width:'100%',background:cardBg,borderRadius:'16px 16px 0 0',padding:'20px',maxHeight:'60vh',overflow:'auto'}} onClick={e=>e.stopPropagation()}>
+            <h3 style={{fontSize:'18px',fontWeight:700,color:textColor,marginBottom:'16px'}}>Categories</h3>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:'10px'}}>
+              {Object.keys(groupedMenu).map(cat => (
+                <button key={cat} onClick={()=>{const el=document.getElementById(`cat-${cat}`);el?.scrollIntoView({behavior:'smooth',block:'start'});setShowCategoryMenu(false)}} style={{padding:'12px',background:isDark?'#374151':'#F3F4F6',color:textColor,border:'none',borderRadius:'8px',fontWeight:600,fontSize:'13px',cursor:'pointer',transition:'all 0.2s'}} onMouseEnter={e=>{e.currentTarget.style.background=isDark?'#4B5563':'#E5E7EB'}} onMouseLeave={e=>{e.currentTarget.style.background=isDark?'#374151':'#F3F4F6'}}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Item Modal */}
       {selectedItem && (
