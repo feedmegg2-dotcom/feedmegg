@@ -70,43 +70,33 @@ export default function RestaurantPage() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const deliveryFee = 2.99
 
-  // Filter items based on search and category
   const getFilteredCategories = () => {
     let filtered = categories
 
-    // Filter by category if selected
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(cat => cat.id.toString() === selectedCategory)
     }
 
-    // Map and filter items
     return filtered
       .map(cat => {
         const filteredItems = cat.menu_items?.filter((item: any) => {
-          // Must be available
           if (!item.is_available) return false
-          
-          // If search query exists, item must match
           if (searchQuery) {
             return item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
           }
-          
           return true
         }) || []
 
-        return {
-          ...cat,
-          menu_items: filteredItems
-        }
+        return { ...cat, menu_items: filteredItems }
       })
-      .filter(cat => cat.menu_items.length > 0) // Only show categories with items
+      .filter(cat => cat.menu_items.length > 0)
   }
 
   const filteredCategories = getFilteredCategories()
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--sub)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#6B7280' }}>
       Loading menu...
     </div>
   )
@@ -114,137 +104,157 @@ export default function RestaurantPage() {
   if (!restaurant) return null
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Nav */}
-      <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 16px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <Link href="/" style={{ fontFamily: 'Syne', fontSize: isMobile ? '18px' : '22px', fontWeight: 800, letterSpacing: '-1px', textDecoration: 'none' }}>
-          <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
-        </Link>
-        {cartCount > 0 && (
-          <button
-            onClick={() => router.push('/checkout')}
-            className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: isMobile ? '10px 12px' : '10px 18px', fontSize: isMobile ? '12px' : '14px' }}
-          >
-            🛒 {isMobile ? cartCount : `${cartCount} item${cartCount !== 1 ? 's' : ''}`} · £{cartTotal.toFixed(2)}
-          </button>
-        )}
+    <div style={{ background: '#FFFFFF', minHeight: '100vh' }}>
+      {/* Clean Nav */}
+      <nav style={{ borderBottom: '1px solid #E5E5E5', padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: '#FFFFFF' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link href="/" style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', textDecoration: 'none', color: '#1F2937' }}>
+            feedme.gg
+          </Link>
+          {cartCount > 0 && (
+            <button
+              onClick={() => router.push('/checkout')}
+              style={{ background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              🛒 {cartCount} item{cartCount !== 1 ? 's' : ''} · £{cartTotal.toFixed(2)}
+            </button>
+          )}
+        </div>
       </nav>
 
-      {/* Main content */}
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: isMobile ? '16px' : '20px 20px 0' }}>
-        <button onClick={() => router.back()} className="btn-ghost" style={{ marginBottom: '14px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>
+      {/* Restaurant Header - Clean */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 20px', borderBottom: '1px solid #E5E5E5' }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '14px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}>
           ← Back
         </button>
 
-        {/* Restaurant banner */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: isMobile ? '14px' : '20px', display: 'flex', gap: isMobile ? '12px' : '16px', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row', textAlign: isMobile ? 'center' : 'left' }}>
-          <div style={{ fontSize: isMobile ? '40px' : '56px', flexShrink: 0 }}>{restaurant.emoji}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 800, marginBottom: '4px' }}>{restaurant.name}</h1>
-            <div style={{ fontSize: '12px', color: 'var(--sub)', lineHeight: 1.5 }}>
-              {restaurant.cuisine_type} · {restaurant.delivery_time_mins}-{restaurant.delivery_time_mins + 10} min · £{restaurant.min_order?.toFixed(2)} min
-            </div>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+          <div style={{ fontSize: '48px' }}>{restaurant.emoji}</div>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#1F2937', marginBottom: '8px', letterSpacing: '-0.5px' }}>
+              {restaurant.name}
+            </h1>
+            <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '12px' }}>
+              {restaurant.cuisine_type} · {restaurant.delivery_time_mins}-{restaurant.delivery_time_mins + 10} min delivery
+            </p>
             {restaurant.description && (
-              <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '6px' }}>{restaurant.description}</div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>{restaurant.description}</p>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Allergen warning */}
-        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: '8px', marginBottom: '20px' }}>
-          <span style={{ fontSize: '14px', flexShrink: 0 }}>ⓘ</span>
-          <p style={{ fontSize: '10px', color: '#fca5a5', lineHeight: 1.5 }}>
-            Allergen info is AI-assisted and a guide only. Please contact the restaurant directly to verify allergens.
-          </p>
+      {/* Search & Filter Bar - Clean */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '16px' : '24px 20px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+        {/* Search */}
+        <div style={{ flex: 1, background: '#F3F4F6', border: '1px solid #E5E5E5', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 12px' }}>
+          <input
+            type="text"
+            placeholder="Search items..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ flex: 1, background: 'none', border: 'none', padding: '12px', fontSize: '14px', color: '#1F2937', outline: 'none' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '16px', cursor: 'pointer', padding: '4px 8px' }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
-        {/* Search and Filter Bar */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
-          {/* Search */}
-          <div style={{ flex: 1, display: 'flex', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', alignItems: 'center', padding: '0 14px' }}>
-            <span style={{ color: 'var(--sub)', fontSize: '16px', marginRight: '8px' }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{ flex: 1, background: 'none', border: 'none', padding: '12px 0', fontSize: '14px', color: 'var(--text)', outline: 'none' }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '16px', cursor: 'pointer', padding: '4px 8px' }}
+        {/* Category Select */}
+        <select
+          value={selectedCategory}
+          onChange={e => setSelectedCategory(e.target.value)}
+          style={{ 
+            background: '#F3F4F6', 
+            border: '1px solid #E5E5E5', 
+            borderRadius: '8px', 
+            padding: '12px', 
+            fontSize: '14px', 
+            color: '#1F2937', 
+            cursor: 'pointer',
+            minWidth: isMobile ? '100%' : '200px',
+            fontFamily: 'DM Sans, system-ui, sans-serif'
+          }}
+        >
+          <option value="all">All categories</option>
+          {categories.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '20px 16px' : '32px 20px', display: 'flex', gap: isMobile ? '0' : '32px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+        {/* Menu */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {filteredCategories.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9CA3AF' }}>
+              <p>No items found{searchQuery && ` for "${searchQuery}"`}</p>
+              <button 
+                onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+                style={{ marginTop: '16px', background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
               >
-                ✕
+                Clear filters
               </button>
-            )}
-          </div>
-
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            style={{ 
-              background: 'rgba(255,255,255,0.06)', 
-              border: '1px solid var(--border)', 
-              borderRadius: '10px', 
-              padding: '12px 14px', 
-              fontSize: '14px', 
-              color: 'var(--text)', 
-              cursor: 'pointer',
-              minWidth: isMobile ? '100%' : '200px',
-              fontFamily: 'DM Sans, sans-serif'
-            }}
-          >
-            <option value="all">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Menu layout - responsive */}
-        <div style={{ display: 'flex', gap: isMobile ? '0' : '20px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
-          {/* Menu */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {filteredCategories.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--sub)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🔍</div>
-                <p>No items found{searchQuery && ` for "${searchQuery}"`}</p>
-                <button 
-                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
-                  style={{ marginTop: '16px', background: 'var(--green)', color: '#0F172A', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Reset filters
-                </button>
-              </div>
-            ) : (
-              filteredCategories.map(cat => (
-                <div key={cat.id}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '1px', margin: '20px 0 10px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                    {cat.name}
-                  </div>
+            </div>
+          ) : (
+            filteredCategories.map(cat => (
+              <div key={cat.id} style={{ marginBottom: '40px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px', letterSpacing: '-0.3px' }}>
+                  {cat.name}
+                </h3>
+                <div style={{ display: 'grid', gap: '12px' }}>
                   {cat.menu_items.map((item: any) => (
                     <div
                       key={item.id}
                       onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
-                      style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: isMobile ? '12px' : '14px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '10px' : '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                      onMouseEnter={e => !isMobile && (e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)')}
-                      onMouseLeave={e => !isMobile && (e.currentTarget.style.borderColor = 'var(--border)')}
+                      style={{ 
+                        background: '#FFFFFF', 
+                        border: '1px solid #E5E5E5', 
+                        borderRadius: '10px', 
+                        padding: '16px',
+                        display: 'flex',
+                        gap: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        alignItems: 'flex-start'
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
+                        (e.currentTarget as HTMLElement).style.borderColor = '#D1D5DB'
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+                        (e.currentTarget as HTMLElement).style.borderColor = '#E5E5E5'
+                      }}
                     >
                       {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
+                        <img src={item.image_url} alt={item.name} style={{ width: '80px', height: '80px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
                       ) : (
-                        <div style={{ width: isMobile ? '48px' : '56px', height: isMobile ? '48px' : '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '24px' : '28px', flexShrink: 0 }}>{item.emoji}</div>
+                        <div style={{ width: '80px', height: '80px', borderRadius: '8px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', flexShrink: 0 }}>
+                          {item.emoji}
+                        </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: isMobile ? '13px' : '14px', fontWeight: 600, marginBottom: '3px' }}>{item.name}</div>
-                        {item.description && <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '6px', lineHeight: 1.3, display: isMobile ? '-webkit-box' : 'block', WebkitLineClamp: isMobile ? 1 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</div>}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--orange)' }}>£{item.price.toFixed(2)}</span>
-                          {item.tags?.slice(0, 2).map((tag: string) => (
-                            <span key={tag} style={{ fontSize: '9px', padding: '2px 5px', borderRadius: '3px', background: tag === 'veg' || tag === 'vegan' ? 'rgba(34,197,94,0.15)' : tag === 'spicy' ? 'rgba(249,115,22,0.15)' : 'rgba(234,179,8,0.15)', color: tag === 'veg' || tag === 'vegan' ? 'var(--green)' : tag === 'spicy' ? 'var(--orange)' : '#EAB308' }}>
+                        <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
+                          {item.name}
+                        </h4>
+                        {item.description && (
+                          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.4 }}>
+                            {item.description}
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#22C55E' }}>
+                            £{item.price.toFixed(2)}
+                          </span>
+                          {item.tags?.slice(0, 1).map((tag: string) => (
+                            <span key={tag} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: tag === 'vegan' ? '#D1FAE5' : tag === 'spicy' ? '#FED7AA' : '#F0F9FF', color: tag === 'vegan' ? '#065F46' : tag === 'spicy' ? '#92400E' : '#0369A1' }}>
                               {tag}
                             </span>
                           ))}
@@ -252,97 +262,128 @@ export default function RestaurantPage() {
                       </div>
                       <button
                         onClick={e => { e.stopPropagation(); addToCart(item, '', 1) }}
-                        style={{ background: 'var(--green)', color: '#0F172A', border: 'none', width: '32px', height: '32px', borderRadius: '8px', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
-                      >+</button>
+                        style={{ background: '#22C55E', color: '#FFFFFF', border: 'none', width: '40px', height: '40px', borderRadius: '8px', fontSize: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
+                      >
+                        +
+                      </button>
                     </div>
                   ))}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+            ))
+          )}
+        </div>
 
-          {/* Cart sidebar - stacks on mobile */}
-          <div style={{ width: isMobile ? '100%' : '260px', flexShrink: 0 }}>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px', position: isMobile ? 'sticky' : 'sticky', top: isMobile ? '70px' : '74px', zIndex: 50 }}>
-              <div style={{ fontFamily: 'Syne', fontSize: '14px', fontWeight: 700, marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--border)' }}>Your Order</div>
-              {cart.length === 0 ? (
-                <div style={{ fontSize: '12px', color: 'var(--sub)', textAlign: 'center', padding: '20px 0' }}>Add items to get started</div>
-              ) : (
-                <>
-                  <div style={{ maxHeight: isMobile ? '300px' : '400px', overflowY: 'auto', marginBottom: '12px' }}>
-                    {cart.map(item => (
-                      <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: '12px', gap: '8px' }}>
-                        <span style={{ color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.qty}× {item.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                          <span style={{ color: 'var(--green)', fontWeight: 600, fontSize: '11px' }}>£{(item.price * item.qty).toFixed(2)}</span>
-                          <button onClick={() => updateQty(item.cartId, -1)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--sub)', width: '18px', height: '18px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', padding: 0 }}>−</button>
-                        </div>
+        {/* Cart Sidebar */}
+        <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0 }}>
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: '10px', padding: '20px', position: 'sticky', top: '80px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937', marginBottom: '16px', letterSpacing: '-0.3px' }}>
+              Your Order
+            </h3>
+            
+            {cart.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>
+                Add items to continue
+              </p>
+            ) : (
+              <>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #E5E5E5' }}>
+                  {cart.map(item => (
+                    <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', fontSize: '13px', marginBottom: '8px' }}>
+                      <span style={{ color: '#374151', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.qty}× {item.name}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <span style={{ color: '#22C55E', fontWeight: 600 }}>£{(item.price * item.qty).toFixed(2)}</span>
+                        <button onClick={() => updateQty(item.cartId, -1)} style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', width: '20px', height: '20px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+                          −
+                        </button>
                       </div>
-                    ))}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span>Subtotal</span>
+                    <span>£{cartTotal.toFixed(2)}</span>
                   </div>
-                  <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--sub)', marginBottom: '4px' }}>
-                      <span>Subtotal</span>
-                      <span>£{cartTotal.toFixed(2)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--sub)', marginBottom: '10px' }}>
-                      <span>Delivery</span>
-                      <span>£{deliveryFee.toFixed(2)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, padding: '10px 0 12px', borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
-                      <span>Total</span><span style={{ color: 'var(--green)' }}>£{(cartTotal + deliveryFee).toFixed(2)}</span>
-                    </div>
-                    <button
-                      onClick={() => { localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
-                      className="btn-primary"
-                      style={{ width: '100%', padding: '12px', fontSize: '13px' }}
-                    >
-                      Checkout →
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Delivery</span>
+                    <span>£{deliveryFee.toFixed(2)}</span>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+
+                <div style={{ paddingTop: '12px', borderTop: '1px solid #E5E5E5', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
+                  <span>Total</span>
+                  <span style={{ color: '#22C55E' }}>£{(cartTotal + deliveryFee).toFixed(2)}</span>
+                </div>
+
+                <button
+                  onClick={() => { localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
+                  style={{ width: '100%', background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Checkout
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Item modal */}
+      {/* Item Modal */}
       {selectedItem && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(6px)' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setSelectedItem(null) }}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: isMobile ? '20px' : '24px', width: '100%', maxWidth: '440px', maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', position: 'relative' }} className="animate-bounce-in">
-            <button onClick={() => setSelectedItem(null)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-            <div style={{ fontSize: isMobile ? '48px' : '56px', textAlign: 'center', marginBottom: '12px' }}>{selectedItem.emoji}</div>
-            <h3 style={{ fontSize: isMobile ? '18px' : '20px', fontWeight: 800, textAlign: 'center', marginBottom: '6px' }}>{selectedItem.name}</h3>
-            {selectedItem.description && <p style={{ fontSize: '13px', color: 'var(--sub)', textAlign: 'center', marginBottom: '12px', lineHeight: 1.5 }}>{selectedItem.description}</p>}
-            <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, color: 'var(--green)', textAlign: 'center', marginBottom: '20px' }}>£{selectedItem.price.toFixed(2)}</div>
+          <div style={{ background: '#FFFFFF', borderRadius: '12px', padding: '32px', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setSelectedItem(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: '#F3F4F6', border: 'none', color: '#6B7280', width: '32px', height: '32px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer' }}>
+              ✕
+            </button>
 
-            {selectedItem.allergens?.length > 0 && (
-              <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px', fontSize: '10px', color: '#fca5a5', lineHeight: 1.5 }}>
-                ⓘ AI-detected allergens (guide only): {selectedItem.allergens.join(', ')}. Contact restaurant to verify.
-              </div>
+            <div style={{ fontSize: '48px', textAlign: 'center', marginBottom: '16px' }}>
+              {selectedItem.emoji}
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1F2937', textAlign: 'center', marginBottom: '8px' }}>
+              {selectedItem.name}
+            </h2>
+            {selectedItem.description && (
+              <p style={{ fontSize: '14px', color: '#6B7280', textAlign: 'center', marginBottom: '16px', lineHeight: 1.5 }}>
+                {selectedItem.description}
+              </p>
             )}
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#22C55E', textAlign: 'center', marginBottom: '24px' }}>
+              £{selectedItem.price.toFixed(2)}
+            </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label>Special instructions (optional)</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#374151', fontWeight: 600, marginBottom: '8px' }}>
+                Special instructions
+              </label>
               <textarea
                 value={itemNote}
                 onChange={e => setItemNote(e.target.value)}
-                placeholder="e.g. no onions, extra sauce..."
+                placeholder="e.g. no onions..."
                 rows={2}
-                className="input"
-                style={{ resize: 'none', marginTop: '4px' }}
+                style={{ width: '100%', background: '#F3F4F6', border: '1px solid #E5E5E5', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#1F2937', outline: 'none', resize: 'none', fontFamily: 'DM Sans, system-ui, sans-serif' }}
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
-              <button onClick={() => setItemQty(Math.max(1, itemQty - 1))} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', width: '36px', height: '36px', borderRadius: '8px', fontSize: '18px', cursor: 'pointer' }}>−</button>
-              <span style={{ fontSize: '18px', fontWeight: 700, minWidth: '30px', textAlign: 'center' }}>{itemQty}</span>
-              <button onClick={() => setItemQty(itemQty + 1)} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', width: '36px', height: '36px', borderRadius: '8px', fontSize: '18px', cursor: 'pointer' }}>+</button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '20px' }}>
+              <button onClick={() => setItemQty(Math.max(1, itemQty - 1))} style={{ background: '#F3F4F6', border: 'none', color: '#1F2937', width: '36px', height: '36px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>
+                −
+              </button>
+              <span style={{ fontSize: '18px', fontWeight: 700, minWidth: '30px', textAlign: 'center', color: '#1F2937' }}>
+                {itemQty}
+              </span>
+              <button onClick={() => setItemQty(itemQty + 1)} style={{ background: '#F3F4F6', border: 'none', color: '#1F2937', width: '36px', height: '36px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}>
+                +
+              </button>
             </div>
 
-            <button onClick={() => addToCart(selectedItem, itemNote, itemQty)} className="btn-primary" style={{ width: '100%', padding: '13px', fontSize: '14px' }}>
+            <button
+              onClick={() => addToCart(selectedItem, itemNote, itemQty)}
+              style={{ width: '100%', background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+            >
               Add to order — £{(selectedItem.price * itemQty).toFixed(2)}
             </button>
           </div>
