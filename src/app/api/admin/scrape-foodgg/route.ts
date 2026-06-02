@@ -174,21 +174,15 @@ export async function POST(request: NextRequest) {
       if (mainHtml.includes(p)) { parish = p; break }
     }
 
-    // Extract ALL /menu/NUMBER URLs - handle both relative and absolute
+    // Extract ALL /menu/NUMBER URLs
+    // food.gg uses both absolute and relative URLs, with #menu anchors
     const sectionUrls: string[] = []
     const seen = new Set<string>()
 
-    // Match absolute URLs
-    const absRegex = /https?:\/\/www\.food\.gg\/[^/"#\s]+\/menu\/(\d+)/g
+    // Match /menu/NUMBER anywhere in the HTML (handles #menu suffix)
+    const menuNumRegex = /\/menu\/(\d+)/g
     let mu
-    while ((mu = absRegex.exec(mainHtml)) !== null) {
-      const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
-      if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
-    }
-
-    // Match relative URLs like /wickedwolf/menu/2408
-    const relRegex = /\/[^/"#\s]+\/menu\/(\d+)/g
-    while ((mu = relRegex.exec(mainHtml)) !== null) {
+    while ((mu = menuNumRegex.exec(mainHtml)) !== null) {
       const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
       if (!seen.has(secUrl)) { seen.add(secUrl); sectionUrls.push(secUrl) }
     }
