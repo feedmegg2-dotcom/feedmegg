@@ -16,14 +16,11 @@ export default function RestaurantPage() {
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [itemNote, setItemNote] = useState('')
   const [itemQty, setItemQty] = useState(1)
-  const [isMobile, setIsMobile] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   useEffect(() => { 
     fetchRestaurant()
-    setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', () => setIsMobile(window.innerWidth < 768))
   }, [slug])
 
   async function fetchRestaurant() {
@@ -123,7 +120,7 @@ export default function RestaurantPage() {
       </nav>
 
       {/* Restaurant Header - Clean */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 20px', borderBottom: '1px solid #E5E5E5' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px', borderBottom: '1px solid #E5E5E5' }}>
         <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '14px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}>
           ← Back
         </button>
@@ -145,7 +142,7 @@ export default function RestaurantPage() {
       </div>
 
       {/* Search & Filter Bar - Clean */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '16px' : '24px 20px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: '12px', flexDirection: 'row' }}>
         {/* Search */}
         <div style={{ flex: 1, background: '#F3F4F6', border: '1px solid #E5E5E5', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 12px' }}>
           <input
@@ -177,7 +174,7 @@ export default function RestaurantPage() {
             fontSize: '14px', 
             color: '#1F2937', 
             cursor: 'pointer',
-            minWidth: isMobile ? '100%' : '200px',
+            minWidth: '200px',
             fontFamily: 'DM Sans, system-ui, sans-serif'
           }}
         >
@@ -189,7 +186,7 @@ export default function RestaurantPage() {
       </div>
 
       {/* Main Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '20px 16px' : '32px 20px', display: 'flex', gap: isMobile ? '0' : '32px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px', display: 'flex', gap: '32px', flexDirection: 'row' }}>
         {/* Menu */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {filteredCategories.length === 0 ? (
@@ -210,65 +207,7 @@ export default function RestaurantPage() {
                 </h3>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   {cat.menu_items.map((item: any) => (
-                    <div
-                      key={item.id}
-                      onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
-                      style={{ 
-                        background: '#FFFFFF', 
-                        border: '1px solid #E5E5E5', 
-                        borderRadius: '10px', 
-                        padding: '16px',
-                        display: 'flex',
-                        gap: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        alignItems: 'flex-start'
-                      }}
-                      onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
-                        const el = e.currentTarget as HTMLDivElement
-                        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
-                        el.style.borderColor = '#D1D5DB'
-                      }}
-                      onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
-                        const el = e.currentTarget as HTMLDivElement
-                        el.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
-                        el.style.borderColor = '#E5E5E5'
-                      }}
-                    >
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} style={{ width: '80px', height: '80px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: '80px', height: '80px', borderRadius: '8px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', flexShrink: 0 }}>
-                          {item.emoji}
-                        </div>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
-                          {item.name}
-                        </h4>
-                        {item.description && (
-                          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.4 }}>
-                            {item.description}
-                          </p>
-                        )}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#22C55E' }}>
-                            £{item.price.toFixed(2)}
-                          </span>
-                          {item.tags?.slice(0, 1).map((tag: string) => (
-                            <span key={tag} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: tag === 'vegan' ? '#D1FAE5' : tag === 'spicy' ? '#FED7AA' : '#F0F9FF', color: tag === 'vegan' ? '#065F46' : tag === 'spicy' ? '#92400E' : '#0369A1' }}>
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); addToCart(item, '', 1) }}
-                        style={{ background: '#22C55E', color: '#FFFFFF', border: 'none', width: '40px', height: '40px', borderRadius: '8px', fontSize: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
-                      >
-                        +
-                      </button>
-                    </div>
+                    <MenuItemCard key={item.id} item={item} setSelectedItem={setSelectedItem} setItemQty={setItemQty} setItemNote={setItemNote} addToCart={addToCart} />
                   ))}
                 </div>
               </div>
@@ -277,7 +216,7 @@ export default function RestaurantPage() {
         </div>
 
         {/* Cart Sidebar */}
-        <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0 }}>
+        <div style={{ width: '300px', flexShrink: 0 }}>
           <div style={{ background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: '10px', padding: '20px', position: 'sticky', top: '80px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937', marginBottom: '16px', letterSpacing: '-0.3px' }}>
               Your Order
@@ -383,7 +322,17 @@ export default function RestaurantPage() {
             </div>
 
             <button
-              onClick={() => addToCart(selectedItem, itemNote, itemQty)}
+              onClick={() => {
+                const existing = cart.find(c => c.id === selectedItem.id && c.note === itemNote)
+                if (existing) {
+                  setCart(cart.map(c => c.id === selectedItem.id && c.note === itemNote ? { ...c, qty: c.qty + itemQty } : c))
+                } else {
+                  setCart([...cart, { ...selectedItem, qty: itemQty, note: itemNote, cartId: Date.now() }])
+                }
+                setSelectedItem(null)
+                setItemNote('')
+                setItemQty(1)
+              }}
               style={{ width: '100%', background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
             >
               Add to order — £{(selectedItem.price * itemQty).toFixed(2)}
@@ -391,6 +340,65 @@ export default function RestaurantPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function MenuItemCard({ item, setSelectedItem, setItemQty, setItemNote, addToCart }: { item: any; setSelectedItem: any; setItemQty: any; setItemNote: any; addToCart: any }) {
+  const [hovering, setHovering] = useState(false)
+
+  return (
+    <div
+      onClick={() => { setSelectedItem(item); setItemQty(1); setItemNote('') }}
+      style={{ 
+        background: '#FFFFFF', 
+        border: '1px solid #E5E5E5', 
+        borderRadius: '10px', 
+        padding: '16px',
+        display: 'flex',
+        gap: '16px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        alignItems: 'flex-start',
+        boxShadow: hovering ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 2px rgba(0,0,0,0.05)',
+        borderColor: hovering ? '#D1D5DB' : '#E5E5E5'
+      }}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      {item.image_url ? (
+        <img src={item.image_url} alt={item.name} style={{ width: '80px', height: '80px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
+      ) : (
+        <div style={{ width: '80px', height: '80px', borderRadius: '8px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', flexShrink: 0 }}>
+          {item.emoji}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
+          {item.name}
+        </h4>
+        {item.description && (
+          <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '10px', lineHeight: 1.4 }}>
+            {item.description}
+          </p>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '16px', fontWeight: 700, color: '#22C55E' }}>
+            £{item.price.toFixed(2)}
+          </span>
+          {item.tags?.slice(0, 1).map((tag: string) => (
+            <span key={tag} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: tag === 'vegan' ? '#D1FAE5' : tag === 'spicy' ? '#FED7AA' : '#F0F9FF', color: tag === 'vegan' ? '#065F46' : tag === 'spicy' ? '#92400E' : '#0369A1' }}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={e => { e.stopPropagation(); addToCart(item, '', 1) }}
+        style={{ background: '#22C55E', color: '#FFFFFF', border: 'none', width: '40px', height: '40px', borderRadius: '8px', fontSize: '20px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
+      >
+        +
+      </button>
     </div>
   )
 }
