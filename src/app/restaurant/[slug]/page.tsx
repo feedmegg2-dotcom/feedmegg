@@ -227,41 +227,48 @@ export default function HomePage() {
           {/* Suggestions Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: cardBg, border: `1px solid ${borderColor}`, borderTop: 'none', borderRadius: '0 0 12px 12px', marginTop: '-1px', boxShadow: isDark ? '0 8px 20px rgba(0,0,0,0.3)' : '0 8px 20px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '400px', overflowY: 'auto' }}>
-              {suggestions.map((sugg, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setSearch(sugg.name)
-                    setShowSuggestions(false)
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    background: 'none', 
-                    border: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none',
-                    borderTop: 'none',
-                    color: textColor,
-                    padding: '12px 16px', 
-                    textAlign: 'left', 
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                    display: 'flex',
-                    gap: '10px',
-                    alignItems: 'center'
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                >
-                  <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
-                      {sugg.name}
+              {suggestions.map((sugg, idx) => {
+                const restName = sugg.type === 'restaurant' ? sugg.name : sugg.restaurant
+                const foundRest = restaurants.find(r => r.name === restName)
+                const restaurantSlug = foundRest?.slug || restName?.toLowerCase().replace(/\s+/g, '-')
+                return (
+                  <Link
+                    key={idx}
+                    href={`/restaurant/${restaurantSlug}`}
+                    style={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      display: 'block',
+                      borderBottom: idx < suggestions.length - 1 ? `1px solid ${borderColor}` : 'none'
+                    }}
+                  >
+                    <div
+                      style={{ 
+                        background: 'none', 
+                        color: textColor,
+                        padding: '12px 16px', 
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <span style={{ fontSize: '18px' }}>{sugg.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
+                          {sugg.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: secondaryText }}>
+                          {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: secondaryText }}>
-                      {sugg.type === 'item' ? `at ${sugg.restaurant}` : sugg.cuisine}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>
@@ -373,9 +380,10 @@ export default function HomePage() {
 function RestaurantCard(props: any) {
   const { restaurant: r, isDark, cardBg, borderColor, hoverBg, textColor, secondaryText } = props
   const [hovering, setHovering] = useState(false)
+  const slug = r.slug || r.name?.toLowerCase().replace(/\s+/g, '-')
 
   return (
-    <Link href={`/restaurant/${r.slug}`} style={{ textDecoration: 'none' }}>
+    <Link href={`/restaurant/${slug}`} style={{ textDecoration: 'none' }}>
       <div
         style={{ 
           background: cardBg, 
