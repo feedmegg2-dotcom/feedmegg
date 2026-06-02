@@ -224,13 +224,15 @@ export default function RestaurantPage() {
                         transition: 'all 0.2s',
                         alignItems: 'flex-start'
                       }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
-                        (e.currentTarget as HTMLElement).style.borderColor = '#D1D5DB'
+                      onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+                        const el = e.currentTarget as HTMLDivElement
+                        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
+                        el.style.borderColor = '#D1D5DB'
                       }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
-                        (e.currentTarget as HTMLElement).style.borderColor = '#E5E5E5'
+                      onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+                        const el = e.currentTarget as HTMLDivElement
+                        el.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+                        el.style.borderColor = '#E5E5E5'
                       }}
                     >
                       {item.image_url ? (
