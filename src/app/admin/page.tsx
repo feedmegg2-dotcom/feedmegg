@@ -173,6 +173,18 @@ export default function AdminPage() {
     fetchAll()
   }
 
+  async function deleteRestaurant(id: string, name: string) {
+    if (!confirm('Delete ' + name + ' and ALL its menu items? This cannot be undone!')) return
+    await supabase.from('item_option_group_links').delete().eq('menu_item_id', id)
+    await supabase.from('item_options').delete().eq('option_group_id', id)
+    await supabase.from('item_option_groups').delete().eq('restaurant_id', id)
+    await supabase.from('menu_items').delete().eq('restaurant_id', id)
+    await supabase.from('menu_categories').delete().eq('restaurant_id', id)
+    await supabase.from('restaurants').delete().eq('id', id)
+    setMsg(name + ' deleted!')
+    fetchAll()
+  }
+
   async function addRestaurant() {
     if (!newRestaurant.name || !newRestaurant.slug || !newRestaurant.merchant_id) { setMsg('Please fill in name, slug and merchant'); return }
     const { error } = await supabase.from('restaurants').insert({ ...newRestaurant, min_order: parseFloat(newRestaurant.min_order), delivery_time_mins: parseInt(newRestaurant.delivery_time_mins), pickup_time_mins: parseInt(newRestaurant.pickup_time_mins), is_open: false, is_active: true, accepts_delivery: true, accepts_pickup: true, accepts_preorders: true, slot_capacity: 5 })
@@ -365,6 +377,7 @@ export default function AdminPage() {
                     </div>
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
+                    <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
                   </div>
                 </div>
               </div>
