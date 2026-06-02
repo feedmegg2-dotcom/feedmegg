@@ -3,13 +3,13 @@ import { createAdminClient } from '@/lib/supabase'
 
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; feedmegg/1.0)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
   })
   return res.text()
 }
 
 function cleanText(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
 }
 
 function getEmoji(name: string): string {
@@ -28,7 +28,7 @@ function getEmoji(name: string): string {
   if (n.includes('steak') || n.includes('grill')) return '🥩'
   if (n.includes('garlic bread') || n.includes('bread')) return '🥖'
   if (n.includes('wing')) return '🍗'
-  if (n.includes('spring roll') || n.includes('dumpling')) return '🥟'
+  if (n.includes('spring roll')) return '🥟'
   if (n.includes('mushroom')) return '🍄'
   if (n.includes('nacho')) return '🫔'
   if (n.includes('curry') || n.includes('korma') || n.includes('tikka')) return '🍛'
@@ -41,119 +41,105 @@ function getEmoji(name: string): string {
   return '🍽'
 }
 
-interface MenuItem {
-  name: string
-  description: string
-  price: number
-  tags: string[]
-}
+interface MenuItem { name: string; description: string; price: number; tags: string[] }
 
 function parseItems(html: string): MenuItem[] {
   const items: MenuItem[] = []
-
-  // Find all tables on the page
-  const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi
-  let tableMatch
+  const rows = html.split(/<tr[\s>]/i)
   
-  while ((tableMatch = tableRegex.exec(html)) !== null) {
-    const tableHtml = tableMatch[1]
-    const rows = tableHtml.split(/<tr[^>]*>/i).slice(1)
+  let currentName = ''
+  let currentDesc = ''
+  let currentTags: string[] = []
+  
+  for (const row of rows) {
+    if (row.includes('<th')) continue
     
-    let currentName = ''
-    let currentDesc = ''
-    let currentTags: string[] = []
+    // Extract all td contents
+    const tds: string[] = []
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
+    let tdm
+    while ((tdm = tdRegex.exec(row)) !== null) {
+      tds.push(tdm[1])
+    }
+    if (tds.length === 0) continue
     
-    for (const row of rows) {
-      if (row.includes('<th')) continue
-      
-      const cells: string[] = []
-      const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
-      let cm
-      while ((cm = cellRegex.exec(row)) !== null) {
-        cells.push(cm[1])
-      }
-      
-      if (cells.length === 0) continue
-      
-      const firstText = cleanText(cells[0])
-      const lastHtml = cells[cells.length - 1] || ''
-      const priceMatch = lastHtml.match(/£([\d.]+)/)
-      const hasBasket = lastHtml.includes('Add to basket')
-      
-      if (!hasBasket && !priceMatch) {
-        // Item name/description row
-        if (firstText && firstText.length > 1 && firstText !== 'Price' && !firstText.match(/^£/)) {
-          const tags: string[] = []
-          const rowLower = row.toLowerCase()
-          const textLower = firstText.toLowerCase()
-          if (textLower.includes('vegan') || rowLower.includes('vegan')) { tags.push('veg'); tags.push('vegan') }
-          else if (textLower.includes('vegetarian') || rowLower.includes('vegetarian')) tags.push('veg')
-          if (textLower.includes('spicy') || rowLower.includes('spicy')) tags.push('spicy')
-          
-          // First word block = name, rest = description
-          const parts = firstText.replace(/Vegetarian|Vegan|Spicy|Contains Nuts/gi, '').trim().split(/\s{2,}/)
-          currentName = parts[0]?.trim() || ''
-          currentDesc = parts.slice(1).join(' ').trim()
-          currentTags = tags
-        }
-        continue
-      }
-      
-      if (!priceMatch) continue
-      const price = parseFloat(priceMatch[1])
-      if (price <= 0 || price >= 500) continue
-      
-      const isSize = firstText.match(/^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/)
-      
-      if (currentName && isSize) {
-        // Size variant of current item
-        items.push({
-          name: `${currentName} ${firstText}`,
-          description: currentDesc,
-          price,
-          tags: [...currentTags],
-        })
-      } else if (currentName && (!firstText || firstText === currentName || firstText.length < 3)) {
-        // Same item, single size
-        items.push({
-          name: currentName,
-          description: currentDesc,
-          price,
-          tags: [...currentTags],
-        })
-        currentName = ''
-        currentDesc = ''
-        currentTags = []
-      } else if (firstText && firstText.length > 2) {
-        // Inline item with name and price on same row
+    const firstText = cleanText(tds[0])
+    const lastHtml = tds[tds.length - 1] || ''
+    const priceMatch = lastHtml.match(/£([\d.]+)/)
+    const hasBasket = lastHtml.includes('Add to basket') || lastHtml.includes('add/')
+    
+    if (!hasBasket && !priceMatch) {
+      if (firstText && firstText.length > 1 && firstText !== 'Price' && !firstText.match(/^[£\d]/)) {
         const tags: string[] = []
-        const textLower = firstText.toLowerCase()
-        if (textLower.includes('vegan')) { tags.push('veg'); tags.push('vegan') }
-        else if (textLower.includes('vegetarian')) tags.push('veg')
-        if (textLower.includes('spicy')) tags.push('spicy')
+        const allText = cleanText(row)
+        if (allText.includes('Vegan')) { tags.push('veg'); tags.push('vegan') }
+        else if (allText.includes('Vegetarian')) tags.push('veg')
+        if (allText.includes('Spicy') || firstText.toLowerCase().includes('spicy') || firstText.toLowerCase().includes('chilli')) tags.push('spicy')
         
-        const parts = firstText.replace(/Vegetarian|Vegan|Spicy|Contains Nuts/gi, '').trim().split(/\s{2,}/)
-        const name = parts[0]?.trim() || firstText
-        const desc = parts.slice(1).join(' ').trim()
-        
-        items.push({ name, description: desc, price, tags })
+        // Split into name and description by double space or specific patterns
+        const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
+        // Try to split on first occurrence of multiple spaces
+        const splitIdx = clean.search(/\s{2,}/)
+        if (splitIdx > 0) {
+          currentName = clean.substring(0, splitIdx).trim()
+          currentDesc = clean.substring(splitIdx).trim()
+        } else {
+          currentName = clean
+          currentDesc = ''
+        }
+        currentTags = tags
       }
+      continue
+    }
+    
+    if (!priceMatch) continue
+    const price = parseFloat(priceMatch[1])
+    if (price <= 0 || price >= 500) continue
+    
+    const isSize = /^\d+"$|^Small$|^Medium$|^Large$|^Regular$|^\d+$/.test(firstText)
+    
+    if (currentName && isSize) {
+      items.push({ name: `${currentName} ${firstText}`, description: currentDesc, price, tags: [...currentTags] })
+    } else if (currentName && (!firstText || firstText.length < 4 || firstText === currentName)) {
+      items.push({ name: currentName, description: currentDesc, price, tags: [...currentTags] })
+      currentName = ''; currentDesc = ''; currentTags = []
+    } else if (firstText && firstText.length > 2) {
+      const tags: string[] = []
+      if (firstText.includes('Vegan')) { tags.push('veg'); tags.push('vegan') }
+      else if (firstText.includes('Vegetarian')) tags.push('veg')
+      if (firstText.toLowerCase().includes('spicy')) tags.push('spicy')
+      const clean = firstText.replace(/\s*(Vegetarian|Vegan|Spicy|Contains Nuts)\s*/g, ' ').trim()
+      const splitIdx = clean.search(/\s{2,}/)
+      const name = splitIdx > 0 ? clean.substring(0, splitIdx).trim() : clean
+      const desc = splitIdx > 0 ? clean.substring(splitIdx).trim() : ''
+      items.push({ name, description: desc, price, tags })
     }
   }
   
   return items
 }
 
-function getPageCategoryName(html: string, fallback: string): string {
-  // Look for h2 that's NOT "Menu" or "Your Order"
-  const h2s = html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)
-  for (const m of h2s) {
-    const text = cleanText(m[1])
-    if (text && !['menu', 'your order', 'order'].includes(text.toLowerCase())) {
-      return text
+function getCategoryName(html: string): string {
+  // Try title tag first - most reliable
+  const titleMatch = html.match(/<title>([^<]+)<\/title>/i)
+  if (titleMatch) {
+    const title = titleMatch[1]
+    // Format: "Restaurant Name Menu - Category - Food.gg"
+    const parts = title.split(' - ')
+    if (parts.length >= 2) {
+      const catPart = parts[1].trim()
+      if (catPart && !catPart.includes('Food.gg') && !catPart.toLowerCase().includes('menu')) {
+        return catPart
+      }
     }
   }
-  return fallback
+  // Fallback to h2
+  const h2 = html.match(/<h2[^>]*>([^<]+)<\/h2>/i)
+  if (h2) {
+    const text = cleanText(h2[1])
+    if (text && !['menu', 'your order'].includes(text.toLowerCase())) return text
+  }
+  return 'Menu'
 }
 
 export async function POST(request: NextRequest) {
@@ -170,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     const mainHtml = await fetchPage(baseUrl)
 
-    // Restaurant name
+    // Restaurant name from h1
     const nameMatch = mainHtml.match(/<h1[^>]*>\s*([^<]+)\s*<\/h1>/)
     const restaurantName = nameMatch ? nameMatch[1].trim() : slug.replace(/-/g, ' ')
 
@@ -188,19 +174,16 @@ export async function POST(request: NextRequest) {
       if (mainHtml.includes(p)) { parish = p; break }
     }
 
-    // Get section nav links — each is a separate category page
-    // Format: /wickedwolf/menu/2408#menu  or /wickedwolf#menu (main page)
-    const navSections: { url: string; name: string }[] = []
-    const navRegex = /href="(https:\/\/www\.food\.gg\/[^"#]+(?:\/menu\/\d+)?)[^"#]*(?:#[^"]*)?"\s*>\s*([^<]+)\s*<\/a>/g
-    let nm
-    const seen = new Set<string>([baseUrl])
-
-    while ((nm = navRegex.exec(mainHtml)) !== null) {
-      const secUrl = nm[1]
-      const secName = nm[2].trim()
-      if (secUrl.includes('/menu/') && !seen.has(secUrl) && secName.length < 50) {
+    // Extract ALL /menu/NUMBER URLs - simplest possible approach
+    const menuUrlRegex = /https?:\/\/www\.food\.gg\/[^/"#\s]+\/menu\/(\d+)/g
+    const sectionUrls: string[] = []
+    const seen = new Set<string>()
+    let mu
+    while ((mu = menuUrlRegex.exec(mainHtml)) !== null) {
+      const secUrl = `https://www.food.gg/${slug}/menu/${mu[1]}`
+      if (!seen.has(secUrl)) {
         seen.add(secUrl)
-        navSections.push({ url: secUrl, name: secName })
+        sectionUrls.push(secUrl)
       }
     }
 
@@ -219,79 +202,58 @@ export async function POST(request: NextRequest) {
       cuisine_type: cuisines.slice(0, 4).join(', '),
       emoji: getEmoji(cuisines.join(' ')),
       description: `Order from ${restaurantName} in Guernsey`,
-      parish,
-      postcode: 'GY1',
-      min_order: 10,
-      delivery_time_mins: 45,
-      pickup_time_mins: 20,
-      is_open: false,
-      is_active: true,
-      accepts_delivery: true,
-      accepts_pickup: true,
-      accepts_preorders: true,
+      parish, postcode: 'GY1', min_order: 10,
+      delivery_time_mins: 45, pickup_time_mins: 20,
+      is_open: false, is_active: true,
+      accepts_delivery: true, accepts_pickup: true, accepts_preorders: true,
       slot_capacity: 5,
       custom_message: `Thank you for ordering from ${restaurantName}!`,
     }).select().single()
 
     if (restError || !restaurant) {
-      return NextResponse.json({ error: 'Failed to create restaurant: ' + restError?.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed: ' + restError?.message }, { status: 500 })
     }
 
     const restaurantId = restaurant.id
     let totalItems = 0
     let totalCategories = 0
 
-    // Helper to save a category + items
     async function saveCategory(name: string, items: MenuItem[]) {
-      if (items.length === 0) return
+      if (items.length === 0 || !name || name === 'Menu') return
       const { data: cat } = await supabase.from('menu_categories').insert({
-        restaurant_id: restaurantId,
-        name,
-        sort_order: totalCategories + 1,
-        is_active: true,
+        restaurant_id: restaurantId, name,
+        sort_order: totalCategories + 1, is_active: true,
       }).select().single()
       if (!cat) return
       totalCategories++
       for (const item of items) {
         await supabase.from('menu_items').insert({
-          restaurant_id: restaurantId,
-          category_id: cat.id,
-          name: item.name,
-          description: item.description,
-          price: item.price,
+          restaurant_id: restaurantId, category_id: cat.id,
+          name: item.name, description: item.description, price: item.price,
           emoji: getEmoji(name + ' ' + item.name),
-          is_available: true,
-          tags: item.tags,
-          allergens: [],
+          is_available: true, tags: item.tags, allergens: [],
         })
         totalItems++
       }
     }
 
-    // Parse main page - use "Pizzas" or first h2 as category name
-    const mainCatName = getPageCategoryName(mainHtml, 'Menu')
-    const mainItems = parseItems(mainHtml)
-    await saveCategory(mainCatName, mainItems)
+    // Main page - get category name from title
+    const mainCat = getCategoryName(mainHtml)
+    await saveCategory(mainCat, parseItems(mainHtml))
 
-    // Parse each section page
-    for (const section of navSections) {
+    // Each section page
+    for (const secUrl of sectionUrls) {
       try {
-        const secHtml = await fetchPage(section.url)
-        // Use the nav name as category (most reliable)
-        const catName = section.name || getPageCategoryName(secHtml, section.name)
-        const items = parseItems(secHtml)
-        await saveCategory(catName, items)
-      } catch (e) {
-        // Skip failed sections
-      }
+        const secHtml = await fetchPage(secUrl)
+        const catName = getCategoryName(secHtml)
+        await saveCategory(catName, parseItems(secHtml))
+      } catch (e) { /* skip */ }
     }
 
     return NextResponse.json({
-      success: true,
-      restaurantId,
-      restaurantName,
-      categories: totalCategories,
-      items: totalItems,
+      success: true, restaurantId, restaurantName,
+      categories: totalCategories, items: totalItems,
+      sectionsFound: sectionUrls.length,
       message: `Imported ${restaurantName} with ${totalCategories} categories and ${totalItems} menu items!`,
     })
 
