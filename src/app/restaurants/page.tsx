@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 export default function RestaurantsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [allRestaurants, setAllRestaurants] = useState<any[]>([])
   const [filteredRestaurants, setFilteredRestaurants] = useState<any[]>([])
-  const [selectedCuisine, setSelectedCuisine] = useState('all')
+  const [selectedCuisine, setSelectedCuisine] = useState(searchParams.get('cuisine') || 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [loading, setLoading] = useState(true)
@@ -76,29 +77,43 @@ export default function RestaurantsPage() {
   const inputBg = isDark ? '#2D3748' : '#FFFFFF'
 
   return (
-    <div style={{ background: bgColor, minHeight: '100vh', color: textColor, transition: 'all 0.3s', position: 'relative' }}>
-      {/* Food Background */}
+    <div style={{ background: bgColor, minHeight: '100vh', color: textColor, transition: 'all 0.3s', position: 'relative', overflow: 'hidden' }}>
+      {/* Food Background - Works in both light and dark */}
       <div style={{
         position: 'fixed',
-        top: '0',
+        top: '-100px',
         right: '-100px',
-        fontSize: '200px',
-        opacity: 0.05,
+        fontSize: '180px',
+        opacity: isDark ? 0.08 : 0.06,
         zIndex: 0,
         pointerEvents: 'none',
-        animation: 'float 8s ease-in-out infinite'
+        animation: 'float 8s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
       }}>
-        🍕 🍔
+        🍕 🍔 🍜 🍱 🍛
+      </div>
+      <div style={{
+        position: 'fixed',
+        bottom: '-80px',
+        left: '-80px',
+        fontSize: '150px',
+        opacity: isDark ? 0.05 : 0.04,
+        zIndex: 0,
+        pointerEvents: 'none',
+        animation: 'float 10s ease-in-out infinite',
+        color: isDark ? '#FFFFFF' : '#1F2937'
+      }}>
+        🍝 🌮 🥗 🍖
       </div>
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(5deg); }
+          50% { transform: translateY(-30px) rotate(5deg); }
         }
       `}</style>
 
       {/* Navigation */}
-      <nav style={{ borderBottom: `1px solid ${borderColor}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 100, background: bgColor }}>
+      <nav style={{ borderBottom: `1px solid ${borderColor}`, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 101, background: bgColor }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ fontFamily: 'Syne, system-ui, sans-serif', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#22C55E', textDecoration: 'none' }}>
             feedme.gg
@@ -130,6 +145,7 @@ export default function RestaurantsPage() {
 
       {/* Filter Section */}
       <div style={{ background: bgColor, padding: '30px 20px', borderBottom: `1px solid ${borderColor}`, position: 'relative', zIndex: 2 }}>
+
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '24px' }}>
             All Restaurants
