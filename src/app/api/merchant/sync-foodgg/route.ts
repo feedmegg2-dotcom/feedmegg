@@ -108,15 +108,42 @@ export async function POST(request: NextRequest) {
         availableItemsOnFoodgg.add(cleanText(bMatch[1]).toLowerCase().trim())
       }
 
+      // Find unavailable items - food.gg shows "Unavailable" text next to item names
+      // Pattern: item name followed by "Unavailable" in the HTML
+      const unavailableItemNames = new Set<string>()
+
+      // Look for rows containing "Unavailable" text
+      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+      let rowMatch
+      while ((rowMatch = rowRegex.exec(combinedHtml)) !== null) {
+        const rowHtml = rowMatch[1]
+        if (rowHtml.toLowerCase().includes('unavailable')) {
+          // Extract the item name from this row
+          const nameMatch = rowHtml.match(/<td[^>]*>([\s\S]*?)<\/td>/i)
+          if (nameMatch) {
+            const name = cleanText(nameMatch[1]).toLowerCase().replace(/unavailable/gi, '').trim()
+            if (name && name.length > 1) {
+              unavailableItemNames.add(name)
+            }
+          }
+        }
+      }
+
       // Update our items based on food.gg availability
       let itemsUpdated = 0
       for (const item of restaurant.menu_items) {
         const itemNameLower = item.name.toLowerCase()
 
-        // Check if this item appears as unavailable
+        // Check if this item name matches any unavailable item on food.gg
         let shouldBeAvailable = true
-        for (const unavail of unavailableItems) {
-          if (unavail.includes(itemNameLower) || itemNameLower.includes(unavail)) {
+        for (const unavailName of unavailableItemNames) {
+          // Match if names overlap significantly
+          if (
+            unavailName.includes(itemNameLower) ||
+            itemNameLower.includes(unavailName) ||
+            // Also try matching just the first word (base pizza name etc)
+            itemNameLower.split(' ')[0] === unavailName.split(' ')[0]
+          ) {
             shouldBeAvailable = false
             break
           }
@@ -132,10 +159,13 @@ export async function POST(request: NextRequest) {
         if (currentItem && currentItem.is_available !== shouldBeAvailable) {
           await supabase.from('menu_items').update({ is_available: shouldBeAvailable }).eq('id', item.id)
           itemsUpdated++
+          changes.push(`${item.name} marked ${shouldBeAvailable ? 'available' : 'unavailable'}`)
         }
       }
 
-      if (itemsUpdated > 0) changes.push(`Updated ${itemsUpdated} item availabilities`)
+      if (itemsUpdated > 0 && !changes.find(c => c.includes('marked'))) {
+        changes.push(`Updated ${itemsUpdated} item availabilities`)
+      }
     }
 
     // Update last sync time
