@@ -1,24 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
   })
   return res.text()
 }
+
 function cleanText(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
+  return html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
 }
+
 function splitNameDesc(text: string): { name: string; desc: string; size?: string } {
+  // Decode HTML entities first
+  const decoded = text
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+  
   // food.gg format: "Name Description - 9"" or "Name Description - 12""
   // Extract size from end (e.g., 9", 12")
-  const sizeMatch = text.match(/\s*-\s*(\d+")$/)
+  const sizeMatch = decoded.match(/\s*-\s*(\d+")$/)
   let size = ''
-  let withoutSize = text
+  let withoutSize = decoded
   
   if (sizeMatch) {
     size = sizeMatch[1]
-    withoutSize = text.substring(0, sizeMatch.index).trim()
+    withoutSize = decoded.substring(0, sizeMatch.index).trim()
   }
   
   // Split "Name Description" on first space
@@ -39,6 +49,7 @@ function splitNameDesc(text: string): { name: string; desc: string; size?: strin
     size: size || undefined 
   }
 }
+
 function getEmoji(name: string): string {
   const n = name.toLowerCase()
   if (n.includes('pizza')) return '🍕'
@@ -67,7 +78,9 @@ function getEmoji(name: string): string {
   if (n.includes('snack')) return '🍿'
   return '🍽'
 }
+
 interface MenuItem { name: string; description: string; price: number; tags: string[] }
+
 function parseItems(html: string): MenuItem[] {
   const items: MenuItem[] = []
   const rows = html.split(/<tr[\s>]/i)
@@ -175,6 +188,7 @@ function parseItems(html: string): MenuItem[] {
   
   return items
 }
+
 function getCategoryName(html: string): string {
   // Try title tag first - most reliable
   const titleMatch = html.match(/<title>([^<]+)<\/title>/i)
@@ -197,6 +211,7 @@ function getCategoryName(html: string): string {
   }
   return 'Menu'
 }
+
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
   try {
