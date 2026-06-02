@@ -57,7 +57,7 @@ export default function AdminPage() {
   const [showDeliverySettings, setShowDeliverySettings] = useState(false)
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [editingZone, setEditingZone] = useState<any>(null)
-  const [newZone, setNewZone] = useState({ postcode_prefix: '', delivery_fee: '', delivery_time_mins: '', is_active: true })
+  const [newZone, setNewZone] = useState({ postcode_prefix: '', delivery_fee: '', is_active: true })
 
   function checkPassword() {
     if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll() }
@@ -96,31 +96,29 @@ export default function AdminPage() {
   }
 
   async function addDeliveryZone() {
-    if (!newZone.postcode_prefix || !newZone.delivery_fee || !newZone.delivery_time_mins) {
-      setMsg('Fill in all zone fields')
+    if (!newZone.postcode_prefix || !newZone.delivery_fee) {
+      setMsg('Fill in postcode and fee')
       return
     }
     const { error } = await supabase.from('delivery_zones').insert({
       restaurant_id: editRestaurant.id,
       postcode_prefix: newZone.postcode_prefix.toUpperCase(),
       delivery_fee: parseFloat(newZone.delivery_fee),
-      delivery_time_mins: parseInt(newZone.delivery_time_mins),
       is_active: newZone.is_active
     })
     if (error) { setMsg('Error: ' + error.message); return }
-    setNewZone({ postcode_prefix: '', delivery_fee: '', delivery_time_mins: '', is_active: true })
+    setNewZone({ postcode_prefix: '', delivery_fee: '', is_active: true })
     fetchDeliveryZones(editRestaurant.id)
   }
 
   async function updateDeliveryZone() {
-    if (!editingZone.postcode_prefix || !editingZone.delivery_fee || !editingZone.delivery_time_mins) {
-      setMsg('Fill in all zone fields')
+    if (!editingZone.postcode_prefix || !editingZone.delivery_fee) {
+      setMsg('Fill in postcode and fee')
       return
     }
     const { error } = await supabase.from('delivery_zones').update({
       postcode_prefix: editingZone.postcode_prefix.toUpperCase(),
       delivery_fee: parseFloat(editingZone.delivery_fee),
-      delivery_time_mins: parseInt(editingZone.delivery_time_mins),
       is_active: editingZone.is_active
     }).eq('id', editingZone.id)
     if (error) { setMsg('Error: ' + error.message); return }
@@ -527,7 +525,7 @@ export default function AdminPage() {
                     <div key={zone.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '10px' }}>
                       {editingZone?.id === zone.id ? (
                         <>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                             <div>
                               <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Postcode</label>
                               <input className="input" placeholder="GY1" style={{ fontSize: '13px' }} value={editingZone.postcode_prefix} onChange={e => setEditingZone({...editingZone, postcode_prefix: e.target.value})} />
@@ -535,10 +533,6 @@ export default function AdminPage() {
                             <div>
                               <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Fee GBP</label>
                               <input className="input" type="number" step="0.01" style={{ fontSize: '13px' }} value={editingZone.delivery_fee} onChange={e => setEditingZone({...editingZone, delivery_fee: e.target.value})} />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Mins</label>
-                              <input className="input" type="number" style={{ fontSize: '13px' }} value={editingZone.delivery_time_mins} onChange={e => setEditingZone({...editingZone, delivery_time_mins: e.target.value})} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '10px' }}>
@@ -555,7 +549,7 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontWeight: 700, fontSize: '14px' }}>{zone.postcode_prefix}*</div>
-                            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Fee: GBP{zone.delivery_fee.toFixed(2)} - {zone.delivery_time_mins} mins</div>
+                            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>Fee: GBP{zone.delivery_fee.toFixed(2)}</div>
                             {!zone.is_active && <div style={{ fontSize: '11px', color: 'var(--orange)', fontWeight: 600 }}>INACTIVE</div>}
                           </div>
                           <button className="btn-ghost" onClick={() => setEditingZone(zone)} style={{ padding: '6px 12px', fontSize: '12px' }}>Edit</button>
@@ -567,7 +561,7 @@ export default function AdminPage() {
                   {!editingZone && (
                     <div style={{ background: 'var(--card)', border: '1px dashed var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '10px', color: 'var(--sub)' }}>Add New Zone</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                         <div>
                           <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Postcode</label>
                           <input className="input" placeholder="GY1" style={{ fontSize: '13px' }} value={newZone.postcode_prefix} onChange={e => setNewZone({...newZone, postcode_prefix: e.target.value})} />
@@ -575,10 +569,6 @@ export default function AdminPage() {
                         <div>
                           <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Fee GBP</label>
                           <input className="input" type="number" step="0.01" placeholder="2.50" style={{ fontSize: '13px' }} value={newZone.delivery_fee} onChange={e => setNewZone({...newZone, delivery_fee: e.target.value})} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '11px', color: 'var(--sub)' }}>Mins</label>
-                          <input className="input" type="number" placeholder="25" style={{ fontSize: '13px' }} value={newZone.delivery_time_mins} onChange={e => setNewZone({...newZone, delivery_time_mins: e.target.value})} />
                         </div>
                       </div>
                       <button className="btn-primary" onClick={addDeliveryZone} style={{ width: '100%', padding: '10px', fontSize: '13px' }}>Add Zone</button>
