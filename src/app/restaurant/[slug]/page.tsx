@@ -195,11 +195,11 @@ export default function RestaurantPage() {
                     <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>{item.emoji}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '3px' }}>
-                        {item.name.includes(' - ') ? item.name.split(' - ')[0] : item.name}
+                        {item.name}
                       </div>
-                      {(item.description || item.name.includes(' - ')) && (
+                      {item.description && (
                         <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '6px', lineHeight: 1.4 }}>
-                          {item.name.includes(' - ') ? item.name.split(' - ').slice(1).join(' - ') : item.description}
+                          {item.description}
                         </div>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -257,11 +257,11 @@ export default function RestaurantPage() {
             <button onClick={() => setSelectedItem(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
             <div style={{ fontSize: '48px', textAlign: 'center', marginBottom: '10px' }}>{selectedItem.emoji}</div>
             <h3 style={{ fontSize: '20px', fontWeight: 800, textAlign: 'center', marginBottom: '4px' }}>
-              {selectedItem.name.includes(' - ') ? selectedItem.name.split(' - ')[0] : selectedItem.name}
+              {selectedItem.name}
             </h3>
-            {(selectedItem.description || selectedItem.name.includes(' - ')) && (
+            {selectedItem.description && (
               <p style={{ fontSize: '13px', color: 'var(--sub)', textAlign: 'center', marginBottom: '10px', lineHeight: 1.5 }}>
-                {selectedItem.name.includes(' - ') ? selectedItem.name.split(' - ').slice(1).join(' - ') : selectedItem.description}
+                {selectedItem.description}
               </p>
             )}
 
