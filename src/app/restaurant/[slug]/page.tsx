@@ -142,11 +142,11 @@ export default function RestaurantPage() {
           {loading ? (
             <div>Loading menu...</div>
           ) : (
-            Object.entries(groupedMenu).map(([category, items]) => (
+            Object.entries(groupedMenu).map(([category, items]: [string, any[]]) => (
               <div key={category} style={{marginBottom:'40px'}}>
                 <h2 style={{fontSize:'22px',fontWeight:700,color:textColor,marginBottom:'20px',paddingBottom:'12px',borderBottom:`1px solid ${borderColor}`}}>{category}</h2>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:'16px'}}>
-                  {items.map(item => (
+                  {items.map((item: any) => (
                     <div key={item.id} style={{background:cardBg,border:`1px solid ${borderColor}`,borderRadius:'8px',padding:'16px',cursor:'pointer',transition:'all 0.2s'}} onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)'}} onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}} onClick={()=>setSelectedItem(item)}>
                       <h3 style={{fontSize:'16px',fontWeight:700,color:textColor,marginBottom:'4px'}}>{item.name}</h3>
                       <p style={{fontSize:'13px',color:secondaryText,marginBottom:'12px',minHeight:'32px'}}>{item.description}</p>
