@@ -144,50 +144,30 @@ export default function HomePage() {
               </select>
             </div>
 
-            {/* Browse Button */}
-            <Link href="#all-takeaways" style={{ textDecoration: 'none' }}>
+            {/* All Takeaways Button */}
+            <Link href="#all-takeaways" style={{ textDecoration: 'none', flex: isMobileView ? 1 : 'unset', width: isMobileView ? '100%' : 'auto' }}>
               <button
                 style={{
                   background: '#F5F5F5',
                   color: '#1F2937',
                   border: 'none',
-                  padding: '12px 32px',
+                  padding: '12px 24px',
                   fontSize: '14px',
                   fontWeight: 700,
                   borderRadius: '4px',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  transition: 'background 0.2s'
+                  transition: 'background 0.2s',
+                  width: '100%'
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#E5E5E5')}
                 onMouseLeave={e => (e.currentTarget.style.background = '#F5F5F5')}
               >
-                Browse
+                All Takeaways
               </button>
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* Most Popular Takeaways */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 700, color: textColor, marginBottom: '24px' }}>
-          Most Popular Takeaways
-        </h2>
-
-        {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {[1,2,3,4,5].map(i => (
-              <div key={i} style={{ background: cardBg, borderRadius: '12px', height: '200px', border: `1px solid ${borderColor}` }} />
-            ))}
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {popularRestaurants.map(r => (
-              <RestaurantCard key={r.id} restaurant={r} isDark={isDark} cardBg={cardBg} borderColor={borderColor} textColor={textColor} secondaryText={secondaryText} />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* All Takeaways Section */}
