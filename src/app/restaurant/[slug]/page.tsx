@@ -391,17 +391,15 @@ export default function RestaurantPage() {
 
       {/* Bottom Action Bar */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1F2937', display: 'flex', gap: '10px', padding: '10px 12px', zIndex: 100, boxShadow: '0 -2px 8px rgba(0,0,0,0.1)' }}>
-        {!scrolled && (
-          <button
-            onClick={() => setShowCategoryMenu(true)}
-            style={{ flex: 1, background: '#2D3748', color: '#FFFFFF', border: 'none', padding: '11px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
-          >
-            ☰ Menu
-          </button>
-        )}
+        <button
+          onClick={() => setShowCategoryMenu(true)}
+          style={{ flex: 1, background: '#2D3748', color: '#FFFFFF', border: 'none', padding: '11px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+        >
+          ☰ Menu
+        </button>
         <button
           onClick={() => setShowBasket(true)}
-          style={{ flex: scrolled ? 1 : 1, background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '11px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          style={{ flex: 1, background: '#22C55E', color: '#FFFFFF', border: 'none', padding: '11px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
           🛒 {cartCount > 0 ? `£${cartTotal.toFixed(2)}` : 'Basket'}
         </button>
