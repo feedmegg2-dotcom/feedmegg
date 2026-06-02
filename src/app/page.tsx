@@ -25,12 +25,16 @@ export default function HomePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [cookieAccepted, setCookieAccepted] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [isMobileView, setIsMobileView] = useState(false)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
     setTheme(savedTheme || 'light')
     setCookieAccepted(!!localStorage.getItem('cookie-accepted'))
     fetchRestaurants()
+    setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
+    window.addEventListener('resize', () => setIsMobileView(window.innerWidth < 768))
+    return () => window.removeEventListener('resize', () => setIsMobileView(window.innerWidth < 768))
   }, [])
 
   useEffect(() => {
@@ -114,7 +118,7 @@ export default function HomePage() {
           </h1>
           
           <div style={{ background: '#22C55E', padding: '20px', borderRadius: '8px', maxWidth: '900px', margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobileView ? '1fr' : '1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
               {/* Cuisine Dropdown */}
               <div style={{ textAlign: 'left' }}>
                 <label style={{ display: 'block', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
@@ -322,8 +326,4 @@ function RestaurantCard(props: any) {
       </div>
     </Link>
   )
-}
-
-function isMobile() {
-  return typeof window !== 'undefined' && window.innerWidth < 768
 }
