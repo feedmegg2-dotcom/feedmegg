@@ -26,6 +26,7 @@ export default function HomePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [isMobileView, setIsMobileView] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showAllRestaurants, setShowAllRestaurants] = useState(false)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
@@ -131,13 +132,27 @@ export default function HomePage() {
         `}</style>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '32px', letterSpacing: '-0.5px' }}>
+          <h1 style={{ 
+            fontSize: isMobileView ? '20px' : '28px', 
+            fontWeight: 700, 
+            color: '#FFFFFF', 
+            marginBottom: '32px', 
+            letterSpacing: '-0.5px',
+            transition: 'font-size 0.3s'
+          }}>
             Delivery Online in Guernsey
           </h1>
           
           <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end', flexDirection: isMobileView ? 'column' : 'row' }}>
             <div style={{ textAlign: 'left', flex: 1 }}>
-              <label style={{ display: 'block', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>
+              <label style={{ 
+                display: 'block', 
+                color: '#FFFFFF', 
+                fontWeight: 700, 
+                fontSize: isMobileView ? '12px' : '14px',
+                marginBottom: '8px',
+                transition: 'font-size 0.3s'
+              }}>
                 Select what food you would like to eat
               </label>
               <select
@@ -211,7 +226,7 @@ export default function HomePage() {
       </div>
 
       {/* Browse All Takeaways Section */}
-      <div id="all-takeaways" style={{ background: '#F9FAFB', padding: '60px 20px', textAlign: 'center' }}>
+      <div id="all-takeaways" style={{ background: bgColor, padding: '60px 20px', textAlign: 'center', borderTop: `1px solid ${borderColor}` }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '16px' }}>
             Browse All Takeaways
@@ -220,7 +235,10 @@ export default function HomePage() {
             Explore all available restaurants in Guernsey
           </p>
           <button
-            onClick={() => setSelectedCuisine('all')}
+            onClick={() => {
+              setShowAllRestaurants(true)
+              document.getElementById('all-restaurants')?.scrollIntoView({ behavior: 'smooth' })
+            }}
             style={{
               background: '#22C55E',
               color: '#FFFFFF',
@@ -239,6 +257,34 @@ export default function HomePage() {
           </button>
         </div>
       </div>
+
+      {/* All Restaurants Section */}
+      {showAllRestaurants && (
+        <div id="all-restaurants" style={{ background: bgColor, padding: '60px 20px' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 700, color: textColor, marginBottom: '40px', textAlign: 'center' }}>
+              All Restaurants
+            </h2>
+            {loading ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                {[1,2,3,4,5,6,7,8].map(i => (
+                  <div key={i} style={{ background: cardBg, borderRadius: '8px', height: '150px', border: `1px solid ${borderColor}` }} />
+                ))}
+              </div>
+            ) : allRestaurants.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: secondaryText }}>
+                <p>No restaurants found</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                {allRestaurants.map(r => (
+                  <RestaurantItem key={r.id} restaurant={r} isDark={isDark} cardBg={cardBg} borderColor={borderColor} textColor={textColor} secondaryText={secondaryText} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* How It Works Section */}
       <div style={{ background: bgColor, padding: '60px 20px' }}>
