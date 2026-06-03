@@ -5,218 +5,264 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
-const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','St Andrew','Forest','Torteval','St Saviour','St Pierre du Bois']
-const TIME_SLOTS = ['Now (ASAP)','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:30 PM','9:00 PM','9:30 PM']
-const TIP_AMOUNTS = [0, 1, 2, 3, 5]
+const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
 
 export default function CheckoutPage() {
   const router = useRouter()
   const supabase = createClient()
   const [cartData, setCartData] = useState<any>(null)
+  const [restaurant, setRestaurant] = useState<any>(null)
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [deliveryType, setDeliveryType] = useState('delivery')
-  const [paymentMethod, setPaymentMethod] = useState('card')
-  const [tip, setTip] = useState(0)
-  const [timeSlot, setTimeSlot] = useState('Now (ASAP)')
-  const [promoCode, setPromoCode] = useState('')
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', street: '', parish: 'St Peter Port', postcode: '', notes: '' })
-  const [w3w, setW3w] = useState('')
+
+  const [form, setForm] = useState({
+    name: '', phone: '', email: '',
+    orderType: 'delivery',
+    paymentMethod: 'card',
+    parish: 'St Peter Port',
+    address: '',
+    note: '',
+  })
 
   useEffect(() => {
     const saved = localStorage.getItem('feedme-cart')
-    if (saved) setCartData(JSON.parse(saved))
-    else router.push('/')
+    if (!saved) { router.push('/'); return }
+    const data = JSON.parse(saved)
+    setCartData(data)
+    fetchRestaurant(data.restaurantId)
   }, [])
 
-  const cart = cartData?.cart || []
-  const subtotal = cart.reduce((s: number, i: any) => s + i.price * i.qty, 0)
-  const deliveryFee = deliveryType === 'delivery' ? 2.99 : 0
-  const discount = 0 // applied after promo validation
-  const total = subtotal + deliveryFee + tip - discount
-
-  async function generateW3W() {
-    if (!form.postcode) return
-    try {
-      const res = await fetch(`/api/w3w?postcode=${encodeURIComponent(form.postcode)}`)
-      const data = await res.json()
-      if (data.words) setW3w(data.words)
-    } catch {}
+  async function fetchRestaurant(id: string) {
+    const { data } = await supabase.from('restaurants').select('*').eq('id', id).single()
+    setRestaurant(data)
+    const { data: zones } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', id)
+    setDeliveryZones(zones || [])
   }
 
+  const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
+
+  function getDeliveryFee() {
+    if (form.orderType !== 'delivery') return 0
+    const zone = deliveryZones.find(z => z.parish === form.parish)
+    if (zone) return parseFloat(zone.fee)
+    return parseFloat(restaurant?.delivery_fee) || 2.50
+  }
+
+  function getMinOrder() {
+    const zone = deliveryZones.find(z => z.parish === form.parish)
+    if (zone) return parseFloat(zone.min_order)
+    return parseFloat(restaurant?.min_order) || 10
+  }
+
+  const deliveryFee = getDeliveryFee()
+  const orderTotal = cartTotal + deliveryFee
+  const meetsMinOrder = cartTotal >= getMinOrder()
+
   async function placeOrder() {
-    if (!form.firstName || !form.email) { setError('Please fill in your name and email.'); return }
-    if (deliveryType === 'delivery' && !form.street) { setError('Please enter your delivery address.'); return }
-    setLoading(true)
+    if (!form.name) { setError('Please enter your name'); return }
+    if (!form.phone) { setError('Please enter your phone number'); return }
+    if (form.orderType === 'delivery' && !form.address) { setError('Please enter your delivery address'); return }
+    if (!meetsMinOrder) { setError(`Minimum order is GBP${getMinOrder().toFixed(2)}`); return }
     setError('')
+    setLoading(true)
 
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurantId: cartData.restaurantId,
-          customerName: `${form.firstName} ${form.lastName}`,
-          customerEmail: form.email,
-          customerPhone: form.phone,
-          orderType: deliveryType,
-          deliveryAddress: deliveryType === 'delivery' ? `${form.street}, ${form.parish}` : null,
-          deliveryParish: deliveryType === 'delivery' ? form.parish : null,
-          deliveryPostcode: deliveryType === 'delivery' ? form.postcode : null,
-          deliveryNotes: form.notes,
-          items: cart.map((i: any) => ({ menuItemId: i.id, quantity: i.qty, specialInstructions: i.note, modifierPrice: 0 })),
-          paymentMethod,
-          promoCode: promoCode || null,
-          tip,
-        }),
+    const itemsWithPayment = cartData.cart.map((i: any) => ({ ...i, paymentMethod: form.paymentMethod }))
+
+    const res = await fetch('/api/checkout/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        restaurantId: cartData.restaurantId,
+        items: itemsWithPayment,
+        customerName: form.name,
+        customerPhone: form.phone,
+        customerEmail: form.email,
+        address: form.address,
+        parish: form.parish,
+        orderType: form.orderType,
+        note: form.note,
       })
+    })
 
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Failed to place order'); setLoading(false); return }
+    const data = await res.json()
+    setLoading(false)
 
-      localStorage.removeItem('feedme-cart')
-      router.push(`/order/${data.orderId}/confirm`)
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong')
-      setLoading(false)
+    if (!data.success) { setError(data.error || 'Something went wrong'); return }
+
+    localStorage.removeItem('feedme-cart')
+
+    if (data.paymentMethod === 'cash') {
+      router.push(`/order/${data.orderId}/confirmed?method=cash`)
+    } else {
+      window.location.href = data.paymentUrl
     }
   }
 
-  if (!cartData) return null
+  if (!cartData || !restaurant) return (
+    <div style={{ background: '#080c14', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Loading...</div>
+  )
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      <nav style={{ background: 'rgba(15,23,42,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-        <Link href="/" style={{ fontFamily: 'Syne', fontSize: '22px', fontWeight: 800, letterSpacing: '-1px', textDecoration: 'none' }}>
-          <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
+    <div style={{ background: '#080c14', minHeight: '100vh', color: '#f1f5f9', fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* NAV */}
+      <nav style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
         </Link>
+        <button onClick={() => router.back()} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '6px 14px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>Back</button>
       </nav>
 
-      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 20px' }}>
-        <button onClick={() => router.back()} className="btn-ghost" style={{ marginBottom: '16px' }}>← Back</button>
-        <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '24px' }}>Checkout</h2>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(20px,4vw,40px) 20px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,340px)', gap: '24px' }}>
 
-        {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>{error}</div>}
+        {/* LEFT  FORM */}
+        <div>
+          <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(20px,3vw,26px)', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.5px' }}>Checkout</h1>
 
-        {/* Delivery toggle */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Delivery method</h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {['delivery', 'pickup'].map(t => (
-              <button key={t} onClick={() => setDeliveryType(t)} style={{ flex: 1, padding: '12px', background: deliveryType === t ? 'rgba(34,197,94,0.08)' : 'var(--bg3)', border: `2px solid ${deliveryType === t ? 'var(--green)' : 'var(--border)'}`, borderRadius: '10px', color: deliveryType === t ? 'var(--green)' : 'var(--sub)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                {t === 'delivery' ? '🚗 Delivery' : '🚶 Pickup'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Your details */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Your details</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-            <div><label>First name</label><input className="input" placeholder="Jane" value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} /></div>
-            <div><label>Last name</label><input className="input" placeholder="Smith" value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} /></div>
-          </div>
-          <div style={{ marginBottom: '10px' }}><label>Email address</label><input className="input" type="email" placeholder="jane@example.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-          <div><label>Phone number</label><input className="input" type="tel" placeholder="+44 7700 000000" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
-        </div>
-
-        {/* Delivery address */}
-        {deliveryType === 'delivery' && (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Delivery address</h3>
-            <div style={{ marginBottom: '10px' }}><label>Street address</label><input className="input" placeholder="123 High Street" value={form.street} onChange={e => setForm({...form, street: e.target.value})} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-              <div>
-                <label>Parish</label>
-                <select className="input" value={form.parish} onChange={e => setForm({...form, parish: e.target.value})}>
-                  {PARISHES.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div><label>Postcode</label><input className="input" placeholder="GY1 2AA" value={form.postcode} onChange={e => setForm({...form, postcode: e.target.value})} onBlur={generateW3W} /></div>
-            </div>
-            {w3w && (
-              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: 'var(--sub)', marginBottom: '10px' }}>
-                🗺️ What3Words: <strong style={{ color: 'var(--text)' }}>///{w3w}</strong>
-              </div>
-            )}
-            <div><label>Delivery notes (optional)</label><textarea className="input" rows={2} placeholder="Gate code, leave at door..." value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} style={{ resize: 'none' }} /></div>
-          </div>
-        )}
-
-        {/* Time slot */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Select time slot</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
-            {TIME_SLOTS.map(slot => (
-              <button key={slot} onClick={() => setTimeSlot(slot)} style={{ padding: '10px', background: timeSlot === slot ? 'rgba(34,197,94,0.08)' : 'var(--bg3)', border: `2px solid ${timeSlot === slot ? 'var(--green)' : 'var(--border)'}`, borderRadius: '8px', color: timeSlot === slot ? 'var(--green)' : 'var(--sub)', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-                {slot}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Payment method</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-            {[{key:'card',icon:'💳',label:'Card (SumUp)'},{key:'paypal',icon:'🅿️',label:'PayPal'},{key:'cash',icon:'💵',label:'Cash'}].map(p => (
-              <div key={p.key} onClick={() => setPaymentMethod(p.key)} style={{ background: paymentMethod === p.key ? 'rgba(34,197,94,0.08)' : 'var(--bg3)', border: `2px solid ${paymentMethod === p.key ? 'var(--green)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px', textAlign: 'center', cursor: 'pointer' }}>
-                <div style={{ fontSize: '22px', marginBottom: '4px' }}>{p.icon}</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: paymentMethod === p.key ? 'var(--green)' : 'var(--sub)' }}>{p.label}</div>
-              </div>
-            ))}
-          </div>
-          <div><label>Promo code (optional)</label><input className="input" placeholder="e.g. WELCOME" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} /></div>
-        </div>
-
-        {/* Tip */}
-        {deliveryType === 'delivery' && (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Add a tip for your driver 🙏</h3>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              {TIP_AMOUNTS.map(t => (
-                <button key={t} onClick={() => setTip(t)} style={{ background: tip === t ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.05)', border: `1px solid ${tip === t ? 'rgba(34,197,94,0.35)' : 'var(--border)'}`, color: tip === t ? 'var(--green)' : 'var(--sub)', padding: '7px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-                  {t === 0 ? 'No tip' : `£${t.toFixed(2)}`}
+          {/* ORDER TYPE */}
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Order type</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {restaurant.accepts_delivery && (
+                <button onClick={() => setForm({...form, orderType: 'delivery'})}
+                  style={{ padding: '14px', borderRadius: '10px', border: `2px solid ${form.orderType === 'delivery' ? '#22c55e' : 'rgba(255,255,255,0.08)'}`, background: form.orderType === 'delivery' ? 'rgba(34,197,94,0.08)' : 'transparent', color: '#f1f5f9', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                  Delivery
                 </button>
-              ))}
+              )}
+              {restaurant.accepts_pickup && (
+                <button onClick={() => setForm({...form, orderType: 'pickup'})}
+                  style={{ padding: '14px', borderRadius: '10px', border: `2px solid ${form.orderType === 'pickup' ? '#22c55e' : 'rgba(255,255,255,0.08)'}`, background: form.orderType === 'pickup' ? 'rgba(34,197,94,0.08)' : 'transparent', color: '#f1f5f9', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                  Collection
+                </button>
+              )}
             </div>
-            <p style={{ fontSize: '11px', color: 'var(--sub)' }}>Tips go directly to the restaurant to distribute to their drivers. No commission charged on tips.</p>
           </div>
-        )}
 
-        {/* Order summary */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Order summary</h3>
-          {cart.map((item: any) => (
-            <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px', color: 'var(--sub)' }}>
-              <span>{item.qty}× {item.name}</span>
-              <span>£{(item.price * item.qty).toFixed(2)}</span>
+          {/* CONTACT */}
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Your details</div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <input placeholder="Full name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})}
+                style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+              <input placeholder="Phone number *" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+              <input placeholder="Email (optional)" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
+                style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
             </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px', color: 'var(--sub)' }}>
-            <span>{deliveryType === 'delivery' ? 'Delivery fee' : 'Pickup'}</span>
-            <span>{deliveryType === 'delivery' ? `£${deliveryFee.toFixed(2)}` : 'Free'}</span>
           </div>
-          {tip > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px', color: 'var(--sub)' }}>
-              <span>Driver tip</span><span>£{tip.toFixed(2)}</span>
+
+          {/* DELIVERY ADDRESS */}
+          {form.orderType === 'delivery' && (
+            <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Delivery address</div>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <select value={form.parish} onChange={e => setForm({...form, parish: e.target.value})}
+                  style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }}>
+                  {PARISHES.map(p => <option key={p} value={p} style={{ background: '#0d1321' }}>{p}</option>)}
+                </select>
+                <textarea placeholder="House number and street *" value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2}
+                  style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
+              </div>
+              {deliveryZones.length > 0 && !deliveryZones.find(z => z.parish === form.parish) && (
+                <div style={{ marginTop: '10px', padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '12px', color: '#fca5a5' }}>
+                  Sorry, this restaurant does not deliver to {form.parish}
+                </div>
+              )}
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 0', fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>
-            <span>Total</span><span style={{ color: 'var(--green)' }}>£{total.toFixed(2)}</span>
+
+          {/* SPECIAL INSTRUCTIONS */}
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Special instructions</div>
+            <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2}
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          </div>
+
+          {/* PAYMENT METHOD */}
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Payment method</div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <button onClick={() => setForm({...form, paymentMethod: 'card'})}
+                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : 'rgba(255,255,255,0.08)'}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: '#f1f5f9', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>$</span>
+                <div>
+                  <div>Pay by card</div>
+                  <div style={{ fontSize: '11px', fontWeight: 400, color: '#64748b', marginTop: '2px' }}>Secure online payment via SumUp</div>
+                </div>
+              </button>
+              <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
+                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : 'rgba(255,255,255,0.08)'}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: '#f1f5f9', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>$</span>
+                <div>
+                  <div>Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 400, color: '#64748b', marginTop: '2px' }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '13px', color: '#fca5a5', marginBottom: '16px' }}>{error}</div>
+          )}
+        </div>
+
+        {/* RIGHT  ORDER SUMMARY */}
+        <div style={{ position: 'sticky', top: '72px', alignSelf: 'start' }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>Order summary</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px', fontWeight: 600 }}>{restaurant.name}</div>
+
+            {cartData.cart.map((item: any) => (
+              <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px', gap: '8px' }}>
+                <span style={{ color: '#94a3b8' }}>{item.qty}x {item.name}{item.note ? ` (${item.note})` : ''}</span>
+                <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>GBP{(item.price * item.qty).toFixed(2)}</span>
+              </div>
+            ))}
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: '14px', paddingTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>
+                <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
+              </div>
+              {form.orderType === 'delivery' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>
+                  <span>Delivery to {form.parish}</span><span>GBP{deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <span>Total</span><span style={{ color: '#22c55e' }}>GBP{orderTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {!meetsMinOrder && (
+              <div style={{ marginTop: '12px', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', fontSize: '12px', color: '#fca5a5' }}>
+                Minimum order GBP{getMinOrder().toFixed(2)}  add GBP{(getMinOrder() - cartTotal).toFixed(2)} more
+              </div>
+            )}
+
+            <button onClick={placeOrder} disabled={loading || !meetsMinOrder}
+              style={{ width: '100%', marginTop: '16px', padding: '14px', background: loading || !meetsMinOrder ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder ? '#475569' : '#080c14', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, cursor: loading || !meetsMinOrder ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {loading ? 'Placing order...' : form.paymentMethod === 'cash' ? 'Place order' : `Pay GBP${orderTotal.toFixed(2)}`}
+            </button>
+
+            {form.paymentMethod === 'card' && (
+              <div style={{ textAlign: 'center', fontSize: '11px', color: '#334155', marginTop: '10px' }}>
+                Secured by SumUp
+              </div>
+            )}
           </div>
         </div>
-
-        {/* T&Cs */}
-        <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', fontSize: '11px', color: 'var(--sub)', marginBottom: '16px', lineHeight: 1.6 }}>
-          🔒 By placing your order you agree to our <Link href="/terms" style={{ color: 'var(--green)', textDecoration: 'none' }}>Terms & Conditions</Link> and <Link href="/privacy" style={{ color: 'var(--green)', textDecoration: 'none' }}>Privacy Policy</Link>. Allergen information is AI-assisted and a guide only — please contact the restaurant to verify.
-        </div>
-
-        <button className="btn-primary" onClick={placeOrder} disabled={loading} style={{ width: '100%', padding: '17px', fontSize: '16px', borderRadius: '14px' }}>
-          {loading ? 'Placing order...' : 'Place Order →'}
-        </button>
       </div>
+
+      <style>{`
+        @media (max-width: 680px) {
+          div[style*="grid-template-columns: minmax(0,1fr) minmax(0,340px)"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        input::placeholder, textarea::placeholder { color: #334155; }
+        option { background: #0d1321; color: #f1f5f9; }
+      `}</style>
     </div>
   )
 }
