@@ -295,7 +295,7 @@ export default function AdminPage() {
 
   async function saveRestaurant() {
     if (!editRestaurant) return
-    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_fee: parseFloat(editRestaurant.delivery_fee) || 0, delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), opening_time: editRestaurant.opening_time || null, closing_time: editRestaurant.closing_time || null, custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null }).eq('id', editRestaurant.id)
+    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, min_order: parseFloat(editRestaurant.min_order), delivery_fee: parseFloat(editRestaurant.delivery_fee) || 0, delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), opening_time: editRestaurant.opening_time || null, closing_time: editRestaurant.closing_time || null, custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null, sumup_api_key: editRestaurant.sumup_api_key || null, sumup_email: editRestaurant.sumup_email || null }).eq('id', editRestaurant.id)
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg('Restaurant saved!'); setEditRestaurant(null); fetchAll()
   }
@@ -488,6 +488,7 @@ export default function AdminPage() {
                         <div style={{ position: 'absolute', top: '2px', left: r.is_active ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
+                    {r.sumup_api_key && <span style={{ fontSize: '10px', padding: '3px 7px', borderRadius: '4px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', fontWeight: 600 }}>SumUp</span>}
                     <label style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>
                       Logo
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) uploadLogo(r.id, e.target.files[0]) }} />
@@ -599,6 +600,13 @@ export default function AdminPage() {
                     <div><label>Opens (e.g. 11:00)</label><input className="input" type="time" value={editRestaurant.opening_time || ''} onChange={e => setEditRestaurant({...editRestaurant, opening_time: e.target.value})} /></div>
                     <div><label>Closes (e.g. 22:00)</label><input className="input" type="time" value={editRestaurant.closing_time || ''} onChange={e => setEditRestaurant({...editRestaurant, closing_time: e.target.value})} /></div>
                     <div style={{ gridColumn: 'span 2' }}><label>food.gg URL (for sync)</label><input className="input" placeholder="https://www.food.gg/restaurantname" value={editRestaurant.foodgg_url || ''} onChange={e => setEditRestaurant({...editRestaurant, foodgg_url: e.target.value})} /></div>
+                    <div style={{ gridColumn: 'span 2', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#22c55e', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SumUp Payment Settings</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div><label>SumUp API Key</label><input className="input" placeholder="API key from SumUp developer settings" value={editRestaurant.sumup_api_key || ''} onChange={e => setEditRestaurant({...editRestaurant, sumup_api_key: e.target.value})} /></div>
+                        <div><label>SumUp Merchant Email</label><input className="input" placeholder="Email registered with SumUp" value={editRestaurant.sumup_email || ''} onChange={e => setEditRestaurant({...editRestaurant, sumup_email: e.target.value})} /></div>
+                      </div>
+                    </div>
                   </div>
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
                   <div style={{ marginBottom: '14px' }}><label>Custom Thank You Message</label><input className="input" value={editRestaurant.custom_message || ''} onChange={e => setEditRestaurant({...editRestaurant, custom_message: e.target.value})} /></div>
