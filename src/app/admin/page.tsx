@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
 export default function AdminPage() {
   const supabase = createClient()
