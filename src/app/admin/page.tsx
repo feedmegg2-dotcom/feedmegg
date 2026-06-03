@@ -24,7 +24,9 @@ export default function AdminPage() {
   const [showAddItem, setShowAddItem] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [aiTagging, setAiTagging] = useState(false)
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
+  const [showZones, setShowZones] = useState(false)
+  const [zonesRestaurant, setZonesRestaurant] = useState<any>(null)
   const [importUrl, setImportUrl] = useState('')
   const [importMerchantId, setImportMerchantId] = useState('')
   const [importing, setImporting] = useState(false)
@@ -159,18 +161,32 @@ export default function AdminPage() {
     }
   }
 
-  async function aiTagMenu(restId: string, restName: string) {
-    if (!confirm('Run AI tagging on all items for ' + restName + '? This may take a few minutes.')) return
-    setAiTagging(true)
-    setMsg('AI tagging in progress... please wait...')
-    const res = await fetch('/api/admin/ai-tag-menu', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ restaurantId: restId })
-    })
-    const data = await res.json()
-    setAiTagging(false)
-    setMsg(data.message || ('Error: ' + data.error))
+  async function fetchZones(restId: string) {
+    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
+    if (data && data.length > 0) {
+      setDeliveryZones(data)
+    } else {
+      // Pre-fill with all parishes at default price
+      setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
+    }
+  }
+
+  async function saveZones() {
+    if (!zonesRestaurant) return
+    // Delete existing then insert new
+    await supabase.from('delivery_zones').delete().eq('restaurant_id', zonesRestaurant.id)
+    const toInsert = deliveryZones.filter(z => z.enabled).map(z => ({
+      restaurant_id: zonesRestaurant.id,
+      parish: z.parish,
+      fee: parseFloat(z.fee) || 0,
+      min_order: parseFloat(z.min_order) || 10,
+    }))
+    if (toInsert.length > 0) {
+      await supabase.from('delivery_zones').insert(toInsert)
+    }
+    setMsg('Delivery zones saved for ' + zonesRestaurant.name + '!')
+    setShowZones(false)
+    setZonesRestaurant(null)
   }
 
   async function importFromFoodGG() {
@@ -409,8 +425,9 @@ export default function AdminPage() {
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) uploadLogo(r.id, e.target.files[0]) }} />
                     </label>
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
+                    <button onClick={() => { setZonesRestaurant(r); fetchZones(r.id); setShowZones(true) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
-                    <button onClick={() => aiTagMenu(r.id, r.name)} disabled={aiTagging} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>{aiTagging ? 'Tagging...' : 'AI Tag'}</button>
+
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
                   </div>
                 </div>
