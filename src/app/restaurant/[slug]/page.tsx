@@ -35,7 +35,7 @@ export default function RestaurantPage() {
     // Fetch hours and zones
     const { data: h } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', rest.id).order('id')
     setHours(h || [])
-    const { data: z } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', rest.id).order('parish')
+    const { data: z } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', rest.id).order('name')
     setZones(z || [])
     const { data: cats } = await supabase
       .from('menu_categories')
@@ -258,7 +258,7 @@ export default function RestaurantPage() {
                   </div>
                   {zones.map((z: any) => (
                     <div key={z.parish} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
-                      <span style={{ color: '#94a3b8' }}>{z.parish}</span>
+                      <span style={{ color: '#94a3b8' }}>{z.name || z.parish}</span>
                       <span style={{ color: '#f1f5f9', textAlign: 'right', paddingRight: '16px' }}>GBP{parseFloat(z.min_order).toFixed(2)}</span>
                       <span style={{ color: '#22c55e', textAlign: 'right', fontWeight: 600 }}>GBP{parseFloat(z.fee).toFixed(2)}</span>
                     </div>
