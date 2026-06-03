@@ -72,7 +72,7 @@ export default function HomePage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflowX: 'hidden', transition: 'background 0.3s, color 0.3s' }}>
+    <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: 'DM Sans, system-ui, sans-serif', overflowX: 'hidden', transition: 'background 0.3s, color 0.3s' }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap');
@@ -86,7 +86,7 @@ export default function HomePage() {
         .rest-card { background: #0d1321; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; text-decoration: none; display: block; }
         .rest-card:hover { transform: translateY(-3px); border-color: rgba(34,197,94,0.3); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
         .rest-card.closed { opacity: 0.6; }
-        .search-input { width: 100%; padding: 16px 20px 16px 52px; background: t.inputBg; border: `1px solid ${t.inputBorder}`; border-radius: 12px; color: #f1f5f9; font-size: 15px; outline: none; transition: border-color 0.2s; font-family: inherit; }
+        .search-input { width: 100%; padding: 16px 20px 16px 52px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: inherit; font-size: 15px; outline: none; transition: border-color 0.2s; font-family: inherit; }
         .search-input:focus { border-color: rgba(34,197,94,0.5); background: rgba(255,255,255,0.07); }
         .search-input::placeholder { color: #475569; }
         .step-card { background: #0d1321; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 28px; }
@@ -208,7 +208,7 @@ export default function HomePage() {
               {filtered.map((r, idx) => (
                 <Link key={r.id} href={`/restaurant/${r.slug}`} className={`rest-card${!r.is_open ? ' closed' : ''}`} style={{ animationDelay: `${idx * 0.05}s` }}>
                   {/* Image / Logo area */}
-                  <div style={{ height: '140px', background: dark ? `linear-gradient(135deg, #0f1b2d 0%, #162032 100%)` : `linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ height: '140px', background: dark ? 'linear-gradient(135deg, #0f1b2d 0%, #162032 100%)' : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                     {r.logo_url
                       ? <img src={r.logo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <span style={{ fontSize: '52px' }}>{r.emoji || 'food'}</span>
