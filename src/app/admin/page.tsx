@@ -36,6 +36,7 @@ export default function AdminPage() {
   // Option groups - per item
   const [editingOptions, setEditingOptions] = useState<any>(null)
   const [optionGroups, setOptionGroups] = useState<any[]>([])
+  const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [showAddOption, setShowAddOption] = useState<string | null>(null)
   const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, sort_order: '1' })
@@ -80,6 +81,15 @@ export default function AdminPage() {
   async function fetchOptionGroups(itemId: string) {
     const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
     setOptionGroups(data || [])
+    // Also fetch shared groups linked to this item
+    const { data: links } = await supabase.from('item_option_group_links').select('option_group_id').eq('menu_item_id', itemId)
+    const linkedIds = (links || []).map((l: any) => l.option_group_id)
+    if (linkedIds.length > 0) {
+      const { data: sg } = await supabase.from('item_option_groups').select('*, item_options(*)').in('id', linkedIds)
+      setSharedOptionGroups(sg || [])
+    } else {
+      setSharedOptionGroups([])
+    }
   }
 
   async function importToppingsFromItems(restId: string) {
@@ -621,8 +631,7 @@ export default function AdminPage() {
                   {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
                 {selectedRestaurant && <>
-                  <button className="btn-ghost" onClick={() => { fetchSharedGroups(selectedRestaurant.id); setShowSharedGroups(true) }} style={{ fontSize: '12px', padding: '8px 14px' }}>Shared Toppings</button>
-                  <button className="btn-ghost" onClick={() => importToppingsFromItems(selectedRestaurant.id)} style={{ fontSize: '12px', padding: '8px 14px', color: '#f97316', borderColor: 'rgba(249,115,22,0.3)' }}>Import Toppings</button>
+                  <button className="btn-ghost" onClick={() => { fetchSharedGroups(selectedRestaurant.id); setShowSharedGroups(true) }} style={{ fontSize: '12px', padding: '8px 14px' }}>Shared Items</button>
                   <button className="btn-ghost" onClick={() => setShowAddCategory(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Category</button>
                   <button className="btn-primary" onClick={() => setShowAddItem(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Item</button>
                 </>}
@@ -836,8 +845,26 @@ export default function AdminPage() {
                     <button onClick={() => setEditingOptions(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
-                    Add option groups specific to this item. For toppings that apply to multiple items use Shared Toppings instead.
+                    Add option groups specific to this item. For options that apply to multiple items use Shared Items.
                   </div>
+
+                  {sharedOptionGroups.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Linked Shared Items</div>
+                      {sharedOptionGroups.map(group => (
+                        <div key={group.id} style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '10px', padding: '10px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#a855f7' }}>{group.name}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--sub)', marginLeft: '8px' }}>{group.item_options?.length} options</span>
+                          </div>
+                          <button onClick={async () => {
+                            await supabase.from('item_option_group_links').delete().eq('menu_item_id', editingOptions.id).eq('option_group_id', group.id)
+                            fetchOptionGroups(editingOptions.id)
+                          }} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Unlink</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {optionGroups.map(group => (
                     <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
