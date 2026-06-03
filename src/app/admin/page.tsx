@@ -162,11 +162,14 @@ export default function AdminPage() {
   }
 
   async function fetchZones(restId: string) {
-    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
-    if (data && data.length > 0) {
-      setDeliveryZones(data)
-    } else {
-      // Pre-fill with all parishes at default price
+    try {
+      const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
+      if (data && data.length > 0) {
+        setDeliveryZones(data.map((z: any) => ({ ...z, enabled: true })))
+      } else {
+        setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
+      }
+    } catch (e) {
       setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
     }
   }
@@ -425,7 +428,7 @@ export default function AdminPage() {
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) uploadLogo(r.id, e.target.files[0]) }} />
                     </label>
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
-                    <button onClick={() => { setZonesRestaurant(r); fetchZones(r.id); setShowZones(true) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
+                    <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
 
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
