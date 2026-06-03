@@ -450,6 +450,40 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Delivery Zones Modal */}
+            {showZones && zonesRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ fontFamily: 'Syne', fontSize: '16px', fontWeight: 700 }}>Delivery Zones - {zonesRestaurant.name}</h3>
+                    <button onClick={() => { setShowZones(false); setZonesRestaurant(null) }} style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '20px', cursor: 'pointer' }}>x</button>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px' }}>Set delivery fee and minimum order per parish. Untick to disable delivery to that parish.</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Parish</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Fee</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Min Order</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>On</div>
+                  </div>
+                  {deliveryZones.map((zone, i) => (
+                    <div key={zone.parish} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '13px' }}>{zone.parish}</div>
+                      <input type="number" step="0.50" min="0" value={zone.fee} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, fee: e.target.value } : z))}
+                        style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                      <input type="number" step="1" min="0" value={zone.min_order} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, min_order: e.target.value } : z))}
+                        style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                      <input type="checkbox" checked={zone.enabled !== false} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, enabled: e.target.checked } : z))}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button onClick={saveZones} className="btn-primary" style={{ flex: 1 }}>Save Zones</button>
+                    <button onClick={() => { setShowZones(false); setZonesRestaurant(null) }} className="btn-ghost" style={{ flex: 1 }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Add Restaurant Modal */}
             {showAddRestaurant && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowAddRestaurant(false) }}>
