@@ -127,10 +127,10 @@ export default function HomePage() {
 
           <h1 className="hero-title" style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(40px, 7vw, 68px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '20px', color: t.text }}>
             Guernsey food,<br />
-            <span style={{ color: '#22c55e' }}>delivered fast.</span>
+            <span style={{ color: '#22c55e' }}>order online.</span>
           </h1>
           <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: '#64748b', lineHeight: 1.6, marginBottom: '36px', maxWidth: '520px', margin: '0 auto 36px' }}>
-            Order from the best local restaurants. Fresh food delivered to your door in minutes.
+            Browse menus from the best local Guernsey restaurants and place your order online in seconds.
           </p>
 
           {/* Search */}
@@ -159,7 +159,7 @@ export default function HomePage() {
           {[
             { label: '100% Free to use', icon: '' },
             { label: 'Local restaurants only', icon: '' },
-            { label: 'Fast delivery', icon: '' },
+            { label: 'Easy online ordering', icon: '' },
             { label: 'Secure payments', icon: '' },
           ].map(t => (
             <div key={t.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(12px, 1.5vw, 14px)', color: '#64748b', fontWeight: 500 }}>
@@ -244,8 +244,8 @@ export default function HomePage() {
         <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'clamp(12px, 2vw, 20px)' }}>
           {[
             { n: '01', title: 'Pick a restaurant', desc: 'Browse local Guernsey restaurants by cuisine or parish and find exactly what you fancy.', color: '#22c55e' },
-            { n: '02', title: 'Build your order', desc: 'Choose your dishes, customise options, add special instructions and review your basket.', color: '#3b82f6' },
-            { n: '03', title: 'Enjoy your food', desc: 'Sit back, relax and enjoy your meal delivered fresh and hot straight to your door.', color: '#f97316' },
+            { n: '02', title: 'Build your order', desc: 'Choose your dishes, customise options, add special instructions and pay securely online.', color: '#3b82f6' },
+            { n: '03', title: 'Enjoy your food', desc: 'The restaurant prepares and delivers your order. Sit back and enjoy!', color: '#f97316' },
           ].map(s => (
             <div key={s.n} className="step-card">
               <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, color: s.color, opacity: 0.3, marginBottom: '16px', lineHeight: 1 }}>{s.n}</div>
@@ -267,7 +267,7 @@ export default function HomePage() {
             {[
               { icon: '', title: 'Local & independent', desc: 'We only work with genuine Guernsey restaurants. No chains, no nonsense.' },
               { icon: '', title: '100% free to use', desc: 'No service fees charged to customers. Ever. What you see is what you pay.' },
-              { icon: '', title: 'Lightning fast', desc: 'Most orders delivered in under 45 minutes, straight to your door.' },
+              { icon: '', title: 'Quick & easy', desc: 'Browse menus, place your order and pay online in under 2 minutes.' },
               { icon: '', title: 'Secure checkout', desc: 'All payments encrypted and processed securely every single time.' },
             ].map(f => (
               <div key={f.title} style={{ padding: 'clamp(20px, 2.5vw, 28px)', background: t.card, borderRadius: '16px', border: `1px solid ${t.border}` }}>
@@ -285,7 +285,7 @@ export default function HomePage() {
         <div style={{ background: t.promoBg, border: '1px solid rgba(34,197,94,0.2)', borderRadius: '20px', padding: 'clamp(24px, 4vw, 40px) clamp(24px, 4vw, 48px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <div style={{ fontSize: 'clamp(11px, 1.2vw, 13px)', fontWeight: 600, color: '#22c55e', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>Limited time offer</div>
-            <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 800, color: '#f1f5f9', marginBottom: '8px', letterSpacing: '-0.5px' }}>Free delivery on your first order</h3>
+            <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 800, color: '#f1f5f9', marginBottom: '8px', letterSpacing: '-0.5px' }}>10% off your first order</h3>
             <p style={{ fontSize: 'clamp(12px, 1.3vw, 14px)', color: '#475569' }}>Use code FIRSTORDER at checkout. Valid for new customers only.</p>
           </div>
           <button onClick={() => document.getElementById('restaurants')?.scrollIntoView({ behavior: 'smooth' })}
