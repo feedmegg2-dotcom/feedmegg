@@ -79,16 +79,16 @@ export async function POST(request: NextRequest) {
         checkout_reference: order.id,
         amount: total,
         currency: 'GBP',
-        pay_to_email: restaurant.sumup_email,
-        description: `Order from ${restaurant.name}`,
         merchant_code: restaurant.sumup_merchant_code,
+        description: `Order from ${restaurant.name}`,
+        hosted_checkout: { enabled: true },
         redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL}/order/${order.id}/confirmed`,
       })
     })
 
     const checkoutData = await checkoutRes.json()
 
-    if (!checkoutData.id) {
+    if (!checkoutData.id || !checkoutData.hosted_checkout_url) {
       return NextResponse.json({ error: 'SumUp error: ' + JSON.stringify(checkoutData) }, { status: 500 })
     }
 
