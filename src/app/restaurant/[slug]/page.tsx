@@ -20,6 +20,9 @@ export default function RestaurantPage() {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({})
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [showCategoryMenu, setShowCategoryMenu] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
+  const [hours, setHours] = useState<any[]>([])
+  const [zones, setZones] = useState<any[]>([])
   const [showBasket, setShowBasket] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -29,6 +32,11 @@ export default function RestaurantPage() {
     const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).single()
     if (!rest) { router.push('/'); return }
     setRestaurant(rest)
+    // Fetch hours and zones
+    const { data: h } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', rest.id).order('id')
+    setHours(h || [])
+    const { data: z } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', rest.id).order('parish')
+    setZones(z || [])
     const { data: cats } = await supabase
       .from('menu_categories')
       .select('*, menu_items(*)')
@@ -195,20 +203,72 @@ export default function RestaurantPage() {
               </span>
             </div>
             <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>{restaurant.cuisine_type}</div>
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', color: '#64748b' }}>
-              {restaurant.opening_time && restaurant.closing_time && (
-                <span>Opens {restaurant.opening_time} - {restaurant.closing_time}</span>
-              )}
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
               <span>Delivery {restaurant.delivery_time_mins} mins</span>
               <span>Collection {restaurant.pickup_time_mins} mins</span>
               <span>Min order GBP{restaurant.min_order?.toFixed(2)}</span>
-              {restaurant.delivery_fee && <span>Delivery GBP{restaurant.delivery_fee?.toFixed(2)}</span>}
             </div>
+            <button onClick={() => setShowInfo(!showInfo)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: showInfo ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showInfo ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: showInfo ? '#22c55e' : '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Info &amp; Map {showInfo ? 'v' : '>'}
+            </button>
           </div>
         </div>
       </div>
 
 
+
+      {/* INFO PANEL */}
+      {showInfo && (
+        <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px' }}>
+          <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+
+            {/* Description */}
+            {restaurant.description && (
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: 1.6 }}>{restaurant.description}</p>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
+
+              {/* Opening Hours */}
+              {hours.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', color: '#f1f5f9' }}>Opening Times</h3>
+                  {hours.map((h: any) => (
+                    <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ color: '#64748b', width: '100px' }}>{h.day}</span>
+                      <span style={{ color: h.is_closed ? '#ef4444' : '#f1f5f9', fontWeight: 500 }}>
+                        {h.is_closed ? 'Closed' : `${h.open_time} - ${h.close_time}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Delivery Zones */}
+              {zones.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', color: '#f1f5f9' }}>Delivery</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Parish</span>
+                    <span style={{ color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right', paddingRight: '16px' }}>Min Order</span>
+                    <span style={{ color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Fee</span>
+                  </div>
+                  {zones.map((z: any) => (
+                    <div key={z.parish} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
+                      <span style={{ color: '#94a3b8' }}>{z.parish}</span>
+                      <span style={{ color: '#f1f5f9', textAlign: 'right', paddingRight: '16px' }}>GBP{parseFloat(z.min_order).toFixed(2)}</span>
+                      <span style={{ color: '#22c55e', textAlign: 'right', fontWeight: 600 }}>GBP{parseFloat(z.fee).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SEARCH */}
       <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -397,7 +457,7 @@ export default function RestaurantPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
                     <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}</span>
                   </div>
-                  <button onClick={() => { localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
+                  <button onClick={() => { if (!restaurant?.id) return; localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
                     style={{ width: '100%', padding: '14px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
                     Proceed to Checkout
                   </button>
