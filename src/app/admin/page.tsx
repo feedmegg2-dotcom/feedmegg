@@ -987,13 +987,13 @@ export default function AdminPage() {
             {orders.map(o => (
               <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{o.order_number}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} - {o.customer_email}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type} - {o.payment_method}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>#{o.id?.slice(0,8).toUpperCase()}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} {o.customer_phone ? '- ' + o.customer_phone : ''}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type || 'delivery'} - {o.payment_method || 'card'}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{o.commission_amount?.toFixed(2) || '0.00'}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{parseFloat(o.commission || 0).toFixed(2)}</div>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
                 </div>
               </div>
