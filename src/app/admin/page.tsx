@@ -82,9 +82,64 @@ export default function AdminPage() {
     setOptionGroups(data || [])
   }
 
+  async function importToppingsFromItems(restId: string) {
+    // Find all menu items that look like toppings (price under 2.50, no category description)
+    const { data: items } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('restaurant_id', restId)
+      .lt('price', 2.50)
+    
+    if (!items || items.length === 0) {
+      setMsg('No topping-priced items found (under GBP2.50)')
+      return
+    }
+
+    const confirmed = confirm(`Found ${items.length} items priced under GBP2.50:\n\n${items.map((i: any) => i.name + ' - GBP' + i.price.toFixed(2)).join('\n')}\n\nConvert these into a shared Extra Toppings option group?`)
+    if (!confirmed) return
+
+    // Create shared option group
+    const { data: group, error: groupError } = await supabase
+      .from('item_option_groups')
+      .insert({
+        restaurant_id: restId,
+        menu_item_id: null,
+        name: 'Extra Toppings',
+        type: 'multiple',
+        required: false,
+        sort_order: 1,
+      })
+      .select()
+      .single()
+
+    if (groupError || !group) {
+      setMsg('Error creating group: ' + groupError?.message)
+      return
+    }
+
+    // Create options from the items
+    for (const item of items) {
+      await supabase.from('item_options').insert({
+        option_group_id: group.id,
+        name: item.name,
+        price_adjustment: item.price,
+        is_available: true,
+        sort_order: 0,
+      })
+    }
+
+    // Delete the original items
+    await supabase.from('menu_items').delete().in('id', items.map((i: any) => i.id))
+
+    setMsg(`Converted ${items.length} items into shared toppings group!`)
+    fetchMenuForRestaurant(restId)
+    fetchSharedGroups(restId)
+  }
+
   async function fetchSharedGroups(restId: string) {
-    const { data } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
-    setSharedGroups(data || [])
+    const { data: restGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
+    const { data: globalGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').is('restaurant_id', null).is('menu_item_id', null).order('sort_order')
+    setSharedGroups([...(restGroups || []), ...(globalGroups || [])])
   }
 
   async function addOptionGroup(itemId: string) {
@@ -567,6 +622,7 @@ export default function AdminPage() {
                 </select>
                 {selectedRestaurant && <>
                   <button className="btn-ghost" onClick={() => { fetchSharedGroups(selectedRestaurant.id); setShowSharedGroups(true) }} style={{ fontSize: '12px', padding: '8px 14px' }}>Shared Toppings</button>
+                  <button className="btn-ghost" onClick={() => importToppingsFromItems(selectedRestaurant.id)} style={{ fontSize: '12px', padding: '8px 14px', color: '#f97316', borderColor: 'rgba(249,115,22,0.3)' }}>Import Toppings</button>
                   <button className="btn-ghost" onClick={() => setShowAddCategory(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Category</button>
                   <button className="btn-primary" onClick={() => setShowAddItem(true)} style={{ fontSize: '12px', padding: '8px 14px' }}>+ Item</button>
                 </>}
