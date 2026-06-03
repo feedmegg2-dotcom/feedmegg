@@ -15,6 +15,7 @@ export default function AdminPage() {
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [merchants, setMerchants] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [categories, setCategories] = useState<any[]>([])
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
@@ -985,17 +986,43 @@ export default function AdminPage() {
               <button onClick={fetchAll} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 16px' }}>Refresh</button>
             </div>
             {orders.map(o => (
-              <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>#{o.id?.slice(0,8).toUpperCase()}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} {o.customer_phone ? '- ' + o.customer_phone : ''}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type || 'delivery'} - {o.payment_method || 'card'}</div>
+              <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '8px', overflow: 'hidden' }}>
+                <div onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}
+                  style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', cursor: 'pointer' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700 }}>#{o.id?.slice(0,8).toUpperCase()} {expandedOrder === o.id ? 'v' : '>'}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} {o.customer_phone ? '- ' + o.customer_phone : ''}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type || 'delivery'} - {o.payment_method || 'card'}</div>
+                    {o.delivery_address && <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.parish} - {o.delivery_address}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{parseFloat(o.commission || 0).toFixed(2)}</div>
+                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{parseFloat(o.commission || 0).toFixed(2)}</div>
-                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
-                </div>
+                {expandedOrder === o.id && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '14px', background: 'var(--bg3)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Order Items</div>
+                    {o.items ? (
+                      (typeof o.items === 'string' ? JSON.parse(o.items) : o.items).map((item: any, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                          <span>{item.qty}x {item.name}{item.note ? <span style={{ color: 'var(--sub)', fontSize: '11px' }}> ({item.note})</span> : ''}</span>
+                          <span style={{ fontWeight: 600 }}>GBP{(item.price * item.qty).toFixed(2)}</span>
+                        </div>
+                      ))
+                    ) : <div style={{ fontSize: '12px', color: 'var(--sub)' }}>No item details available</div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--sub)' }}>Subtotal</span><span>GBP{parseFloat(o.subtotal || 0).toFixed(2)}</span>
+                    </div>
+                    {o.delivery_fee > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '4px' }}>
+                        <span style={{ color: 'var(--sub)' }}>Delivery</span><span>GBP{parseFloat(o.delivery_fee || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {o.notes && <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic' }}>Note: {o.notes}</div>}
+                  </div>
+                )}
               </div>
             ))}
             {orders.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>No orders yet</div>}
