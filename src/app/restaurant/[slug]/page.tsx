@@ -70,7 +70,10 @@ export default function RestaurantPage() {
     }
 
     const allGroups = [...(directGroups || []), ...sharedGroups]
-    setOptionGroups(allGroups)
+    // Mark shared groups so we can label them
+    const markedDirect = (directGroups || []).map((g: any) => ({ ...g, isShared: false }))
+    const markedShared = sharedGroups.map((g: any) => ({ ...g, isShared: true }))
+    setOptionGroups([...markedDirect, ...markedShared])
 
     // Set defaults for required single-select groups
     const defaults: Record<string, string[]> = {}
@@ -296,7 +299,10 @@ export default function RestaurantPage() {
             {!optionsLoading && optionGroups.map(group => (
               <div key={group.id} style={{ marginBottom: '18px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</div>
+                    {group.isShared && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>Shared</span>}
+                  </div>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.required ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)', color: group.required ? '#fca5a5' : '#64748b' }}>
                     {group.required ? 'Required' : 'Optional'}
                   </span>
