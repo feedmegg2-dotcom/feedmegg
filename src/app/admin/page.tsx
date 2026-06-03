@@ -271,16 +271,16 @@ export default function AdminPage() {
 
   async function saveZones() {
     if (!zonesRestaurant) return
-    // Delete existing then insert new
     await supabase.from('delivery_zones').delete().eq('restaurant_id', zonesRestaurant.id)
-    const toInsert = deliveryZones.filter(z => z.enabled).map(z => ({
+    const toInsert = deliveryZones.filter(z => z.enabled !== false).map(z => ({
       restaurant_id: zonesRestaurant.id,
       parish: z.parish,
       fee: parseFloat(z.fee) || 0,
       min_order: parseFloat(z.min_order) || 10,
     }))
     if (toInsert.length > 0) {
-      await supabase.from('delivery_zones').insert(toInsert)
+      const { error } = await supabase.from('delivery_zones').insert(toInsert)
+      if (error) { setMsg('Error: ' + error.message); return }
     }
     setMsg('Delivery zones saved for ' + zonesRestaurant.name + '!')
     setShowZones(false)
