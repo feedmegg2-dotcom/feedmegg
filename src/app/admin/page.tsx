@@ -26,6 +26,9 @@ export default function AdminPage() {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
+  const [showHours, setShowHours] = useState(false)
+  const [hoursRestaurant, setHoursRestaurant] = useState<any>(null)
+  const [restaurantHours, setRestaurantHours] = useState<any[]>([])
   const [showZones, setShowZones] = useState(false)
   const [zonesRestaurant, setZonesRestaurant] = useState<any>(null)
   const [importUrl, setImportUrl] = useState('')
@@ -225,6 +228,31 @@ export default function AdminPage() {
       await supabase.from('item_option_group_links').insert({ option_group_id: linkingGroup.id, menu_item_id: itemId })
       setLinkedItems(prev => [...prev, itemId])
     }
+  }
+
+  async function fetchHours(restId: string) {
+    const { data } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', restId)
+    if (data && data.length > 0) {
+      setRestaurantHours(data)
+    } else {
+      setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: restId })))
+    }
+  }
+
+  async function saveHours() {
+    if (!hoursRestaurant) return
+    await supabase.from('restaurant_hours').delete().eq('restaurant_id', hoursRestaurant.id)
+    const toInsert = restaurantHours.map(h => ({
+      restaurant_id: hoursRestaurant.id,
+      day: h.day,
+      open_time: h.open_time,
+      close_time: h.close_time,
+      is_closed: h.is_closed || false,
+    }))
+    await supabase.from('restaurant_hours').insert(toInsert)
+    setMsg('Opening hours saved for ' + hoursRestaurant.name + '!')
+    setShowHours(false)
+    setHoursRestaurant(null)
   }
 
   async function fetchZones(restId: string) {
@@ -496,6 +524,7 @@ export default function AdminPage() {
                     </label>
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
+                    <button onClick={() => { setHoursRestaurant(r); setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: r.id }))); setShowHours(true); fetchHours(r.id) }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#EAB308', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Hours</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
 
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
@@ -549,6 +578,39 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                     <button onClick={saveZones} className="btn-primary" style={{ flex: 1 }}>Save Zones</button>
                     <button onClick={() => { setShowZones(false); setZonesRestaurant(null) }} className="btn-ghost" style={{ flex: 1 }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Hours Modal */}
+            {showHours && hoursRestaurant && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ fontFamily: 'Syne', fontSize: '16px', fontWeight: 700 }}>Opening Hours - {hoursRestaurant.name}</h3>
+                    <button onClick={() => { setShowHours(false); setHoursRestaurant(null) }} style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '20px', cursor: 'pointer' }}>x</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 50px', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Day</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Opens</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Closes</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Closed</div>
+                  </div>
+                  {restaurantHours.map((h, i) => (
+                    <div key={h.day} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 50px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)', opacity: h.is_closed ? 0.4 : 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{h.day}</div>
+                      <input type="time" value={h.open_time || '12:00'} disabled={h.is_closed} onChange={e => setRestaurantHours(hrs => hrs.map((x, j) => j === i ? { ...x, open_time: e.target.value } : x))}
+                        style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                      <input type="time" value={h.close_time || '21:30'} disabled={h.is_closed} onChange={e => setRestaurantHours(hrs => hrs.map((x, j) => j === i ? { ...x, close_time: e.target.value } : x))}
+                        style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                      <input type="checkbox" checked={h.is_closed || false} onChange={e => setRestaurantHours(hrs => hrs.map((x, j) => j === i ? { ...x, is_closed: e.target.checked } : x))}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', margin: '0 auto' }} />
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button onClick={saveHours} className="btn-primary" style={{ flex: 1 }}>Save Hours</button>
+                    <button onClick={() => { setShowHours(false); setHoursRestaurant(null) }} className="btn-ghost" style={{ flex: 1 }}>Cancel</button>
                   </div>
                 </div>
               </div>
