@@ -233,11 +233,12 @@ export default function AdminPage() {
 
   async function fetchHours(restId: string) {
     const { data } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', restId)
-    if (data && data.length > 0) {
-      setRestaurantHours(data)
-    } else {
-      setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: restId })))
-    }
+    // Always show all 7 days, merge with saved data
+    const merged = DAYS.map(d => {
+      const saved = data?.find((h: any) => h.day === d)
+      return saved || { day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: restId }
+    })
+    setRestaurantHours(merged)
   }
 
   async function saveHours() {
@@ -596,7 +597,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Day</div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Opens</div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Closes</div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Closed</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Shut</div>
                   </div>
                   {restaurantHours.map((h, i) => (
                     <div key={h.day} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 50px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)', opacity: h.is_closed ? 0.4 : 1 }}>
