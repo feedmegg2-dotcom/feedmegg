@@ -409,7 +409,7 @@ export default function AdminPage() {
 
       <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ background: 'none', border: 'none', borderBottom: `2px solid ${tab === t ? 'var(--green)' : 'transparent'}`, color: tab === t ? 'var(--green)' : 'var(--sub)', padding: '12px 16px', fontSize: '13px', fontWeight: tab === t ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{t}</button>
+          <button key={t} onClick={() => { setTab(t); if (t === 'orders' || t === 'commissions') fetchAll() }} style={{ background: 'none', border: 'none', borderBottom: `2px solid ${tab === t ? 'var(--green)' : 'transparent'}`, color: tab === t ? 'var(--green)' : 'var(--sub)', padding: '12px 16px', fontSize: '13px', fontWeight: tab === t ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{t}</button>
         ))}
       </div>
 
@@ -980,7 +980,10 @@ export default function AdminPage() {
         {/* ORDERS */}
         {tab === 'orders' && (
           <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>All Orders</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>All Orders</h2>
+              <button onClick={fetchAll} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 16px' }}>Refresh</button>
+            </div>
             {orders.map(o => (
               <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
