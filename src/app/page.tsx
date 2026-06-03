@@ -123,11 +123,7 @@ export default function HomePage() {
         <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '400px', background: `radial-gradient(ellipse, ${t.glow} 0%, transparent 70%)`, pointerEvents: 'none', zIndex: 0 }} />
 
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '780px', margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '999px', padding: '6px 14px', marginBottom: '24px' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e', letterSpacing: '0.5px' }}>NOW DELIVERING ACROSS GUERNSEY</span>
-          </div>
-          <style>{`@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }`}</style>
+
 
           <h1 className="hero-title" style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(40px, 7vw, 68px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '20px', color: t.text }}>
             Guernsey food,<br />
@@ -143,12 +139,16 @@ export default function HomePage() {
             <input className="search-input" type="text" placeholder="Search for a restaurant or cuisine..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
 
-          {/* Parish filter */}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
-            {PARISHES.slice(0, 6).map(p => (
-              <button key={p} className={`cuisine-pill${parish === p ? ' active' : ''}`} onClick={() => setParish(p)} style={{ fontSize: '12px', padding: '6px 12px' }}>{p}</button>
-            ))}
-            <button className={`cuisine-pill${PARISHES.slice(6).includes(parish) ? ' active' : ''}`} style={{ fontSize: '12px', padding: '6px 12px' }} onClick={() => {}}>More...</button>
+          {/* Parish + Cuisine dropdowns */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '560px', margin: '0 auto' }}>
+            <select value={parish} onChange={e => setParish(e.target.value)}
+              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${t.border}`, borderRadius: '10px', color: t.text, fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
+              {PARISHES.map(p => <option key={p} value={p}>{p === 'All' ? 'All parishes' : p}</option>)}
+            </select>
+            <select value={cuisine} onChange={e => setCuisine(e.target.value)}
+              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${t.border}`, borderRadius: '10px', color: t.text, fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
+              {CUISINES.map(c => <option key={c} value={c}>{c === 'All' ? 'All cuisines' : c}</option>)}
+            </select>
           </div>
         </div>
       </div>
@@ -170,14 +170,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CUISINE FILTERS */}
-      <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(16px, 4vw, 48px) 0', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
-          {CUISINES.map(c => (
-            <button key={c} className={`cuisine-pill${cuisine === c ? ' active' : ''}`} onClick={() => setCuisine(c)}>{c}</button>
-          ))}
-        </div>
-      </div>
+
 
       {/* RESTAURANTS GRID */}
       <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(16px, 4vw, 48px)', maxWidth: '1200px', margin: '0 auto' }}>
@@ -252,7 +245,7 @@ export default function HomePage() {
           {[
             { n: '01', title: 'Pick a restaurant', desc: 'Browse local Guernsey restaurants by cuisine or parish and find exactly what you fancy.', color: '#22c55e' },
             { n: '02', title: 'Build your order', desc: 'Choose your dishes, customise options, add special instructions and review your basket.', color: '#3b82f6' },
-            { n: '03', title: 'Fast delivery', desc: 'Pay securely online and get your food delivered straight to your door, hot and fresh.', color: '#f97316' },
+            { n: '03', title: 'Enjoy your food', desc: 'Sit back, relax and enjoy your meal delivered fresh and hot straight to your door.', color: '#f97316' },
           ].map(s => (
             <div key={s.n} className="step-card">
               <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, color: s.color, opacity: 0.3, marginBottom: '16px', lineHeight: 1 }}>{s.n}</div>
