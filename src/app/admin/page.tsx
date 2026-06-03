@@ -259,7 +259,7 @@ export default function AdminPage() {
 
   async function fetchZones(restId: string) {
     try {
-      const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
+      const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('name')
       if (data && data.length > 0) {
         setDeliveryZones(data.map((z: any) => ({ ...z, enabled: true })))
       } else {
@@ -276,7 +276,7 @@ export default function AdminPage() {
     // Include ALL zones unless explicitly unticked
     const toInsert = deliveryZones.map(z => ({
       restaurant_id: zonesRestaurant.id,
-      parish: z.parish,
+      name: z.parish,
       fee: parseFloat(z.fee) || 0,
       min_order: parseFloat(z.min_order) || 10,
     }))
@@ -571,7 +571,7 @@ export default function AdminPage() {
                   </div>
                   {deliveryZones.map((zone, i) => (
                     <div key={zone.parish} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '13px' }}>{zone.parish}</div>
+                      <div style={{ fontSize: '13px' }}>{zone.parish || zone.name}</div>
                       <input type="number" step="0.50" min="0" value={zone.fee} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, fee: e.target.value } : z))}
                         style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
                       <input type="number" step="1" min="0" value={zone.min_order} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, min_order: e.target.value } : z))}
