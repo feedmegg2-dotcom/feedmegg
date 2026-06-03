@@ -44,13 +44,13 @@ export default function CheckoutPage() {
 
   function getDeliveryFee() {
     if (form.orderType !== 'delivery') return 0
-    const zone = deliveryZones.find(z => z.parish === form.parish)
+    const zone = deliveryZones.find(z => (z.name || z.parish) === form.parish)
     if (zone) return parseFloat(zone.fee)
     return parseFloat(restaurant?.delivery_fee) || 2.50
   }
 
   function getMinOrder() {
-    const zone = deliveryZones.find(z => z.parish === form.parish)
+    const zone = deliveryZones.find(z => (z.name || z.parish) === form.parish)
     if (zone) return parseFloat(zone.min_order)
     return parseFloat(restaurant?.min_order) || 10
   }
