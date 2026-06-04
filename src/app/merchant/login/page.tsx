@@ -1,81 +1,91 @@
-
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
-export default function MerchantLoginPage() {
+export default function MerchantLogin() {
   const router = useRouter()
   const supabase = createClient()
+  const [destination, setDestination] = useState<'dashboard'|'terminal'|null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dark, setDark] = useState(true)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('feedme-theme')
+    if (saved) setDark(saved === 'dark')
+  }, [])
 
   async function login() {
-    if (!email || !password) { setError('Please enter your email and password.'); return }
+    if (!destination) { setError('Please choose where to go first'); return }
+    if (!email || !password) { setError('Please enter your email and password'); return }
     setLoading(true)
     setError('')
-
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (authError) {
-      setError('Invalid email or password. Please try again.')
-      setLoading(false)
-      return
-    }
-
-    router.push('/merchant/terminal')
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) { setError('Invalid email or password'); setLoading(false); return }
+    router.push(destination === 'dashboard' ? '/merchant/dashboard' : '/merchant/terminal')
   }
 
+  const bg = dark ? '#080c14' : '#f8fafc'
+  const card = dark ? '#0d1321' : '#ffffff'
+  const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
+  const text = dark ? '#f1f5f9' : '#0f172a'
+  const sub = dark ? '#64748b' : '#94a3b8'
+  const inputStyle: any = { width: '100%', padding: '12px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div style={{ width: '100%', maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <div style={{ fontFamily: 'Syne', fontSize: '28px', fontWeight: 800, letterSpacing: '-1px', marginBottom: '6px' }}>
-              <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
+    <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column' }}>
+
+      <nav style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${border}`, padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me.gg</span>
+        </Link>
+        <Link href="/" style={{ fontSize: '13px', color: sub, textDecoration: 'none' }}>Back to site</Link>
+      </nav>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
+        <div style={{ width: '100%', maxWidth: '420px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', textAlign: 'center' }}>Restaurant Login</h1>
+          <p style={{ fontSize: '14px', color: sub, textAlign: 'center', marginBottom: '28px' }}>Where would you like to go?</p>
+
+          {/* DESTINATION PICKER */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+            <div onClick={() => setDestination('dashboard')} style={{ background: card, border: `2px solid ${destination === 'dashboard' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}></div>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Dashboard</div>
+              <div style={{ fontSize: '11px', color: sub }}>Manage menu & settings</div>
             </div>
-          </Link>
-          <div style={{ fontSize: '14px', color: 'var(--sub)' }}>Merchant Portal</div>
-        </div>
-
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '6px' }}>Sign in to your account</h2>
-          <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '24px' }}>Access your restaurant dashboard and terminal</p>
-
-          {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>{error}</div>}
-
-          <div style={{ marginBottom: '14px' }}>
-            <label>Email address</label>
-            <input className="input" type="email" placeholder="you@restaurant.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} />
+            <div onClick={() => setDestination('terminal')} style={{ background: card, border: `2px solid ${destination === 'terminal' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}></div>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Terminal</div>
+              <div style={{ fontSize: '11px', color: sub }}>Take & manage orders</div>
+            </div>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label>Password</label>
-            <input className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} />
+          {/* LOGIN FORM */}
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '24px' }}>
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" style={inputStyle} onKeyDown={e => e.key === 'Enter' && login()} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={inputStyle} onKeyDown={e => e.key === 'Enter' && login()} />
+              </div>
+              {error && <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '13px', color: '#fca5a5' }}>{error}</div>}
+              <button onClick={login} disabled={loading} style={{ width: '100%', padding: '13px', background: loading ? '#1e3a2f' : '#22c55e', color: loading ? '#475569' : '#080c14', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                {loading ? 'Signing in...' : `Sign in${destination ? ` to ${destination === 'dashboard' ? 'Dashboard' : 'Terminal'}` : ''}`}
+              </button>
+            </div>
           </div>
-
-          <button className="btn-primary" onClick={login} disabled={loading} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: '10px' }}>
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <a href="#" style={{ fontSize: '13px', color: 'var(--green)', textDecoration: 'none' }}>Forgot password?</a>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--sub)' }}>
-          Want to list your restaurant on feedme.gg?{' '}
-          <a href="mailto:hello@feedme.gg" style={{ color: 'var(--green)', textDecoration: 'none' }}>Contact us</a>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '12px' }}>
-          <Link href="/" style={{ fontSize: '12px', color: 'var(--sub)', textDecoration: 'none' }}>← Back to feedme.gg</Link>
         </div>
       </div>
+      <style>{`input::placeholder { color: #334155; }`}</style>
     </div>
   )
 }
