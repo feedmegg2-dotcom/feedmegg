@@ -14,6 +14,7 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [tab, setTab] = useState<'profile'|'addresses'|'orders'>('profile')
   const [loading, setLoading] = useState(true)
+  const [dark, setDark] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -33,6 +34,11 @@ export default function AccountPage() {
   const [addrDesc, setAddrDesc] = useState('')
 
   const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
+
+  useEffect(() => {
+    const saved = localStorage.getItem('feedme-theme')
+    if (saved) setDark(saved === 'dark')
+  }, [])
 
   useEffect(() => { init() }, [])
 
@@ -138,21 +144,27 @@ export default function AccountPage() {
     router.push('/')
   }
 
-  const inputStyle: any = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const inputStyle: any = { width: '100%', padding: '12px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, borderRadius: '8px', color: dark ? '#f1f5f9' : '#0f172a', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 
   if (loading) return (
     <div style={{ background: '#080c14', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Loading...</div>
   )
 
   return (
-    <div style={{ background: '#080c14', minHeight: '100vh', color: '#f1f5f9', fontFamily: 'system-ui,sans-serif' }}>
+    <div style={{ background: dark ? '#080c14' : '#f8fafc', minHeight: '100vh', color: dark ? '#f1f5f9' : '#0f172a', fontFamily: 'system-ui,sans-serif' }}>
 
       {/* NAV */}
-      <nav style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me.gg</span>
         </Link>
-        <Link href="/" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Order Food</Link>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button onClick={() => { const n = !dark; setDark(n); localStorage.setItem('feedme-theme', n ? 'dark' : 'light') }}
+            style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#94a3b8' : '#64748b', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+            {dark ? 'Light' : 'Dark'}
+          </button>
+          <Link href="/" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Order Food</Link>
+        </div>
       </nav>
 
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 20px' }}>
@@ -177,7 +189,7 @@ export default function AccountPage() {
 
         {/* PROFILE TAB */}
         {tab === 'profile' && (
-          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px' }}>
+          <div style={{ background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '16px', padding: '24px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>Personal Details</h2>
             <div style={{ display: 'grid', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -252,7 +264,7 @@ export default function AccountPage() {
                 </button>
               </>
             ) : (
-              <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px' }}>
+              <div style={{ background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '16px', padding: '24px' }}>
                 <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>{editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
