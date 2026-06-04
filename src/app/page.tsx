@@ -138,9 +138,6 @@ export default function HomePage() {
                   <Link href="/account" onClick={() => setShowUserMenu(false)} style={{ display: 'block', padding: '10px 14px', fontSize: '13px', color: t.text, textDecoration: 'none', borderRadius: '8px' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>My Account</Link>
-                  <Link href="/account#orders" onClick={() => setShowUserMenu(false)} style={{ display: 'block', padding: '10px 14px', fontSize: '13px', color: t.text, textDecoration: 'none', borderRadius: '8px' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>My Orders</Link>
                   <div style={{ borderTop: `1px solid ${t.border}`, margin: '6px 0' }} />
                   <button onClick={async () => { await supabase.auth.signOut(); setUser(null); setCustomer(null); setShowUserMenu(false) }}
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: '13px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: 'inherit' }}
