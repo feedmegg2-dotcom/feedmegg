@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     if (loginError) { setError('Incorrect email or password'); return }
 
-    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/account'
     router.push(redirect)
   }
 
