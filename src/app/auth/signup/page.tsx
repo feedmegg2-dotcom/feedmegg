@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -10,8 +10,14 @@ const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St 
 export default function SignupPage() {
   const router = useRouter()
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '', address: '', parish: 'St Peter Port' })
+  const [dark, setDark] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('feedme-theme')
+    if (saved) setDark(saved === 'dark')
+  }, [])
 
   async function handleSignup() {
     if (!form.name || !form.email || !form.password || !form.phone) { setError('Please fill in all required fields'); return }
@@ -40,15 +46,15 @@ export default function SignupPage() {
     router.push(redirect)
   }
 
-  const inputStyle = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#f1f5f9', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const inputStyle = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: dark ? '#f1f5f9' : '#0f172a', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
 
   return (
-    <div style={{ background: '#080c14', minHeight: '100vh', color: '#f1f5f9', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+    <div style={{ background: dark ? '#080c14' : '#f8fafc', minHeight: '100vh', color: dark ? '#f1f5f9' : '#0f172a', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '24px', fontWeight: 800, textDecoration: 'none', marginBottom: '32px' }}>
         <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
       </Link>
 
-      <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: 'clamp(24px,5vw,40px)', width: '100%', maxWidth: '460px' }}>
+      <div style={{ background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '20px', padding: 'clamp(24px,5vw,40px)', width: '100%', maxWidth: '460px' }}>
         <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '6px' }}>Create account</h1>
         <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>Already have one? <Link href="/auth/login" style={{ color: '#22c55e', textDecoration: 'none' }}>Sign in</Link></p>
 
