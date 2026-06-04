@@ -51,7 +51,7 @@ export default function CheckoutPage() {
       setCustomer(cust)
       setForm(f => ({
         ...f,
-        name: cust.name || cust.first_name && cust.last_name ? `${cust.first_name} ${cust.last_name}`.trim() : f.name,
+        name: cust.name || (cust.first_name ? `${cust.first_name} ${cust.last_name || ''}`.trim() : f.name),
         phone: cust.phone || f.phone,
         email: user.email || f.email,
       }))
