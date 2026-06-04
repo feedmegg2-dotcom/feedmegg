@@ -134,11 +134,8 @@ export default function CheckoutPage() {
     if (!data.success) { setError(data.error || 'Something went wrong'); return }
     localStorage.removeItem('feedme-cart')
 
-    if (form.paymentMethod === 'cash') {
-      router.push(`/order/${data.orderId}/confirmed?method=cash`)
-    } else {
-      window.location.href = data.paymentUrl
-    }
+    // Always go to waiting screen  payment happens AFTER merchant accepts
+    router.push(`/order/${data.orderId}/waiting`)
   }
 
   const bg = dark ? '#080c14' : '#f8fafc'
@@ -323,9 +320,9 @@ export default function CheckoutPage() {
         {/* PLACE ORDER BUTTON */}
         <button onClick={placeOrder} disabled={loading || !meetsMinOrder}
           style={{ width: '100%', padding: '16px', background: loading || !meetsMinOrder ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
-          {loading ? 'Placing order...' : form.paymentMethod === 'cash' ? 'Place Order' : `Pay GBP${orderTotal.toFixed(2)}`}
+          {loading ? 'Placing order...' : 'Place Order'}
         </button>
-        {form.paymentMethod === 'card' && <div style={{ textAlign: 'center', fontSize: '11px', color: sub, marginBottom: '32px' }}>Secured by SumUp</div>}
+
       </div>
 
       <style>{`input::placeholder, textarea::placeholder { color: #334155; } select option { background: ${dark ? '#0d1321' : '#fff'}; }`}</style>
