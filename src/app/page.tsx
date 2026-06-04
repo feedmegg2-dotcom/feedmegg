@@ -16,6 +16,12 @@ export default function HomePage() {
   const [parish, setParish] = useState('All')
   const [cuisine, setCuisine] = useState('All')
   const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+  }, [])
   const [dark, setDark] = useState(true)
 
   useEffect(() => {
