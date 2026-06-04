@@ -93,7 +93,7 @@ export default function AccountPage() {
       setAddrName('Home')
       setAddrLine1('')
       setAddrLine2('')
-      setAddrParish('')
+      setAddrParish('St Peter Port')
       setAddrPostcode('')
       setAddrDesc('')
     }
@@ -101,7 +101,8 @@ export default function AccountPage() {
   }
 
   async function saveAddress() {
-    if (!customer || !addrLine1 || !addrParish) { setMsg('Please fill in address and parish'); return }
+    if (!customer || !addrLine1) { setMsg('Please enter your house number and street'); return }
+    if (!addrParish) { setMsg('Please select a parish'); return }
     setSaving(true)
     const payload = {
       customer_id: customer.id,
