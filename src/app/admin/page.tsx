@@ -522,7 +522,7 @@ export default function AdminPage() {
                         <div style={{ position: 'absolute', top: '2px', left: r.is_active ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                       </div>
                     </div>
-                    {r.sumup_api_key && <span style={{ fontSize: '10px', padding: '3px 7px', borderRadius: '4px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', fontWeight: 600 }}>SumUp</span>}
+                    {r.sumup_api_key && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', fontWeight: 500 }}>Card payments on</span>}
                     <label style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>
                       Logo
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) uploadLogo(r.id, e.target.files[0]) }} />
