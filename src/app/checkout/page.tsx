@@ -14,6 +14,7 @@ export default function CheckoutPage() {
   const [cartData, setCartData] = useState<any>(null)
   const [customer, setCustomer] = useState<any>(null)
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [restaurant, setRestaurant] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -46,7 +47,7 @@ export default function CheckoutPage() {
   async function fetchCustomer() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    const { data: cust } = await supabase.from('customers').select('*').eq('id', user.id).single()
     if (cust) {
       setCustomer(cust)
       setForm(f => ({
@@ -73,10 +74,23 @@ export default function CheckoutPage() {
   async function fetchRestaurant(id: string) {
     const { data } = await supabase.from('restaurants').select('*').eq('id', id).single()
     setRestaurant(data)
+    const { data: zones } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', id).eq('is_active', true)
+    setDeliveryZones(zones || [])
   }
 
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
-  const deliveryFee = form.orderType === 'delivery' ? (parseFloat(restaurant?.delivery_fee) || 2.50) : 0
+  function getDeliveryFee() {
+    if (form.orderType !== 'delivery') return 0
+    const parish = form.addressMode === 'saved' ? (getSelectedAddress()?.parish || form.parish) : form.parish
+    // Check delivery zones for this parish
+    if (deliveryZones.length > 0) {
+      const zone = deliveryZones.find((z: any) => z.parish === parish || z.name === parish)
+      if (zone) return parseFloat(zone.fee) || 0
+    }
+    // Fall back to restaurant default delivery fee
+    return parseFloat(restaurant?.delivery_fee) || 2.50
+  }
+  const deliveryFee = getDeliveryFee()
   const orderTotal = cartTotal + deliveryFee
   const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
 
