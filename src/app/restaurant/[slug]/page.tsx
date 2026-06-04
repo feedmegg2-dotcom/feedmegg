@@ -105,11 +105,13 @@ export default function RestaurantPage() {
     setOptionsLoading(false)
   }
 
-  function toggleOption(groupId: string, optionId: string, type: string) {
+  function toggleOption(groupId: string, optionId: string, type: string, maxSelections?: number) {
     setSelectedOptions(prev => {
       const current = prev[groupId] || []
       if (type === 'single') return { ...prev, [groupId]: [optionId] }
       if (current.includes(optionId)) return { ...prev, [groupId]: current.filter(id => id !== optionId) }
+      // Enforce max selections
+      if (maxSelections && maxSelections > 0 && current.length >= maxSelections) return prev
       return { ...prev, [groupId]: [...current, optionId] }
     })
   }
@@ -383,14 +385,19 @@ export default function RestaurantPage() {
 
                     {group.is_collapsible && <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>{collapsedGroups.has(group.id) ? '+ Show options' : '- Hide options'}</span>}
                   </div>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.required ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)', color: group.required ? '#fca5a5' : '#64748b' }}>
-                    {group.required ? 'Required' : 'Optional'}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.required ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)', color: group.required ? '#fca5a5' : '#64748b' }}>
+                      {group.required ? 'Required' : 'Optional'}
+                    </span>
+                    {group.max_selections > 0 && (
+                      <span style={{ fontSize: '11px', color: '#f97316', fontWeight: 600 }}>Choose up to {group.max_selections}</span>
+                    )}
+                  </div>
                 </div>
                 {!collapsedGroups.has(group.id) && (group.type === 'single' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {group.item_options?.filter((o: any) => o.is_available).map((opt: any) => (
-                      <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'single')}
+                      <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'single', group.max_selections)}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '8px', border: `1.5px solid ${(selectedOptions[group.id] || []).includes(opt.id) ? '#22c55e' : 'rgba(255,255,255,0.1)'}`, background: (selectedOptions[group.id] || []).includes(opt.id) ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${(selectedOptions[group.id] || []).includes(opt.id) ? '#22c55e' : 'rgba(255,255,255,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -407,7 +414,7 @@ export default function RestaurantPage() {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                     {group.item_options?.filter((o: any) => o.is_available).map((opt: any) => (
-                      <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'multiple')}
+                      <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'multiple', group.max_selections)}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', border: `1.5px solid ${(selectedOptions[group.id] || []).includes(opt.id) ? '#22c55e' : 'rgba(255,255,255,0.1)'}`, background: (selectedOptions[group.id] || []).includes(opt.id) ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <div style={{ width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${(selectedOptions[group.id] || []).includes(opt.id) ? '#22c55e' : 'rgba(255,255,255,0.2)'}`, background: (selectedOptions[group.id] || []).includes(opt.id) ? '#22c55e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
