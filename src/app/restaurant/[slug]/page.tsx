@@ -24,7 +24,13 @@ export default function RestaurantPage() {
   const [hours, setHours] = useState<any[]>([])
   const [zones, setZones] = useState<any[]>([])
   const [showBasket, setShowBasket] = useState(false)
+  const [dark, setDark] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('feedme-theme')
+    if (saved) setDark(saved === 'dark')
+  }, [])
 
   useEffect(() => { fetchRestaurant() }, [slug])
 
@@ -177,10 +183,10 @@ export default function RestaurantPage() {
   if (!restaurant) return null
 
   return (
-    <div style={{ background: '#0a0f1e', minHeight: '100vh', color: '#f8fafc', fontFamily: 'system-ui,sans-serif', paddingBottom: '80px' }}>
+    <div style={{ background: dark ? '#0a0f1e' : '#f8fafc', minHeight: '100vh', color: dark ? '#f8fafc' : '#0f172a', fontFamily: 'system-ui,sans-serif', paddingBottom: '80px' }}>
 
       {/* NAV */}
-      <nav style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me.gg</span>
         </Link>
@@ -188,7 +194,7 @@ export default function RestaurantPage() {
       </nav>
 
       {/* RESTAURANT INFO */}
-      <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px' }}>
+      <div style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, padding: '20px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', gap: '16px', alignItems: 'center' }}>
           <div style={{ width: '72px', height: '72px', borderRadius: '12px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {restaurant.logo_url
@@ -220,7 +226,7 @@ export default function RestaurantPage() {
 
       {/* INFO PANEL */}
       {showInfo && (
-        <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px' }}>
+        <div style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, padding: '20px' }}>
           <div style={{ maxWidth: '960px', margin: '0 auto' }}>
 
             {/* Description */}
