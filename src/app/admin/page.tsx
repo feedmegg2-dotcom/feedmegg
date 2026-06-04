@@ -800,15 +800,15 @@ export default function AdminPage() {
                       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Shared Option Group</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                         <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Extra Toppings, Choose Your Base" value={newSharedGroup.name} onChange={e => setNewSharedGroup({...newSharedGroup, name: e.target.value})} /></div>
-                        <div><label>Type</label><select className="input" value={newSharedGroup.type} onChange={e => setNewSharedGroup({...newSharedGroup, type: e.target.value})}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Type</label><select className="input" value={newSharedGroup.type} onChange={e => setNewSharedGroup({...newSharedGroup, type: e.target.value})}>
                           <option value="multiple">Multi select (checkboxes)</option>
                           <option value="single">Single select (radio)</option>
                         </select></div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="checkbox" id="shreq" checked={newSharedGroup.required} onChange={e => setNewSharedGroup({...newSharedGroup, required: e.target.checked})} />
                           <label htmlFor="shreq" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="checkbox" id="shcol" checked={newSharedGroup.is_collapsible} onChange={e => setNewSharedGroup({...newSharedGroup, is_collapsible: e.target.checked})} />
                           <label htmlFor="shcol" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
                         </div>
@@ -984,15 +984,15 @@ export default function AdminPage() {
                       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>New Option Group</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                         <div style={{ gridColumn: 'span 2' }}><label>Group Name</label><input className="input" placeholder="e.g. Choose Your Size" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} /></div>
-                        <div><label>Type</label><select className="input" value={newGroup.type} onChange={e => setNewGroup({...newGroup, type: e.target.value})}>
+                        <div style={{ gridColumn: 'span 2' }}><label>Type</label><select className="input" value={newGroup.type} onChange={e => setNewGroup({...newGroup, type: e.target.value})}>
                           <option value="single">Single select (radio)</option>
                           <option value="multiple">Multi select (checkboxes)</option>
                         </select></div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="checkbox" id="req" checked={newGroup.required} onChange={e => setNewGroup({...newGroup, required: e.target.checked})} />
                           <label htmlFor="req" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="checkbox" id="col" checked={newGroup.is_collapsible} onChange={e => setNewGroup({...newGroup, is_collapsible: e.target.checked})} />
                           <label htmlFor="col" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
                         </div>
