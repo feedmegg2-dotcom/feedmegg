@@ -44,7 +44,7 @@ export default function AdminPage() {
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [showAddOption, setShowAddOption] = useState<string | null>(null)
-  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, is_collapsible: false, sort_order: '1' })
+  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, is_collapsible: false, max_selections: '0', sort_order: '1' })
   const [newOption, setNewOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
 
   // Shared option groups - restaurant level
@@ -52,7 +52,7 @@ export default function AdminPage() {
   const [sharedGroups, setSharedGroups] = useState<any[]>([])
   const [showAddSharedGroup, setShowAddSharedGroup] = useState(false)
   const [showAddSharedOption, setShowAddSharedOption] = useState<string | null>(null)
-  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, is_collapsible: false, sort_order: '1' })
+  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, is_collapsible: false, max_selections: '0', sort_order: '1' })
   const [newSharedOption, setNewSharedOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
   const [linkingGroup, setLinkingGroup] = useState<any>(null)
   const [linkedItems, setLinkedItems] = useState<string[]>([])
@@ -824,6 +824,10 @@ export default function AdminPage() {
                           <input type="checkbox" id="shcol" checked={newSharedGroup.is_collapsible} onChange={e => setNewSharedGroup({...newSharedGroup, is_collapsible: e.target.checked})} />
                           <label htmlFor="shcol" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
                         </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Max selections (0 = no limit)</label>
+                          <input className="input" type="number" min="0" placeholder="0" value={newSharedGroup.max_selections} onChange={e => setNewSharedGroup({...newSharedGroup, max_selections: e.target.value})} />
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button className="btn-ghost" onClick={() => setShowAddSharedGroup(false)} style={{ flex: 1 }}>Cancel</button>
@@ -958,6 +962,13 @@ export default function AdminPage() {
                               }} />
                               Collapsible
                             </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--sub)' }}>
+                              <span>Max:</span>
+                              <input type="number" min="0" value={group.max_selections || 0} onChange={async e => {
+                                await supabase.from('item_option_groups').update({ max_selections: parseInt(e.target.value) || 0 }).eq('id', group.id)
+                                fetchOptionGroups(editingOptions.id)
+                              }} style={{ width: '48px', padding: '2px 6px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)', fontSize: '12px' }} />
+                            </div>
                             <button onClick={async () => {
                               await supabase.from('item_option_group_links').delete().eq('menu_item_id', editingOptions.id).eq('option_group_id', group.id)
                               fetchOptionGroups(editingOptions.id)
@@ -986,6 +997,13 @@ export default function AdminPage() {
                             }} />
                             Collapsible
                           </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--sub)' }}>
+                            <span>Max:</span>
+                            <input type="number" min="0" value={group.max_selections || 0} onChange={async e => {
+                              await supabase.from('item_option_groups').update({ max_selections: parseInt(e.target.value) || 0 }).eq('id', group.id)
+                              fetchOptionGroups(editingOptions.id)
+                            }} style={{ width: '48px', padding: '2px 6px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)', fontSize: '12px' }} />
+                          </div>
                           <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
                         </div>
                       </div>
@@ -1027,6 +1045,10 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input type="checkbox" id="col" checked={newGroup.is_collapsible} onChange={e => setNewGroup({...newGroup, is_collapsible: e.target.checked})} />
                           <label htmlFor="col" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Max selections (0 = no limit)</label>
+                          <input className="input" type="number" min="0" placeholder="0" value={newGroup.max_selections} onChange={e => setNewGroup({...newGroup, max_selections: e.target.value})} />
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
