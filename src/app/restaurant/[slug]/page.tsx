@@ -65,7 +65,7 @@ export default function RestaurantPage() {
       .from('item_option_groups')
       .select('*, item_options(*)')
       .eq('menu_item_id', item.id)
-      .order('sort_order')
+      .order('sort_order', { ascending: true })
 
     // Fetch shared option groups linked to this item
     const { data: links } = await supabase
@@ -377,11 +377,11 @@ export default function RestaurantPage() {
                     else next.add(group.id)
                     return next
                   })
-                }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsedGroups.has(group.id) ? '0' : '10px', cursor: group.is_collapsible ? 'pointer' : 'default' }}>
+                }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsedGroups.has(group.id) ? '0' : '10px', cursor: group.is_collapsible ? 'pointer' : 'default', padding: group.is_collapsible ? '8px 12px' : '0', background: group.is_collapsible ? 'rgba(255,255,255,0.03)' : 'transparent', borderRadius: '8px', border: group.is_collapsible ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</div>
-                    {group.isShared && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>Shared</span>}
-                    {group.is_collapsible && <span style={{ fontSize: '11px', color: '#64748b' }}>{collapsedGroups.has(group.id) ? '(tap to expand)' : '(tap to collapse)'}</span>}
+
+                    {group.is_collapsible && <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>{collapsedGroups.has(group.id) ? '+ Show options' : '- Hide options'}</span>}
                   </div>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.required ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)', color: group.required ? '#fca5a5' : '#64748b' }}>
                     {group.required ? 'Required' : 'Optional'}
