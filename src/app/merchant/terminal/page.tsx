@@ -227,7 +227,6 @@ export default function TerminalPage() {
           <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,220px)' }}>
             {[
               { icon: '', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
-              { icon: '', label: 'AI Tag Menu', sub: 'Add allergens and calories', screen: 'aitag' },
               { icon: '', label: 'Printer Settings', sub: 'Test, check, configure', screen: 'printer' },
               { icon: '', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
               { icon: '', label: 'Order History', sub: 'Search past orders', screen: 'history' },
