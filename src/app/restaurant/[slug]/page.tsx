@@ -369,16 +369,25 @@ export default function RestaurantPage() {
 
             {!optionsLoading && optionGroups.map(group => (
               <div key={group.id} style={{ marginBottom: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div onClick={() => {
+                  if (!group.is_collapsible) return
+                  setCollapsedGroups(prev => {
+                    const next = new Set(prev)
+                    if (next.has(group.id)) next.delete(group.id)
+                    else next.add(group.id)
+                    return next
+                  })
+                }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsedGroups.has(group.id) ? '0' : '10px', cursor: group.is_collapsible ? 'pointer' : 'default' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</div>
                     {group.isShared && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>Shared</span>}
+                    {group.is_collapsible && <span style={{ fontSize: '11px', color: '#64748b' }}>{collapsedGroups.has(group.id) ? '(tap to expand)' : '(tap to collapse)'}</span>}
                   </div>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.required ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)', color: group.required ? '#fca5a5' : '#64748b' }}>
                     {group.required ? 'Required' : 'Optional'}
                   </span>
                 </div>
-                (group.type === 'single' ? (
+                {!collapsedGroups.has(group.id) && (group.type === 'single' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {group.item_options?.filter((o: any) => o.is_available).map((opt: any) => (
                       <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'single')}
@@ -412,7 +421,6 @@ export default function RestaurantPage() {
                       </div>
                     ))}
                   </div>
-                )}
                 )}
               </div>
             ))}
