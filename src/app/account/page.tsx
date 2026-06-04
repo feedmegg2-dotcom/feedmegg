@@ -51,7 +51,12 @@ export default function AccountPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
     setUser(user)
-    const { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    // Try auth_id first then id
+    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    if (!cust) {
+      const res2 = await supabase.from('customers').select('*').eq('id', user.id).single()
+      cust = res2.data
+    }
     if (cust) {
       setCustomer(cust)
       setFirstName(cust.first_name || '')
