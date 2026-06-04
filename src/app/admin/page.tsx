@@ -157,6 +157,18 @@ export default function AdminPage() {
     setSharedGroups([...(restGroups || []), ...(globalGroups || [])])
   }
 
+  async function moveGroup(groupId: string, direction: 'up' | 'down', itemId: string) {
+    const idx = optionGroups.findIndex((g: any) => g.id === groupId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === optionGroups.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const a = optionGroups[idx]
+    const b = optionGroups[swapIdx]
+    await supabase.from('item_option_groups').update({ sort_order: b.sort_order }).eq('id', a.id)
+    await supabase.from('item_option_groups').update({ sort_order: a.sort_order }).eq('id', b.id)
+    fetchOptionGroups(itemId)
+  }
+
   async function addOptionGroup(itemId: string) {
     if (!newGroup.name) { setMsg('Enter a group name'); return }
     const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, is_collapsible: newGroup.is_collapsible, sort_order: parseInt(newGroup.sort_order) })
@@ -965,6 +977,8 @@ export default function AdminPage() {
                           {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button onClick={() => moveGroup(group.id, 'up', editingOptions.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}></button>
+                          <button onClick={() => moveGroup(group.id, 'down', editingOptions.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}></button>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--sub)' }}>
                             <input type="checkbox" checked={group.is_collapsible || false} onChange={async e => {
                               await supabase.from('item_option_groups').update({ is_collapsible: e.target.checked }).eq('id', group.id)
