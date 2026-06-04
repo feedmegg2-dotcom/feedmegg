@@ -44,7 +44,7 @@ export default function AdminPage() {
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [showAddOption, setShowAddOption] = useState<string | null>(null)
-  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, sort_order: '1' })
+  const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, is_collapsible: false, sort_order: '1' })
   const [newOption, setNewOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
 
   // Shared option groups - restaurant level
@@ -52,7 +52,7 @@ export default function AdminPage() {
   const [sharedGroups, setSharedGroups] = useState<any[]>([])
   const [showAddSharedGroup, setShowAddSharedGroup] = useState(false)
   const [showAddSharedOption, setShowAddSharedOption] = useState<string | null>(null)
-  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, sort_order: '1' })
+  const [newSharedGroup, setNewSharedGroup] = useState({ name: '', type: 'multiple', required: false, is_collapsible: false, sort_order: '1' })
   const [newSharedOption, setNewSharedOption] = useState({ name: '', price_adjustment: '0', sort_order: '1' })
   const [linkingGroup, setLinkingGroup] = useState<any>(null)
   const [linkedItems, setLinkedItems] = useState<string[]>([])
