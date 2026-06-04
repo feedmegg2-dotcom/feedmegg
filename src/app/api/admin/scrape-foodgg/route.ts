@@ -132,6 +132,8 @@ function parseItems(html: string): MenuItem[] {
     if (!priceMatch) continue
     const price = parseFloat(priceMatch[1])
     if (price <= 0 || price >= 500) continue
+    // Skip likely toppings - cheap items with no current parent name and no size indicator
+    if (price < 2.00 && !currentName) continue
 
     // Check all cells for size/variant info
     // Could be: [size, price] or [variant, size, price] or [name+size, price]
