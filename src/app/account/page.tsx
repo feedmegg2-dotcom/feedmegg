@@ -142,8 +142,9 @@ export default function AccountPage() {
     await fetchAddresses(customer.id)
     setShowAddressForm(false)
     setSaving(false)
-    setMsg('Address saved!')
-    setTimeout(() => setMsg(''), 3000)
+    setTab('addresses')
+    setMsg('Address saved! You can add another address below.')
+    setTimeout(() => setMsg(''), 5000)
   }
 
   async function setDefaultAddress(addrId: string) {
