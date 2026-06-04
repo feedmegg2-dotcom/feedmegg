@@ -938,10 +938,19 @@ export default function AdminPage() {
                             <span style={{ fontSize: '13px', fontWeight: 700, color: '#a855f7' }}>{group.name}</span>
                             <span style={{ fontSize: '11px', color: 'var(--sub)', marginLeft: '8px' }}>{group.item_options?.length} options</span>
                           </div>
-                          <button onClick={async () => {
-                            await supabase.from('item_option_group_links').delete().eq('menu_item_id', editingOptions.id).eq('option_group_id', group.id)
-                            fetchOptionGroups(editingOptions.id)
-                          }} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Unlink</button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--sub)' }}>
+                              <input type="checkbox" checked={group.is_collapsible || false} onChange={async e => {
+                                await supabase.from('item_option_groups').update({ is_collapsible: e.target.checked }).eq('id', group.id)
+                                fetchOptionGroups(editingOptions.id)
+                              }} />
+                              Collapsible
+                            </label>
+                            <button onClick={async () => {
+                              await supabase.from('item_option_group_links').delete().eq('menu_item_id', editingOptions.id).eq('option_group_id', group.id)
+                              fetchOptionGroups(editingOptions.id)
+                            }} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Unlink</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -955,7 +964,16 @@ export default function AdminPage() {
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
                           {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
                         </div>
-                        <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--sub)' }}>
+                            <input type="checkbox" checked={group.is_collapsible || false} onChange={async e => {
+                              await supabase.from('item_option_groups').update({ is_collapsible: e.target.checked }).eq('id', group.id)
+                              fetchOptionGroups(editingOptions.id)
+                            }} />
+                            Collapsible
+                          </label>
+                          <button onClick={() => deleteOptionGroup(group.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                        </div>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {group.item_options?.map((opt: any) => (
