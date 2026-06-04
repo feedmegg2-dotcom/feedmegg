@@ -17,6 +17,7 @@ export default function RestaurantPage() {
   const [itemNote, setItemNote] = useState('')
   const [itemQty, setItemQty] = useState(1)
   const [optionGroups, setOptionGroups] = useState<any[]>([])
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({})
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [showCategoryMenu, setShowCategoryMenu] = useState(false)
@@ -97,6 +98,10 @@ export default function RestaurantPage() {
       }
     }
     setSelectedOptions(defaults)
+    // Collapse groups marked as collapsible
+    const collapsed = new Set<string>()
+    allGroups.forEach((g: any) => { if (g.is_collapsible) collapsed.add(g.id) })
+    setCollapsedGroups(collapsed)
     setOptionsLoading(false)
   }
 
@@ -373,7 +378,7 @@ export default function RestaurantPage() {
                     {group.required ? 'Required' : 'Optional'}
                   </span>
                 </div>
-                {group.type === 'single' ? (
+                (group.type === 'single' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {group.item_options?.filter((o: any) => o.is_available).map((opt: any) => (
                       <div key={opt.id} onClick={() => toggleOption(group.id, opt.id, 'single')}
@@ -407,6 +412,7 @@ export default function RestaurantPage() {
                       </div>
                     ))}
                   </div>
+                )}
                 )}
               </div>
             ))}
