@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase'
 const TIMEOUT_SECS = 120
 
 export default function WaitingPage() {
-  const { orderId } = useParams()
+  const params = useParams()
+  const orderId = params.id || params.orderId
   const router = useRouter()
   const supabase = createClient()
   const [order, setOrder] = useState<any>(null)
