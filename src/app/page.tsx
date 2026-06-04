@@ -113,13 +113,13 @@ export default function HomePage() {
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 2vw, 28px)' }}>
           <a href="#how-it-works" className="nav-link hide-mobile">How it works</a>
-          <Link href="/merchant/login" className="nav-link hide-mobile">Restaurants</Link>
+
           <button onClick={toggleTheme} style={{ width: '36px', height: '36px', borderRadius: '8px', background: t.bg3, border: `1px solid ${t.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', transition: 'all 0.2s' }}>
             {dark
               ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
           </button>
-          <Link href="/merchant/login" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}>Sign in</Link>
+          <Link href="/auth/login" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}>Sign up / Sign in</Link>
         </div>
       </nav>
 
@@ -317,6 +317,7 @@ export default function HomePage() {
                 {['How it works','For restaurants','About us','Contact'].map(l => (
                   <div key={l} style={{ marginBottom: '10px' }}><a href="#" style={{ fontSize: '13px', color: '#475569', textDecoration: 'none' }}>{l}</a></div>
                 ))}
+                <div style={{ marginBottom: '10px' }}><Link href="/merchant/login" style={{ fontSize: '13px', color: '#475569', textDecoration: 'none' }}>Restaurant login</Link></div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>Legal</div>
