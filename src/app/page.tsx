@@ -17,10 +17,18 @@ export default function HomePage() {
   const [cuisine, setCuisine] = useState('All')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [customer, setCustomer] = useState<any>(null)
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user)
+      if (data.user) {
+        const { data: cust } = await supabase.from('customers').select('name, first_name').eq('auth_id', data.user.id).single()
+        setCustomer(cust)
+      }
+    })
   }, [])
   const [dark, setDark] = useState(true)
 
@@ -119,7 +127,31 @@ export default function HomePage() {
               ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
           </button>
-          <Link href="/auth/login" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}>Sign up / Sign in</Link>
+          {user ? (
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {customer?.first_name || customer?.name?.split(' ')[0] || 'My Account'}
+              </button>
+              {showUserMenu && (
+                <div style={{ position: 'absolute', right: 0, top: '44px', background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${t.border}`, borderRadius: '12px', padding: '8px', minWidth: '160px', zIndex: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+                  <Link href="/account" onClick={() => setShowUserMenu(false)} style={{ display: 'block', padding: '10px 14px', fontSize: '13px', color: t.text, textDecoration: 'none', borderRadius: '8px' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>My Account</Link>
+                  <Link href="/account#orders" onClick={() => setShowUserMenu(false)} style={{ display: 'block', padding: '10px 14px', fontSize: '13px', color: t.text, textDecoration: 'none', borderRadius: '8px' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>My Orders</Link>
+                  <div style={{ borderTop: `1px solid ${t.border}`, margin: '6px 0' }} />
+                  <button onClick={async () => { await supabase.auth.signOut(); setUser(null); setCustomer(null); setShowUserMenu(false) }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: '13px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: 'inherit' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>Sign out</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link href="/auth/login" style={{ padding: '8px 18px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}>Sign up / Sign in</Link>
+          )}
         </div>
       </nav>
 
