@@ -159,7 +159,7 @@ export default function AdminPage() {
 
   async function addOptionGroup(itemId: string) {
     if (!newGroup.name) { setMsg('Enter a group name'); return }
-    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
+    const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, is_collapsible: newGroup.is_collapsible, sort_order: parseInt(newGroup.sort_order) })
     if (error) { setMsg('Error: ' + error.message); return }
     setNewGroup({ name: '', type: 'single', required: false, is_collapsible: false, sort_order: '1' })
     setShowAddGroup(false)
