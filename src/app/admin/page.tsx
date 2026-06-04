@@ -161,7 +161,7 @@ export default function AdminPage() {
     if (!newGroup.name) { setMsg('Enter a group name'); return }
     const { error } = await supabase.from('item_option_groups').insert({ menu_item_id: itemId, restaurant_id: selectedRestaurant.id, name: newGroup.name, type: newGroup.type, required: newGroup.required, sort_order: parseInt(newGroup.sort_order) })
     if (error) { setMsg('Error: ' + error.message); return }
-    setNewGroup({ name: '', type: 'single', required: false, sort_order: '1' })
+    setNewGroup({ name: '', type: 'single', required: false, is_collapsible: false, sort_order: '1' })
     setShowAddGroup(false)
     fetchOptionGroups(itemId)
   }
@@ -192,7 +192,7 @@ export default function AdminPage() {
     if (!newSharedGroup.name || !selectedRestaurant) { setMsg('Enter a group name'); return }
     const { error } = await supabase.from('item_option_groups').insert({ restaurant_id: selectedRestaurant.id, menu_item_id: null, name: newSharedGroup.name, type: newSharedGroup.type, required: newSharedGroup.required, sort_order: parseInt(newSharedGroup.sort_order) })
     if (error) { setMsg('Error: ' + error.message); return }
-    setNewSharedGroup({ name: '', type: 'multiple', required: false, sort_order: '1' })
+    setNewSharedGroup({ name: '', type: 'multiple', required: false, is_collapsible: false, sort_order: '1' })
     setShowAddSharedGroup(false)
     fetchSharedGroups(selectedRestaurant.id)
   }
