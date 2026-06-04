@@ -121,27 +121,35 @@ export default function AccountPage() {
   }
 
   async function saveAddress() {
-    if (!customer) return
+    if (!customer) { setMsg('Not logged in — please refresh'); return }
     if (!addrLine1) { setMsg('Please enter your house number and street'); return }
     setSaving(true)
+    setMsg('')
     const payload = {
       customer_id: customer.id,
-      name: addrName,
+      name: addrName || 'Home',
       address_line1: addrLine1,
-      address_line2: addrLine2,
-      parish: addrParish,
-      postcode: addrPostcode,
-      location_description: addrDesc,
+      address_line2: addrLine2 || null,
+      parish: addrParish || 'St Peter Port',
+      postcode: addrPostcode || null,
+      location_description: addrDesc || null,
       is_default: addresses.length === 0
     }
+    let error = null
     if (editingAddress) {
-      await supabase.from('customer_addresses').update(payload).eq('id', editingAddress.id)
+      const res = await supabase.from('customer_addresses').update(payload).eq('id', editingAddress.id)
+      error = res.error
     } else {
-      await supabase.from('customer_addresses').insert(payload)
+      const res = await supabase.from('customer_addresses').insert(payload)
+      error = res.error
+    }
+    setSaving(false)
+    if (error) {
+      setMsg('Error saving: ' + error.message)
+      return
     }
     await fetchAddresses(customer.id)
     setShowAddressForm(false)
-    setSaving(false)
     setTab('addresses')
     setMsg('Address saved! You can add another address below.')
     setTimeout(() => setMsg(''), 5000)
