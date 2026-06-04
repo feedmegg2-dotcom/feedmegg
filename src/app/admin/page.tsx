@@ -808,6 +808,10 @@ export default function AdminPage() {
                           <input type="checkbox" id="shreq" checked={newSharedGroup.required} onChange={e => setNewSharedGroup({...newSharedGroup, required: e.target.checked})} />
                           <label htmlFor="shreq" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
                         </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="shcol" checked={newSharedGroup.is_collapsible} onChange={e => setNewSharedGroup({...newSharedGroup, is_collapsible: e.target.checked})} />
+                          <label htmlFor="shcol" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button className="btn-ghost" onClick={() => setShowAddSharedGroup(false)} style={{ flex: 1 }}>Cancel</button>
@@ -987,6 +991,10 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
                           <input type="checkbox" id="req" checked={newGroup.required} onChange={e => setNewGroup({...newGroup, required: e.target.checked})} />
                           <label htmlFor="req" style={{ cursor: 'pointer', fontSize: '13px' }}>Required</label>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                          <input type="checkbox" id="col" checked={newGroup.is_collapsible} onChange={e => setNewGroup({...newGroup, is_collapsible: e.target.checked})} />
+                          <label htmlFor="col" style={{ cursor: 'pointer', fontSize: '13px' }}>Collapsible</label>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
