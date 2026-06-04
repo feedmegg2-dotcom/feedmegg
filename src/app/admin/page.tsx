@@ -15,6 +15,8 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState('')
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [merchants, setMerchants] = useState<any[]>([])
+  const [editMerchant, setEditMerchant] = useState<any>(null)
+  const [merchantNewPassword, setMerchantNewPassword] = useState('')
   const [orders, setOrders] = useState<any[]>([])
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [categories, setCategories] = useState<any[]>([])
@@ -356,6 +358,33 @@ export default function AdminPage() {
     await supabase.from('restaurants').update({ logo_url }).eq('id', restId)
     setMsg('Logo uploaded!')
     fetchAll()
+  }
+
+  async function saveMerchant() {
+    if (!editMerchant) return
+    await supabase.from('merchants').update({
+      name: editMerchant.name,
+      email: editMerchant.email,
+      commission_rate: parseFloat(editMerchant.commission_rate) || 4,
+    }).eq('id', editMerchant.id)
+    if (merchantNewPassword) {
+      await fetch('/api/admin/update-merchant-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merchantId: editMerchant.id, password: merchantNewPassword })
+      })
+      setMerchantNewPassword('')
+    }
+    setEditMerchant(null)
+    fetchAll()
+    setMsg('Merchant updated!')
+  }
+
+  async function deleteMerchant(id: string, name: string) {
+    if (!confirm('Delete merchant ' + name + '? This cannot be undone!')) return
+    await supabase.from('merchants').delete().eq('id', id)
+    fetchAll()
+    setMsg('Merchant deleted!')
   }
 
   async function addMerchant() {
