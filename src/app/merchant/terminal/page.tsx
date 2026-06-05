@@ -31,6 +31,7 @@ export default function TerminalPage() {
   const [pickTime, setPickTime] = useState(15)
   const [timeModal, setTimeModal] = useState<'delivery' | 'pickup' | null>(null)
   const [toggles, setToggles] = useState({ preorders: true, delivery: true, pickups: true })
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const countdownRef = useRef<any>(null)
   const pollRef = useRef<any>(null)
   const syncRef = useRef<any>(null)
@@ -145,8 +146,8 @@ export default function TerminalPage() {
 
   function startAlertRepeat() {
     if (alertRef.current) return
-    playAlertSound()
-    alertRef.current = setInterval(() => playAlertSound(), 2000)
+    playAlertSound(selectedSound)
+    alertRef.current = setInterval(() => playAlertSound(selectedSound), 2000)
   }
 
   function stopAlertRepeat() {
@@ -190,13 +191,26 @@ export default function TerminalPage() {
     setAcceptOpen(false)
     setScreen('paying')
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
+    // For testing: set countdown to 10 seconds. In production, remove the countdown entirely and wait for webhook.
     setCountdown(10)
     countdownRef.current = setInterval(() => {
-      setCountdown(prev => { if (prev <= 1) { clearInterval(countdownRef.current); simulatePayment(); return 0 } return prev - 1 })
+      setCountdown(prev => { if (prev <= 1) { clearInterval(countdownRef.current); return 0 } return prev - 1 })
     }, 1000)
   }
 
-  function simulatePayment() { setScreen('paid'); playAlertSound(paymentSound) }
+  async function confirmPayment() {
+    if (!currentOrder) return
+    clearInterval(countdownRef.current)
+    // Update order status to 'paid' in Supabase
+    await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'payment_confirmed' }) })
+    setScreen('paid')
+    playAlertSound(paymentSound)
+    // Auto-dismiss after 3 seconds and return to main
+    setTimeout(() => {
+      setScreen('main')
+      setCurrentOrderId(null)
+    }, 3000)
+  }
 
   async function rejectOrder() {
     if (!currentOrder) return
@@ -217,25 +231,51 @@ export default function TerminalPage() {
 
   const filteredItems = menuItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()) || i.menu_categories?.name?.toLowerCase().includes(itemSearch.toLowerCase()))
 
+  // Theme colors
+  const themeColors = {
+    light: {
+      background: '#f8fafc',
+      surface: '#f1f5f9',
+      surfaceDark: '#e2e8f0',
+      text: '#1e293b',
+      textSecondary: '#64748b',
+      textTertiary: '#94a3b8',
+      border: 'rgba(30,41,59,0.08)',
+      borderSecondary: 'rgba(30,41,59,0.12)',
+    },
+    dark: {
+      background: '#0a0f1e',
+      surface: '#060b18',
+      surfaceDark: '#0f172a',
+      text: '#f8fafc',
+      textSecondary: '#64748b',
+      textTertiary: '#94a3b8',
+      border: 'rgba(255,255,255,0.08)',
+      borderSecondary: 'rgba(255,255,255,0.12)',
+    }
+  }
+  
+  const colors = themeColors[theme]
+
   return (
-    <div style={{ background: '#0a0f1e', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui,sans-serif', position: 'relative', overflow: 'hidden', touchAction: 'manipulation' }}>
+    <div style={{ background: colors.background, height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui,sans-serif', position: 'relative', overflow: 'hidden', touchAction: 'manipulation', transition: 'background 0.3s' }}>
 
       {/* TOP BAR */}
-      <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(6px,1.5vw,12px) clamp(8px,2vw,16px)', display: 'flex', alignItems: 'center', gap: 'clamp(6px,1.5vw,12px)', flexWrap: 'nowrap', position: 'relative', zIndex: 20, flexShrink: 0 }}>
+      <div style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, padding: 'clamp(6px,1.5vw,12px) clamp(8px,2vw,16px)', display: 'flex', alignItems: 'center', gap: 'clamp(6px,1.5vw,12px)', flexWrap: 'nowrap', position: 'relative', zIndex: 20, flexShrink: 0, transition: 'background 0.3s' }}>
         
         <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(14px,2.5vw,18px)', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>
-          feed<span style={{ color: '#f8fafc' }}>me</span>.gg
+          feed<span style={{ color: colors.text }}>me</span>.gg
         </div>
 
         {/* DELIVERY TIME - twice as large */}
-        <button onClick={() => setTimeModal('delivery')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Delivery</span>
+        <button onClick={() => setTimeModal('delivery')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: theme === 'light' ? 'rgba(30,41,59,0.06)' : 'rgba(255,255,255,0.06)', border: `1px solid ${colors.border}`, borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.3s' }}>
+          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Delivery</span>
           <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{delivTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
         </button>
 
         {/* PICKUP TIME - twice as large */}
-        <button onClick={() => setTimeModal('pickup')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Pickup</span>
+        <button onClick={() => setTimeModal('pickup')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: theme === 'light' ? 'rgba(30,41,59,0.06)' : 'rgba(255,255,255,0.06)', border: `1px solid ${colors.border}`, borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.3s' }}>
+          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}> Pickup</span>
           <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{pickTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
         </button>
 
@@ -296,15 +336,22 @@ export default function TerminalPage() {
                 </select>
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Theme</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => setTheme('light')} style={{ flex: 1, padding: '6px 10px', background: theme === 'light' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${theme === 'light' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: theme === 'light' ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>☀️ Light</button>
+                  <button onClick={() => setTheme('dark')} style={{ flex: 1, padding: '6px 10px', background: theme === 'dark' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${theme === 'dark' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: theme === 'dark' ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>🌙 Dark</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {/* TABS */}
-      <div style={{ display: 'flex', background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0, transition: 'background 0.3s' }}>
         {(['incoming', 'accepted'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : '#94a3b8', border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer' }}>
+          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : colors.textTertiary, border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer', transition: 'color 0.3s' }}>
             {t === 'incoming' ? 'Orders Incoming' : 'Orders Accepted'}
             {t === 'incoming' && pendingOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
@@ -316,27 +363,27 @@ export default function TerminalPage() {
       </div>
 
       {/* MAIN ORDER LIST */}
-      <div style={{ flex: 1, padding: 'clamp(6px,1.5vw,12px)', overflowY: 'auto' }}>
+      <div style={{ flex: 1, padding: 'clamp(6px,1.5vw,12px)', overflowY: 'auto', background: colors.background, transition: 'background 0.3s' }}>
         {tab === 'incoming' ? (
           pendingOrders.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary, transition: 'color 0.3s' }}>
               <div style={{ fontSize: 'clamp(28px,5vw,40px)', marginBottom: '10px', opacity: 0.3 }}></div>
               <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pending orders</div>
             </div>
           ) : (
             pendingOrders.map(o => (
-              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: '#0f172a', borderLeft: `3px solid ${o.scheduled_for ? '#3b82f6' : '#22c55e'}`, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, borderLeft: `3px solid ${o.scheduled_for ? '#3b82f6' : '#22c55e'}`, border: `1px solid ${colors.borderSecondary}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text, transition: 'color 0.3s' }}>{o.order_number}</div>
                   <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.scheduled_for ? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)', color: o.scheduled_for ? '#3b82f6' : '#22c55e' }}>
                     {o.scheduled_for ? `Pre-order ${new Date(o.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Live order'}
                   </span>
                 </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name}  {o.order_type === 'delivery' ? ' Delivery' : ' Collection'}  {o.payment_method}</div>
-                <div style={{ fontSize: 'clamp(10px,1.6vw,11px)', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{o.order_items?.map((i: any) => `${i.quantity} ${i.name}`).join(', ')}</div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px', transition: 'color 0.3s' }}>{o.customer_name}  {o.order_type === 'delivery' ? ' Delivery' : ' Collection'}  {o.payment_method}</div>
+                <div style={{ fontSize: 'clamp(10px,1.6vw,11px)', color: theme === 'light' ? 'rgba(30,41,59,0.4)' : 'rgba(255,255,255,0.4)', marginBottom: '6px', transition: 'color 0.3s' }}>{o.order_items?.map((i: any) => `${i.quantity} ${i.name}`).join(', ')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#475569' }}>Tap to open </div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary, transition: 'color 0.3s' }}>Tap to open </div>
                 </div>
               </div>
             ))
@@ -430,16 +477,19 @@ export default function TerminalPage() {
           <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>Payment link sent to {currentOrder?.customer_name}</div>
           <div style={{ fontSize: 'clamp(44px,9vw,64px)', fontWeight: 700, color: '#f97316', marginBottom: '8px' }}>{countdown}</div>
           <div style={{ width: 'clamp(140px,25vw,200px)', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden', marginBottom: '20px' }}>
-            <div style={{ height: '100%', background: '#f97316', borderRadius: '3px', width: `${(countdown / 120) * 100}%`, transition: 'width 1s linear' }} />
+            <div style={{ height: '100%', background: '#f97316', borderRadius: '3px', width: `${(countdown / 10) * 100}%`, transition: 'width 1s linear' }} />
           </div>
-          <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#334155' }}>Customer has 2 minutes to pay</div>
+          <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#334155', marginBottom: '20px' }}>Testing: tap button below when payment is complete</div>
+          <button onClick={confirmPayment} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px) clamp(28px,6vw,48px)', borderRadius: '12px', fontSize: 'clamp(14px,2.5vw,18px)', fontWeight: 700, cursor: 'pointer' }}>
+             Confirm Payment
+          </button>
         </div>
       )}
 
       {/* PAYMENT CONFIRMED */}
       {screen === 'paid' && (
         <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
-          <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px' }}></div>
+          <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px', animation: 'bounce-in 0.5s' }}></div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#22c55e', marginBottom: '6px' }}>Payment Confirmed!</div>
           <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>{currentOrder?.total?.toFixed(2)} received  Printing 3 tickets now...</div>
           <div style={{ background: '#0f172a', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '16px 24px', marginBottom: '20px', textAlign: 'left' }}>
@@ -448,9 +498,6 @@ export default function TerminalPage() {
             <PrintRow label="Restaurant ticket" delay={1600} />
             <PrintRow label="Customer ticket" delay={2400} />
           </div>
-          <button onClick={() => { setScreen('main'); setCurrentOrderId(null); setTab('accepted') }} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(24px,5vw,36px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>
-            Back to orders
-          </button>
         </div>
       )}
 
