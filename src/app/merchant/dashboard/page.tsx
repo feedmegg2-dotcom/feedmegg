@@ -27,6 +27,7 @@ export default function MerchantDashboard() {
   const [showHours, setShowHours] = useState<string|null>(null)
   const [zones, setZones] = useState<any[]>([])
   const [zonesLoading, setZonesLoading] = useState(false)
+  const [restaurantHours, setRestaurantHours] = useState<any[]>([])
 
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -35,6 +36,7 @@ export default function MerchantDashboard() {
   const [pwMsg, setPwMsg] = useState('')
 
   const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
   useEffect(() => { init() }, [])
 
@@ -94,6 +96,7 @@ export default function MerchantDashboard() {
     if (!data || data.length === 0) {
       // Create default zones for all parishes
       const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
       const defaultZones = PARISHES.map(p => ({ restaurant_id: restId, parish: p, name: p, fee: 2.50, min_order: 10, is_active: true }))
       const { data: newZones } = await supabase.from('delivery_zones').insert(defaultZones).select()
       setZones(newZones || [])
@@ -282,7 +285,7 @@ export default function MerchantDashboard() {
                       {/* Settings */}
                       <button onClick={() => setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() })} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Settings</button>
                       {/* Hours */}
-                      <button onClick={() => { setShowHours(r.id); setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() }) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
+                      <button onClick={() => { setShowHours(r.id); fetchHours(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
                       {/* Zones */}
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
@@ -339,23 +342,33 @@ export default function MerchantDashboard() {
       )}
 
       {/* HOURS MODAL */}
-      {showHours && editingRestaurant && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) { setShowHours(null); setEditingRestaurant(null) } }}>
-          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
+      {showHours && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowHours(null) }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Opening Hours</h3>
-              <button onClick={() => { setShowHours(null); setEditingRestaurant(null) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f1f5f9', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}>x</button>
+              <button onClick={() => setShowHours(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f1f5f9', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}>x</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Opens</label><input type="time" value={editingRestaurant.opening_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, opening_time: e.target.value})} style={inputStyle} /></div>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Closes</label><input type="time" value={editingRestaurant.closing_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, closing_time: e.target.value})} style={inputStyle} /></div>
+            <div style={{ display: 'grid', gap: '8px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 60px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
+                <span>Day</span><span>Opens</span><span>Closes</span><span>Closed</span>
+              </div>
+              {restaurantHours.map((h, i) => (
+                <div key={h.day} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 60px', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{h.day}</span>
+                  <input type="time" value={h.open_time} onChange={e => setRestaurantHours(prev => prev.map((r, idx) => idx === i ? { ...r, open_time: e.target.value } : r))}
+                    disabled={h.is_closed}
+                    style={{ padding: '6px 8px', background: h.is_closed ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: h.is_closed ? '#334155' : '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                  <input type="time" value={h.close_time} onChange={e => setRestaurantHours(prev => prev.map((r, idx) => idx === i ? { ...r, close_time: e.target.value } : r))}
+                    disabled={h.is_closed}
+                    style={{ padding: '6px 8px', background: h.is_closed ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: h.is_closed ? '#334155' : '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <input type="checkbox" checked={h.is_closed} onChange={e => setRestaurantHours(prev => prev.map((r, idx) => idx === i ? { ...r, is_closed: e.target.checked } : r))} style={{ width: '16px', height: '16px' }} />
+                  </div>
+                </div>
+              ))}
             </div>
-            <button onClick={async () => {
-              await supabase.from('restaurants').update({ opening_time: editingRestaurant.opening_time, closing_time: editingRestaurant.closing_time }).eq('id', editingRestaurant.id)
-              setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { ...r, opening_time: editingRestaurant.opening_time, closing_time: editingRestaurant.closing_time } : r))
-              setShowHours(null); setEditingRestaurant(null)
-              setMsg('Hours saved!'); setTimeout(() => setMsg(''), 3000)
-            }} style={{ width: '100%', padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Save Hours</button>
+            <button onClick={() => saveHours(showHours)} style={{ width: '100%', padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Save Hours</button>
           </div>
         </div>
       )}
