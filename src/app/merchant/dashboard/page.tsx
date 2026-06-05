@@ -281,6 +281,10 @@ export default function MerchantDashboard() {
                       </label>
                       {/* Settings */}
                       <button onClick={() => setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() })} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Settings</button>
+                      {/* Hours */}
+                      <button onClick={() => { setShowHours(r.id); setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() }) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
+                      {/* Zones */}
+                      <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
                       <Link href={`/merchant/dashboard/menu/${r.id}`} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>Menu</Link>
                     </div>
