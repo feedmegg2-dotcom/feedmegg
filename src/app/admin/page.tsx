@@ -400,6 +400,31 @@ export default function AdminPage() {
     setNewMerchant({ name: '', email: '', phone: '', commission_rate: '4', password: '' }); fetchAll()
   }
 
+  async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
+    const catItems = menuItems.filter(i => i.category_id === catId)
+    const idx = catItems.findIndex(i => i.id === itemId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === catItems.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const a = catItems[idx]; const b = catItems[swapIdx]
+    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
+    await supabase.from('menu_items').update({ sort_order: bOrder }).eq('id', a.id)
+    await supabase.from('menu_items').update({ sort_order: aOrder }).eq('id', b.id)
+    fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function moveCategory(catId: string, direction: 'up'|'down') {
+    const idx = categories.findIndex(c => c.id === catId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === categories.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const a = categories[idx]; const b = categories[swapIdx]
+    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
+    await supabase.from('menu_categories').update({ sort_order: bOrder }).eq('id', a.id)
+    await supabase.from('menu_categories').update({ sort_order: aOrder }).eq('id', b.id)
+    fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
   async function addCategory() {
     if (!selectedRestaurant || !newCategory.name) { setMsg('Select a restaurant and enter category name'); return }
     const { error } = await supabase.from('menu_categories').insert({ restaurant_id: selectedRestaurant.id, name: newCategory.name, sort_order: parseInt(newCategory.sort_order), is_active: true })
@@ -781,6 +806,8 @@ export default function AdminPage() {
                           <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'up') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}>up</button>
+                          <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'down') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}>dn</button>
                           <button onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '12px', cursor: 'pointer' }}>Delete</button>
                           <span style={{ color: 'var(--sub)', fontSize: '12px' }}>{expandedCat === cat.id ? 'v' : '>'}</span>
                         </div>
@@ -802,6 +829,8 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
+                                <button onClick={() => moveItem(item.id, 'up', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '11px' }}>up</button>
+                                <button onClick={() => moveItem(item.id, 'down', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '11px' }}>dn</button>
                                 <button onClick={() => toggleItem(item.id, item.is_available)} style={{ fontSize: '11px', padding: '3px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? 'var(--green)' : 'var(--red)', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                   {item.is_available ? 'On' : 'Off'}
                                 </button>
