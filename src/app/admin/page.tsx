@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
@@ -29,8 +29,8 @@ export default function AdminPage() {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [menuSearch, setMenuSearch] = useState('')
   const [expandedCat, setExpandedCat] = useState<string|null>(null)
-  const [dragItem, setDragItem] = useState<any>(null)
   const [dragOverItem, setDragOverItem] = useState<any>(null)
+  const dragItem = React.useRef<any>(null)
   const [showImport, setShowImport] = useState(false)
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [showHours, setShowHours] = useState(false)
@@ -403,53 +403,52 @@ export default function AdminPage() {
   }
 
   async function handleItemDrop(catId: string, overItemId: string) {
-    if (!dragItem || dragItem.id === overItemId) { setDragItem(null); setDragOverItem(null); return }
+    if (!dragItem.current || dragItem.current.id === overItemId) { dragItem.current = null; setDragOverItem(null); return }
     const catItems = [...menuItems.filter(i => i.category_id === catId)]
-    const dragIdx = catItems.findIndex(i => i.id === dragItem.id)
+    const dragIdx = catItems.findIndex(i => i.id === dragItem.current.id)
     const overIdx = catItems.findIndex(i => i.id === overItemId)
-    if (dragIdx === -1 || overIdx === -1) { setDragItem(null); setDragOverItem(null); return }
-    catItems.splice(dragIdx, 1)
-    catItems.splice(overIdx, 0, dragItem)
+    if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
+    const moved = catItems.splice(dragIdx, 1)[0]
+    catItems.splice(overIdx, 0, moved)
     await Promise.all(catItems.map((item, idx) => supabase.from('menu_items').update({ sort_order: idx + 1 }).eq('id', item.id)))
-    setDragItem(null); setDragOverItem(null)
+    dragItem.current = null; setDragOverItem(null)
     fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
   async function handleCatDrop(overCatId: string) {
-    if (!dragItem || dragItem.id === overCatId) { setDragItem(null); setDragOverItem(null); return }
+    if (!dragItem.current || dragItem.current.id === overCatId) { dragItem.current = null; setDragOverItem(null); return }
     const cats = [...categories]
-    const dragIdx = cats.findIndex(c => c.id === dragItem.id)
+    const dragIdx = cats.findIndex(c => c.id === dragItem.current.id)
     const overIdx = cats.findIndex(c => c.id === overCatId)
-    if (dragIdx === -1 || overIdx === -1) { setDragItem(null); setDragOverItem(null); return }
-    cats.splice(dragIdx, 1)
-    cats.splice(overIdx, 0, dragItem)
+    if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
+    const moved = cats.splice(dragIdx, 1)[0]
+    cats.splice(overIdx, 0, moved)
     await Promise.all(cats.map((cat, idx) => supabase.from('menu_categories').update({ sort_order: idx + 1 }).eq('id', cat.id)))
-    setDragItem(null); setDragOverItem(null)
+    dragItem.current = null; setDragOverItem(null)
     fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
   async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
-    const catItems = menuItems.filter(i => i.category_id === catId)
+    const catItems = [...menuItems.filter(i => i.category_id === catId)]
     const idx = catItems.findIndex(i => i.id === itemId)
     if (direction === 'up' && idx === 0) return
     if (direction === 'down' && idx === catItems.length - 1) return
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    const a = catItems[idx]; const b = catItems[swapIdx]
-    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
-    await supabase.from('menu_items').update({ sort_order: bOrder }).eq('id', a.id)
-    await supabase.from('menu_items').update({ sort_order: aOrder }).eq('id', b.id)
+    const moved = catItems.splice(idx, 1)[0]
+    catItems.splice(swapIdx, 0, moved)
+    await Promise.all(catItems.map((item, i) => supabase.from('menu_items').update({ sort_order: i + 1 }).eq('id', item.id)))
     fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
   async function moveCategory(catId: string, direction: 'up'|'down') {
-    const idx = categories.findIndex(c => c.id === catId)
+    const cats = [...categories]
+    const idx = cats.findIndex(c => c.id === catId)
     if (direction === 'up' && idx === 0) return
-    if (direction === 'down' && idx === categories.length - 1) return
+    if (direction === 'down' && idx === cats.length - 1) return
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    const a = categories[idx]; const b = categories[swapIdx]
-    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
-    await supabase.from('menu_categories').update({ sort_order: bOrder }).eq('id', a.id)
-    await supabase.from('menu_categories').update({ sort_order: aOrder }).eq('id', b.id)
+    const moved = cats.splice(idx, 1)[0]
+    cats.splice(swapIdx, 0, moved)
+    await Promise.all(cats.map((cat, i) => supabase.from('menu_categories').update({ sort_order: i + 1 }).eq('id', cat.id)))
     fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
@@ -828,7 +827,12 @@ export default function AdminPage() {
                   if (menuSearch && catItems.length === 0) return null
                   return (
                     <div key={cat.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', marginBottom: '12px', overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer' }} onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                      <div
+                        onDragOver={e => { e.preventDefault(); setDragOverItem('cat-' + cat.id) }}
+                        onDragLeave={() => setDragOverItem(null)}
+                        onDrop={e => { e.stopPropagation(); handleCatDrop(cat.id) }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer', background: dragOverItem === 'cat-' + cat.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === 'cat-' + cat.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}
+                        onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ fontSize: '15px', fontWeight: 700 }}>{cat.name}</span>
                           <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
@@ -844,7 +848,11 @@ export default function AdminPage() {
                       {(expandedCat === cat.id || menuSearch) && (
                         <div style={{ borderTop: '1px solid var(--border)' }}>
                           {catItems.map(item => (
-                            <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                            <div key={item.id}
+                              onDragOver={e => { e.preventDefault(); setDragOverItem(item.id) }}
+                              onDragLeave={() => setDragOverItem(null)}
+                              onDrop={() => handleItemDrop(cat.id, item.id)}
+                              style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', background: dragOverItem === item.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === item.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ fontSize: '24px' }}>{item.emoji}</span>
                                 <div>
@@ -857,8 +865,7 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
-                                <button onClick={() => moveItem(item.id, 'up', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>up</button>
-                                <button onClick={() => moveItem(item.id, 'down', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>dn</button>
+                                <span draggable onDragStart={() => { dragItem.current = item }} style={{ cursor: 'grab', color: 'var(--sub)', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                                 <button onClick={() => toggleItem(item.id, item.is_available)} style={{ fontSize: '11px', padding: '3px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? 'var(--green)' : 'var(--red)', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                   {item.is_available ? 'On' : 'Off'}
                                 </button>
