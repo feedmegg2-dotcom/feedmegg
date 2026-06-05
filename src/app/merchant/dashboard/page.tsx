@@ -23,6 +23,8 @@ export default function MerchantDashboard() {
   // Settings modal
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [zones, setZones] = useState<any[]>([])
+  const [zonesLoading, setZonesLoading] = useState(false)
 
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -82,6 +84,26 @@ export default function MerchantDashboard() {
     setRestaurants(prev => prev.map(r => r.id === restId ? { ...r, logo_url: urlData.publicUrl } : r))
     setMsg('Logo uploaded!')
     setTimeout(() => setMsg(''), 3000)
+  }
+
+  async function fetchZones(restId: string) {
+    setZonesLoading(true)
+    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
+    if (!data || data.length === 0) {
+      // Create default zones for all parishes
+      const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
+      const defaultZones = PARISHES.map(p => ({ restaurant_id: restId, parish: p, name: p, fee: 2.50, min_order: 10, is_active: true }))
+      const { data: newZones } = await supabase.from('delivery_zones').insert(defaultZones).select()
+      setZones(newZones || [])
+    } else {
+      setZones(data)
+    }
+    setZonesLoading(false)
+  }
+
+  async function updateZone(zoneId: string, field: string, value: any) {
+    await supabase.from('delivery_zones').update({ [field]: value }).eq('id', zoneId)
+    setZones(prev => prev.map(z => z.id === zoneId ? { ...z, [field]: value } : z))
   }
 
   async function saveSettings() {
@@ -289,8 +311,7 @@ export default function MerchantDashboard() {
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Fee GBP</label><input type="number" step="0.01" value={editingRestaurant.delivery_fee} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_fee: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Mins</label><input type="number" value={editingRestaurant.delivery_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_time_mins: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Mins</label><input type="number" value={editingRestaurant.pickup_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_time_mins: e.target.value})} style={inputStyle} /></div>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Opens</label><input type="time" value={editingRestaurant.opening_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, opening_time: e.target.value})} style={inputStyle} /></div>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Closes</label><input type="time" value={editingRestaurant.closing_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, closing_time: e.target.value})} style={inputStyle} /></div>
+
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Custom Message to Customers</label><input value={editingRestaurant.custom_message || ''} onChange={e => setEditingRestaurant({...editingRestaurant, custom_message: e.target.value})} style={inputStyle} /></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input type="checkbox" id="del" checked={editingRestaurant.accepts_delivery} onChange={e => setEditingRestaurant({...editingRestaurant, accepts_delivery: e.target.checked})} />
@@ -301,11 +322,45 @@ export default function MerchantDashboard() {
                 <label htmlFor="pick" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Pickup</label>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            {/* OPENING HOURS */}
+            <div style={{ gridColumn: 'span 2', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Opening Hours</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Opens</label><input type="time" value={editingRestaurant.opening_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, opening_time: e.target.value})} style={inputStyle} /></div>
+                <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Closes</label><input type="time" value={editingRestaurant.closing_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, closing_time: e.target.value})} style={inputStyle} /></div>
+              </div>
+            </div>
+
+            {/* DELIVERY ZONES */}
+            <div style={{ gridColumn: 'span 2', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>Delivery Zones</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '12px' }}>Set delivery fee and minimum order per parish. Untick to disable delivery to that parish.</div>
+              {zonesLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: '12px' }}>Loading zones...</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
+                    <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
+                  </div>
+                  {zones.map(zone => (
+                    <div key={zone.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px' }}>{zone.parish}</span>
+                      <input type="number" step="0.01" value={zone.fee || ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0)}
+                        style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                      <input type="number" value={zone.min_order || ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0)}
+                        style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                      <input type="checkbox" checked={zone.is_active} onChange={e => updateZone(zone.id, 'is_active', e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ gridColumn: 'span 2', display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button onClick={saveSettings} disabled={savingSettings} style={{ flex: 1, padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {savingSettings ? 'Saving...' : 'Save Settings'}
               </button>
-              <button onClick={() => setEditingRestaurant(null)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { setEditingRestaurant(null); setZones([]) }} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
             </div>
           </div>
         </div>
