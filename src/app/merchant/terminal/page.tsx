@@ -545,7 +545,7 @@ export default function TerminalPage() {
           <div style={{ background: 'rgba(34,197,94,0.08)', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '12px 14px', marginBottom: '14px', fontSize: 'clamp(11px,1.8vw,13px)', color: '#94a3b8' }}>
              <strong style={{ color: '#f8fafc' }}>Epson TM-T20III</strong>  Connected 
           </div>
-          {[' Print test tickets', ' Check connection', ' Edit kitchen ticket', ' Edit restaurant ticket', ' Edit customer ticket'].map(btn => (
+          {[' Scan for Printer', ' Test Connection', ' Print Test Ticket'].map(btn => (
             <button key={btn} onClick={() => alert(`${btn}  coming soon`)} style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', color: '#f8fafc', padding: 'clamp(10px,2vw,14px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               {btn}
             </button>
@@ -555,7 +555,7 @@ export default function TerminalPage() {
 
       {screen === 'eod' && (
         <FullScreen title="End of Day Report" onBack={() => setScreen('main')}>
-          <EODReport orders={orders} onClear={() => { setArchivedOrders(prev => [...prev, ...orders.filter(o => ['paid','cancelled','accepted','waiting_payment'].includes(o.status))]); setOrders(prev => prev.filter(o => o.status === 'pending')); setScreen('main') }} />
+          <EODReport orders={orders} onClear={() => { setArchivedOrders(prev => [...prev, ...orders.filter(o => ['paid','cancelled','accepted','waiting_payment'].includes(o.status))]); setOrders(prev => prev.filter(o => o.status === 'pending')); setTab('incoming'); setScreen('main') }} />
         </FullScreen>
       )}
 
