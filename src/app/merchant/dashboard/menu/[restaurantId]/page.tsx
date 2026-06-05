@@ -125,29 +125,30 @@ export default function MerchantMenuEditor() {
   }
 
   async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
-    const catItems = (categories.find(c => c.id === catId)?.menu_items || [])
+    const catItems = [...(categories.find(c => c.id === catId)?.menu_items || [])]
     const idx = catItems.findIndex((i: any) => i.id === itemId)
     if (direction === 'up' && idx === 0) return
     if (direction === 'down' && idx === catItems.length - 1) return
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    const a = catItems[idx]; const b = catItems[swapIdx]
-    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
-    await supabase.from('menu_items').update({ sort_order: bOrder }).eq('id', a.id)
-    await supabase.from('menu_items').update({ sort_order: aOrder }).eq('id', b.id)
+    const moved = catItems.splice(idx, 1)[0]
+    catItems.splice(swapIdx, 0, moved)
+    await Promise.all(catItems.map((item: any, i: number) => supabase.from('menu_items').update({ sort_order: i + 1 }).eq('id', item.id)))
     fetchMenu()
   }
 
   async function moveCategory(catId: string, direction: 'up'|'down') {
-    const idx = categories.findIndex(c => c.id === catId)
+    const cats = [...categories]
+    const idx = cats.findIndex(c => c.id === catId)
     if (direction === 'up' && idx === 0) return
-    if (direction === 'down' && idx === categories.length - 1) return
+    if (direction === 'down' && idx === cats.length - 1) return
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    const a = categories[idx]; const b = categories[swapIdx]
-    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
-    await supabase.from('menu_categories').update({ sort_order: bOrder }).eq('id', a.id)
-    await supabase.from('menu_categories').update({ sort_order: aOrder }).eq('id', b.id)
+    const moved = cats.splice(idx, 1)[0]
+    cats.splice(swapIdx, 0, moved)
+    await Promise.all(cats.map((cat, i) => supabase.from('menu_categories').update({ sort_order: i + 1 }).eq('id', cat.id)))
     fetchMenu()
   }
+
+
 
   async function addCategory() {
     if (!newCatName) return
