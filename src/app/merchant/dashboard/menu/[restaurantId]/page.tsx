@@ -316,8 +316,12 @@ export default function MerchantMenuEditor() {
 
                 {(expandedCat === cat.id || search) && (
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                    {cat.menu_items?.map((item: any) => (
-                      <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                     {menuItems.filter((item: any) => item.category_id === cat.id).map((item: any) => (
+                       <div key={item.id}
+                         onDragOver={e => { e.preventDefault(); setDragOverItem(item.id) }}
+                         onDragLeave={() => setDragOverItem(null)}
+                         onDrop={() => handleItemDrop(cat.id, item.id)}
+                         style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: dragOverItem === item.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === item.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}>
                         {editingItem?.id === item.id ? (
                           <div style={{ display: 'grid', gap: '8px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -341,7 +345,7 @@ export default function MerchantMenuEditor() {
                             </div>
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                           <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                               <span style={{ fontSize: '20px' }}>{item.emoji}</span>
                               <div>
@@ -361,7 +365,7 @@ export default function MerchantMenuEditor() {
                               <button onClick={() => setEditingItem({...item, price: item.price?.toString()})} style={{ fontSize: '11px', padding: '4px 8px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Edit</button>
                               <button onClick={() => deleteItem(item.id)} style={{ fontSize: '11px', padding: '4px 8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer' }}>Del</button>
                             </div>
-                          </div>
+                           </>
                         )}
                       </div>
                     ))}
