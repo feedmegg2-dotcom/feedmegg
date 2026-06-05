@@ -844,7 +844,7 @@ export default function AdminPage() {
                       {(expandedCat === cat.id || menuSearch) && (
                         <div style={{ borderTop: '1px solid var(--border)' }}>
                           {catItems.map(item => (
-                            <div key={item.id} onDragOver={e => { e.preventDefault(); setDragOverItem(item) }} onDrop={e => { e.stopPropagation(); handleItemDrop(cat.id, item.id) }} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', background: dragOverItem?.id === item.id ? 'rgba(34,197,94,0.06)' : 'transparent', transition: 'background 0.15s' }}>
+                            <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ fontSize: '24px' }}>{item.emoji}</span>
                                 <div>
@@ -857,7 +857,8 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
-                                <span draggable onDragStart={e => { e.stopPropagation(); setDragItem(item) }} onDragOver={e => { e.preventDefault(); setDragOverItem(item) }} onDrop={e => { e.stopPropagation(); handleItemDrop(cat.id, item.id) }} style={{ cursor: 'grab', color: 'var(--sub)', fontSize: '16px', padding: '2px 8px', userSelect: 'none', lineHeight: 1 }} title="Drag to reorder">&#9776;</span>
+                                <button onClick={() => moveItem(item.id, 'up', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>up</button>
+                                <button onClick={() => moveItem(item.id, 'down', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>dn</button>
                                 <button onClick={() => toggleItem(item.id, item.is_available)} style={{ fontSize: '11px', padding: '3px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? 'var(--green)' : 'var(--red)', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                   {item.is_available ? 'On' : 'Off'}
                                 </button>
