@@ -97,13 +97,13 @@ export const printerStorage = {
 // Bluetooth API
 export const bluetoothPrinter = {
   async requestDevice(): Promise<{ id: string; name: string } | null> {
-    if (typeof window === 'undefined' || !navigator.bluetooth) {
+    if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
       console.error('Web Bluetooth not available');
       return null;
     }
 
     try {
-      const device = await navigator.bluetooth.requestDevice({
+      const device = await (navigator as any).bluetooth.requestDevice({
         filters: [
           { name: /thermal|printer|epson|star|xprinter|goojprt|munbyn/i },
         ],
@@ -126,8 +126,8 @@ export const bluetoothPrinter = {
     if (typeof window === 'undefined') return null;
 
     try {
-      const device = await navigator.bluetooth.getDevice(deviceId);
-      const server = await device.gatt?.connect();
+      const device = await (navigator as any).bluetooth.getDevice(deviceId);
+      const server = await (device as any).gatt?.connect();
       if (!server) return null;
 
       try {
