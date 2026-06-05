@@ -48,7 +48,14 @@ export default function MerchantDashboard() {
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/merchant/login'); return }
-    const { data: merch } = await supabase.from('merchants').select('*, restaurants(*)').eq('auth_id', user.id).single()
+    // Try auth_id first, then email
+    let { data: merch } = await supabase.from('merchants').select('*, restaurants(*)').eq('auth_id', user.id).single()
+    if (!merch) {
+      const res2 = await supabase.from('merchants').select('*, restaurants(*)').eq('email', user.email).single()
+      merch = res2.data
+      // Update auth_id if missing
+      if (merch) await supabase.from('merchants').update({ auth_id: user.id }).eq('id', merch.id)
+    }
     if (!merch) { router.push('/merchant/login'); return }
     setMerchant(merch)
     const rest = merch.restaurants?.[0]
