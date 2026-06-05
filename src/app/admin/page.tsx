@@ -365,7 +365,9 @@ export default function AdminPage() {
     await supabase.from('merchants').update({
       name: editMerchant.name,
       email: editMerchant.email,
+      phone: editMerchant.phone || null,
       commission_rate: parseFloat(editMerchant.commission_rate) || 4,
+      is_trial: editMerchant.is_trial || false,
     }).eq('id', editMerchant.id)
     if (merchantNewPassword) {
       await fetch('/api/admin/update-merchant-password', {
@@ -1103,16 +1105,40 @@ export default function AdminPage() {
             </div>
             {merchants.map(m => (
               <div key={m.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 700 }}>{m.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{m.email} - {m.phone}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>Commission: {m.commission_rate}% - Joined {new Date(m.created_at).toLocaleDateString('en-GB')}</div>
+                {editMerchant?.id === m.id ? (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div><label>Name</label><input className="input" value={editMerchant.name} onChange={e => setEditMerchant({...editMerchant, name: e.target.value})} /></div>
+                      <div><label>Email</label><input className="input" value={editMerchant.email} onChange={e => setEditMerchant({...editMerchant, email: e.target.value})} /></div>
+                      <div><label>Phone</label><input className="input" value={editMerchant.phone || ''} onChange={e => setEditMerchant({...editMerchant, phone: e.target.value})} /></div>
+                      <div><label>Commission %</label><input className="input" type="number" step="0.1" value={editMerchant.commission_rate || 4} onChange={e => setEditMerchant({...editMerchant, commission_rate: e.target.value})} /></div>
+                      <div><label>New Password (blank = no change)</label><input className="input" type="password" placeholder="New password" value={merchantNewPassword} onChange={e => setMerchantNewPassword(e.target.value)} /></div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px' }}>
+                        <input type="checkbox" id={`trial-${m.id}`} checked={editMerchant.is_trial || false} onChange={e => setEditMerchant({...editMerchant, is_trial: e.target.checked})} />
+                        <label htmlFor={`trial-${m.id}`} style={{ cursor: 'pointer', fontSize: '13px' }}>Trial merchant</label>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn-primary" onClick={saveMerchant} style={{ flex: 1 }}>Save</button>
+                      <button className="btn-ghost" onClick={() => { setEditMerchant(null); setMerchantNewPassword('') }} style={{ flex: 1 }}>Cancel</button>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: m.is_trial ? 'rgba(234,179,8,0.15)' : 'rgba(34,197,94,0.15)', color: m.is_trial ? '#EAB308' : 'var(--green)', fontWeight: 600 }}>
-                    {m.is_trial ? 'Trial' : 'Live'}
-                  </span>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700 }}>{m.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{m.email}{m.phone ? ' - ' + m.phone : ''}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '3px' }}>Commission: {m.commission_rate || 4}% - Joined {new Date(m.created_at).toLocaleDateString('en-GB')}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: m.is_trial ? 'rgba(234,179,8,0.15)' : 'rgba(34,197,94,0.15)', color: m.is_trial ? '#EAB308' : 'var(--green)', fontWeight: 600 }}>
+                        {m.is_trial ? 'Trial' : 'Live'}
+                      </span>
+                      <button className="btn-ghost" onClick={() => setEditMerchant({...m})} style={{ fontSize: '12px', padding: '5px 12px' }}>Edit</button>
+                      <button onClick={() => deleteMerchant(m.id, m.name)} style={{ fontSize: '12px', padding: '5px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', cursor: 'pointer' }}>Delete</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {showAddMerchant && (
