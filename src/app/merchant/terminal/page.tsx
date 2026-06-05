@@ -42,11 +42,24 @@ export default function TerminalPage() {
 
   useEffect(() => {
     checkAuth()
+    // Request fullscreen automatically
+    const requestFullscreen = () => {
+      const el = document.documentElement
+      if (el.requestFullscreen) el.requestFullscreen()
+      else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen()
+      else if ((el as any).mozRequestFullScreen) (el as any).mozRequestFullScreen()
+    }
+    // Need user interaction first on some browsers
+    const handler = () => { requestFullscreen(); document.removeEventListener('touchstart', handler); document.removeEventListener('click', handler) }
+    document.addEventListener('touchstart', handler)
+    document.addEventListener('click', handler)
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
       if (countdownRef.current) clearInterval(countdownRef.current)
       if (syncRef.current) clearInterval(syncRef.current)
       if (alertRef.current) clearInterval(alertRef.current)
+      document.removeEventListener('touchstart', handler)
+      document.removeEventListener('click', handler)
     }
   }, [])
 
