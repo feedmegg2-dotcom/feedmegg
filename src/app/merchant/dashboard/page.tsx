@@ -90,6 +90,26 @@ export default function MerchantDashboard() {
     setTimeout(() => setMsg(''), 3000)
   }
 
+  async function fetchHours(restId: string) {
+    const { data } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', restId)
+    const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+    const merged = DAYS.map(d => {
+      const saved = data?.find((h: any) => h.day === d)
+      return saved || { day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: restId }
+    })
+    setRestaurantHours(merged)
+  }
+
+  async function saveHours(restId: string) {
+    await supabase.from('restaurant_hours').delete().eq('restaurant_id', restId)
+    const toInsert = restaurantHours.map(h => ({
+      restaurant_id: restId, day: h.day, open_time: h.open_time, close_time: h.close_time, is_closed: h.is_closed || false,
+    }))
+    await supabase.from('restaurant_hours').insert(toInsert)
+    setShowHours(null)
+    setMsg('Opening hours saved!'); setTimeout(() => setMsg(''), 3000)
+  }
+
   async function fetchZones(restId: string) {
     setZonesLoading(true)
     const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
