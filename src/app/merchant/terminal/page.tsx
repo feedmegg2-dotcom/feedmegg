@@ -22,13 +22,15 @@ export default function TerminalPage() {
   const [restaurant, setRestaurant] = useState<any>(null)
   const [aiTagging, setAiTagging] = useState(false)
   const [selectedSound, setSelectedSound] = useState('chime')
+  const [paymentSound, setPaymentSound] = useState('bell')
+  const alertRef = useRef<any>(null)
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
   const [delivTime, setDelivTime] = useState(25)
   const [pickTime, setPickTime] = useState(15)
   const [timeModal, setTimeModal] = useState<'delivery' | 'pickup' | null>(null)
-  const [toggles, setToggles] = useState({ preorders: true, delivery: true, pickups: true, sync: true })
+  const [toggles, setToggles] = useState({ preorders: true, delivery: true, pickups: true })
   const countdownRef = useRef<any>(null)
   const pollRef = useRef<any>(null)
   const syncRef = useRef<any>(null)
@@ -40,6 +42,7 @@ export default function TerminalPage() {
       if (pollRef.current) clearInterval(pollRef.current)
       if (countdownRef.current) clearInterval(countdownRef.current)
       if (syncRef.current) clearInterval(syncRef.current)
+      if (alertRef.current) clearInterval(alertRef.current)
     }
   }, [])
 
@@ -95,39 +98,32 @@ export default function TerminalPage() {
       const name = soundName || selectedSound
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      gain.gain.setValueAtTime(0.3, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+      osc.connect(gain); gain.connect(ctx.destination)
+      const t = ctx.currentTime
+      gain.gain.setValueAtTime(0.3, t)
 
-      if (name === 'chime') {
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(880, ctx.currentTime)
-        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15)
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
-      } else if (name === 'ding') {
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(1200, ctx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.5)
-      } else if (name === 'beep') {
-        osc.type = 'square'
-        osc.frequency.setValueAtTime(800, ctx.currentTime)
-        gain.gain.setValueAtTime(0.1, ctx.currentTime)
-      } else if (name === 'alert') {
-        osc.type = 'sawtooth'
-        osc.frequency.setValueAtTime(440, ctx.currentTime)
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1)
-        osc.frequency.setValueAtTime(440, ctx.currentTime + 0.2)
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
-      } else if (name === 'bell') {
-        osc.type = 'triangle'
-        osc.frequency.setValueAtTime(1568, ctx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(784, ctx.currentTime + 1)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
-      }
+      if (name === 'chime') { osc.type = 'sine'; osc.frequency.setValueAtTime(880, t); osc.frequency.setValueAtTime(1100, t+0.15); osc.frequency.setValueAtTime(880, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.8) }
+      else if (name === 'ding') { osc.type = 'sine'; osc.frequency.setValueAtTime(1200, t); osc.frequency.exponentialRampToValueAtTime(600, t+0.5); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
+      else if (name === 'beep') { osc.type = 'square'; osc.frequency.setValueAtTime(800, t); gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.3) }
+      else if (name === 'alert') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, t); osc.frequency.setValueAtTime(880, t+0.1); osc.frequency.setValueAtTime(440, t+0.2); osc.frequency.setValueAtTime(880, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.5) }
+      else if (name === 'bell') { osc.type = 'triangle'; osc.frequency.setValueAtTime(1568, t); osc.frequency.exponentialRampToValueAtTime(784, t+1); gain.gain.exponentialRampToValueAtTime(0.001, t+1.2) }
+      else if (name === 'ping') { osc.type = 'sine'; osc.frequency.setValueAtTime(1400, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
+      else if (name === 'buzz') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.3) }
+      else if (name === 'pop') { osc.type = 'sine'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.15) }
+      else if (name === 'blip') { osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(900, t+0.05); gain.gain.exponentialRampToValueAtTime(0.001, t+0.2) }
+      else if (name === 'horn') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(350, t); osc.frequency.setValueAtTime(400, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
+      else if (name === 'whistle') { osc.type = 'sine'; osc.frequency.setValueAtTime(2000, t); osc.frequency.setValueAtTime(1800, t+0.1); osc.frequency.setValueAtTime(2000, t+0.2); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
+      else if (name === 'cuckoo') { osc.type = 'triangle'; osc.frequency.setValueAtTime(528, t); osc.frequency.setValueAtTime(440, t+0.2); osc.frequency.setValueAtTime(528, t+0.5); osc.frequency.setValueAtTime(440, t+0.7); gain.gain.exponentialRampToValueAtTime(0.001, t+1) }
+      else if (name === 'siren') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, t); osc.frequency.linearRampToValueAtTime(800, t+0.4); osc.frequency.linearRampToValueAtTime(400, t+0.8); gain.gain.exponentialRampToValueAtTime(0.001, t+1) }
+      else if (name === 'doorbell') { osc.type = 'sine'; osc.frequency.setValueAtTime(698, t); osc.frequency.setValueAtTime(587, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.8) }
+      else if (name === 'chirp') { osc.type = 'sine'; osc.frequency.setValueAtTime(1000, t); osc.frequency.exponentialRampToValueAtTime(2000, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.2) }
+      else if (name === 'gong') { osc.type = 'triangle'; osc.frequency.setValueAtTime(220, t); gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.001, t+2) }
+      else if (name === 'xylophone') { osc.type = 'triangle'; osc.frequency.setValueAtTime(1046, t); osc.frequency.setValueAtTime(880, t+0.15); osc.frequency.setValueAtTime(1046, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
+      else if (name === 'trumpet') { osc.type = 'square'; osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(659, t+0.15); osc.frequency.setValueAtTime(784, t+0.3); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
+      else if (name === 'sonar') { osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(200, t+0.5); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
+      else if (name === 'sparkle') { osc.type = 'sine'; osc.frequency.setValueAtTime(2000, t); osc.frequency.setValueAtTime(2500, t+0.05); osc.frequency.setValueAtTime(3000, t+0.1); osc.frequency.setValueAtTime(2500, t+0.15); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
 
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 1.2)
+      osc.start(t); osc.stop(t + 2)
     } catch (e) { console.log('Sound error:', e) }
   }
 
@@ -147,16 +143,26 @@ export default function TerminalPage() {
     }
   }
 
+  function startAlertRepeat() {
+    if (alertRef.current) return
+    playAlertSound()
+    alertRef.current = setInterval(() => playAlertSound(), 2000)
+  }
+
+  function stopAlertRepeat() {
+    if (alertRef.current) { clearInterval(alertRef.current); alertRef.current = null }
+  }
+
   async function pollOrders(restId: string) {
     const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid']).order('created_at', { ascending: false })
     if (!data) return
     const prevPendingIds = orders.filter(o => o.status === 'pending').map((o: any) => o.id)
     const newPending = data.filter(o => o.status === 'pending' && !prevPendingIds.includes(o.id))
     setOrders(data)
-    if (newPending.length > 0 && screen === 'main') {
+    if (newPending.length > 0) {
       setCurrentOrderId(newPending[0].id)
       setScreen('neworder')
-      playSound('new')
+      startAlertRepeat()
     }
   }
 
@@ -180,6 +186,7 @@ export default function TerminalPage() {
 
   async function acceptOrder() {
     if (!currentOrder) return
+    stopAlertRepeat()
     setAcceptOpen(false)
     setScreen('paying')
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
@@ -189,10 +196,11 @@ export default function TerminalPage() {
     }, 1000)
   }
 
-  function simulatePayment() { setScreen('paid'); playSound('paid') }
+  function simulatePayment() { setScreen('paid'); playAlertSound(paymentSound) }
 
   async function rejectOrder() {
     if (!currentOrder) return
+    stopAlertRepeat()
     setRejectOpen(false)
     const reason = selectedReason || customReason || 'No reason given'
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejectionReason: reason }) })
@@ -249,9 +257,9 @@ export default function TerminalPage() {
 
         {/* Toggles */}
         <div style={{ display: 'flex', gap: 'clamp(4px,1vw,8px)', flexWrap: 'wrap', flex: 1 }}>
-          {(['preorders','delivery','pickups','sync'] as const).map(key => (
+          {(['preorders','delivery','pickups'] as const).map(key => (
             <div key={key} onClick={() => setToggles(t => ({ ...t, [key]: !t[key] }))} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: toggles[key] ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `0.5px solid ${toggles[key] ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '8px', padding: 'clamp(4px,1vw,6px) clamp(6px,1.2vw,10px)', fontSize: 'clamp(9px,1.4vw,11px)', color: toggles[key] ? '#22c55e' : '#ef4444', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              {key === 'sync' ? 'food.gg' : key.charAt(0).toUpperCase() + key.slice(1)}
+              {key.charAt(0).toUpperCase() + key.slice(1)}
               <div style={{ width: 'clamp(22px,3vw,28px)', height: 'clamp(12px,1.8vw,15px)', borderRadius: '8px', background: toggles[key] ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: '2px', left: toggles[key] ? 'calc(100% - 13px)' : '2px', width: 'clamp(8px,1.4vw,11px)', height: 'clamp(8px,1.4vw,11px)', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
               </div>
@@ -286,16 +294,24 @@ export default function TerminalPage() {
               </button>
             ))}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0', padding: '10px 14px' }}>
-              <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Alert Sound</div>
-              <div style={{ display: 'grid', gap: '4px' }}>
-                {['chime','ding','beep','alert','bell'].map(s => (
-                  <div key={s} onClick={() => setSelectedSound(s)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: '6px', background: selectedSound === s ? 'rgba(34,197,94,0.1)' : 'none', cursor: 'pointer' }}>
-                    <span style={{ fontSize: '12px', color: selectedSound === s ? '#22c55e' : '#94a3b8', textTransform: 'capitalize', fontWeight: selectedSound === s ? 600 : 400 }}>{s}</span>
-                    {selectedSound === s && <span style={{ fontSize: '10px', color: '#22c55e' }}>&#10003;</span>}
-                  </div>
-                ))}
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Order Sound</div>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                <select value={selectedSound} onChange={e => setSelectedSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
+                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle'].map(s => (
+                    <option key={s} value={s} style={{ background: '#0f172a', textTransform: 'capitalize' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+                <button onClick={() => playAlertSound(selectedSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
-              <button onClick={() => playAlertSound()} style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>Test Sound</button>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Sound</div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <select value={paymentSound} onChange={e => setPaymentSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
+                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle'].map(s => (
+                    <option key={s} value={s} style={{ background: '#0f172a', textTransform: 'capitalize' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+                <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
+              </div>
             </div>
           </div>
         )}
@@ -630,12 +646,12 @@ function TerminalCatSection({ catName, items, onToggle }: { catName: string; ite
 
 function FullScreen({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-      <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(14px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>{title}</div>
-        <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: '#f8fafc', padding: 'clamp(8px,1.5vw,10px) clamp(14px,2.5vw,20px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}> Close</button>
+    <div style={{ position: 'fixed', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
+      <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,16px) clamp(12px,2.5vw,20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(14px,2.5vw,18px)', fontWeight: 700, color: '#f8fafc' }}>{title}</div>
+        <button onClick={onBack} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', padding: 'clamp(8px,1.5vw,10px) clamp(16px,2.5vw,24px)', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer' }}>Back</button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(10px,2vw,16px)' }}>{children}</div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(12px,2vw,20px)' }}>{children}</div>
     </div>
   )
 }
