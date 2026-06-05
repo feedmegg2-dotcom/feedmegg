@@ -47,15 +47,17 @@ export default function MerchantDashboard() {
 
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
+    console.log('User:', user?.email, user?.id)
     if (!user) { router.push('/merchant/login'); return }
-    // Try auth_id first, then email - use maybeSingle to avoid 406
-    let { data: merch } = await supabase.from('merchants').select('*, restaurants(*)').eq('auth_id', user.id).maybeSingle()
+    let { data: merch, error: e1 } = await supabase.from('merchants').select('*, restaurants(*)').eq('auth_id', user.id).maybeSingle()
+    console.log('Merch by auth_id:', merch, e1)
     if (!merch) {
       const res2 = await supabase.from('merchants').select('*, restaurants(*)').eq('email', user.email).maybeSingle()
+      console.log('Merch by email:', res2.data, res2.error)
       merch = res2.data
       if (merch) await supabase.from('merchants').update({ auth_id: user.id }).eq('id', merch.id)
     }
-    if (!merch) { router.push('/merchant/login'); return }
+    if (!merch) { console.log('No merchant found - redirecting'); router.push('/merchant/login'); return }
     setMerchant(merch)
     const rest = merch.restaurants?.[0]
     setRestaurant(rest)
