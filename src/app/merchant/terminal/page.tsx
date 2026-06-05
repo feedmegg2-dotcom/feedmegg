@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { PrinterSettingsScreen } from '@/components/PrinterSettingsScreen'
+import { usePrinterAutoprint } from '@/hooks/usePrinterAutoprint'
 
 export default function TerminalPage() {
   const router = useRouter()
@@ -39,8 +41,10 @@ export default function TerminalPage() {
   const pollRef = useRef<any>(null)
   const syncRef = useRef<any>(null)
   const audioCtx = useRef<any>(null)
-
   const wakeLockRef = useRef<any>(null)
+
+  // Printer hook
+  const { triggerAutoPrint, manualReprint } = usePrinterAutoprint()
 
   useEffect(() => {
     checkAuth()
@@ -239,6 +243,23 @@ export default function TerminalPage() {
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'payment_confirmed' }) })
     setScreen('paid')
     playAlertSound(paymentSound)
+    
+    // Trigger auto-print
+    triggerAutoPrint({
+      id: currentOrder.id,
+      orderNumber: currentOrder.order_number,
+      restaurantName: restaurant?.name || 'Restaurant',
+      customerName: currentOrder.customer_name,
+      deliveryAddress: currentOrder.delivery_address,
+      isCollection: currentOrder.order_type === 'collection',
+      items: currentOrder.order_items || [],
+      specialInstructions: currentOrder.special_instructions,
+      subtotal: currentOrder.subtotal,
+      deliveryFee: currentOrder.delivery_fee,
+      tip: currentOrder.tip,
+      total: currentOrder.total,
+    }, 'paid')
+
     setTimeout(() => {
       setScreen('main')
       setCurrentOrderId(null)
@@ -551,11 +572,7 @@ export default function TerminalPage() {
       )}
 
       {screen === 'printer' && (
-        <FullScreen title="Printer Settings" onBack={() => setScreen('main')}>
-          <div style={{ background: 'rgba(34,197,94,0.08)', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '12px 14px', marginBottom: '14px', fontSize: 'clamp(11px,1.8vw,13px)', color: '#94a3b8' }}>
-            Printer settings coming soon
-          </div>
-        </FullScreen>
+        <PrinterSettingsScreen onBack={() => setScreen('main')} />
       )}
 
       {screen === 'eod' && (
