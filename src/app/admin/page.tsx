@@ -27,6 +27,8 @@ export default function AdminPage() {
   const [showAddMerchant, setShowAddMerchant] = useState(false)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [menuSearch, setMenuSearch] = useState('')
+  const [expandedCat, setExpandedCat] = useState<string|null>(null)
   const [showImport, setShowImport] = useState(false)
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [showHours, setShowHours] = useState(false)
@@ -760,34 +762,65 @@ export default function AdminPage() {
 
             {!selectedRestaurant && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>Select a restaurant to edit its menu</div>}
 
-            {selectedRestaurant && categories.map(cat => (
-              <div key={cat.id} style={{ marginBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat.name}</div>
-                  <button onClick={() => deleteCategory(cat.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '11px', cursor: 'pointer' }}>Delete category</button>
+            {selectedRestaurant && (
+              <div>
+                {/* Search */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <input value={menuSearch} onChange={e => setMenuSearch(e.target.value)} placeholder="Search menu items..." className="input" style={{ flex: 1 }} />
+                  {menuSearch && <button onClick={() => setMenuSearch('')} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 14px' }}>Clear</button>}
                 </div>
-                {menuItems.filter(i => i.category_id === cat.id).map(item => (
-                  <div key={item.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '24px' }}>{item.emoji}</span>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: item.is_available ? 'var(--text)' : 'var(--sub)' }}>{item.name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{item.description}</div>
+
+                {categories.map(cat => {
+                  const catItems = menuItems.filter(i => i.category_id === cat.id && (!menuSearch || i.name.toLowerCase().includes(menuSearch.toLowerCase())))
+                  if (menuSearch && catItems.length === 0) return null
+                  return (
+                    <div key={cat.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', marginBottom: '12px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer' }} onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 700 }}>{cat.name}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '12px', cursor: 'pointer' }}>Delete</button>
+                          <span style={{ color: 'var(--sub)', fontSize: '12px' }}>{expandedCat === cat.id ? 'v' : '>'}</span>
+                        </div>
                       </div>
+
+                      {(expandedCat === cat.id || menuSearch) && (
+                        <div style={{ borderTop: '1px solid var(--border)' }}>
+                          {catItems.map(item => (
+                            <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '24px' }}>{item.emoji}</span>
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: 600, color: item.is_available ? 'var(--text)' : 'var(--sub)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {item.name}
+                                    {!item.is_available && <span style={{ fontSize: '10px', padding: '1px 5px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', borderRadius: '4px' }}>Off</span>}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{item.description}</div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
+                                <button onClick={() => toggleItem(item.id, item.is_available)} style={{ fontSize: '11px', padding: '3px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? 'var(--green)' : 'var(--red)', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
+                                  {item.is_available ? 'On' : 'Off'}
+                                </button>
+                                <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '12px' }}>Edit</button>
+                                <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '12px' }}>Options</button>
+                                <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Del</button>
+                              </div>
+                            </div>
+                          ))}
+                          <div style={{ padding: '10px 16px' }}>
+                            <button onClick={() => { setShowAddItem(true); setExpandedCat(cat.id) }} style={{ width: '100%', padding: '8px', background: 'none', border: '1px dashed var(--border)', color: 'var(--sub)', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>+ Add item</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
-                      <div onClick={() => toggleItem(item.id, item.is_available)} style={{ width: '30px', height: '16px', borderRadius: '8px', background: item.is_available ? 'var(--green)' : 'var(--bg3)', position: 'relative', cursor: 'pointer' }}>
-                        <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '16px' : '2px', width: '12px', height: '12px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
-                      </div>
-                      <button onClick={() => setEditItem(item)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '12px' }}>Edit</button>
-                      <button onClick={() => { setEditingOptions(item); fetchOptionGroups(item.id) }} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '12px' }}>Options</button>
-                      <button onClick={() => deleteMenuItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>Del</button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-            ))}
+            )}
 
             {/* SHARED TOPPINGS MODAL */}
             {showSharedGroups && selectedRestaurant && (
