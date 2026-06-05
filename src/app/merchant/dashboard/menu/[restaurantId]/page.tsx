@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -17,6 +17,8 @@ export default function MerchantMenuEditor() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
   const [search, setSearch] = useState('')
+  const [dragOverItem, setDragOverItem] = useState<any>(null)
+  const dragItem = React.useRef<any>(null)
   const [tab, setTab] = useState<'menu'|'shared'>('menu')
 
   // Category
@@ -93,6 +95,58 @@ export default function MerchantMenuEditor() {
     }
     setOptionGroups(direct || [])
     setSharedOptionGroups(shared)
+  }
+
+  async function handleItemDrop(catId: string, overItemId: string) {
+    if (!dragItem.current || dragItem.current.id === overItemId) { dragItem.current = null; setDragOverItem(null); return }
+    const cat = categories.find(c => c.id === catId)
+    const catItems = [...(cat?.menu_items || [])]
+    const dragIdx = catItems.findIndex((i: any) => i.id === dragItem.current.id)
+    const overIdx = catItems.findIndex((i: any) => i.id === overItemId)
+    if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
+    const moved = catItems.splice(dragIdx, 1)[0]
+    catItems.splice(overIdx, 0, moved)
+    await Promise.all(catItems.map((item: any, idx: number) => supabase.from('menu_items').update({ sort_order: idx + 1 }).eq('id', item.id)))
+    dragItem.current = null; setDragOverItem(null)
+    fetchMenu()
+  }
+
+  async function handleCatDrop(overCatId: string) {
+    if (!dragItem.current || dragItem.current.id === overCatId) { dragItem.current = null; setDragOverItem(null); return }
+    const cats = [...categories]
+    const dragIdx = cats.findIndex(c => c.id === dragItem.current.id)
+    const overIdx = cats.findIndex(c => c.id === overCatId)
+    if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
+    const moved = cats.splice(dragIdx, 1)[0]
+    cats.splice(overIdx, 0, moved)
+    await Promise.all(cats.map((cat, idx) => supabase.from('menu_categories').update({ sort_order: idx + 1 }).eq('id', cat.id)))
+    dragItem.current = null; setDragOverItem(null)
+    fetchMenu()
+  }
+
+  async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
+    const catItems = (categories.find(c => c.id === catId)?.menu_items || [])
+    const idx = catItems.findIndex((i: any) => i.id === itemId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === catItems.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const a = catItems[idx]; const b = catItems[swapIdx]
+    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
+    await supabase.from('menu_items').update({ sort_order: bOrder }).eq('id', a.id)
+    await supabase.from('menu_items').update({ sort_order: aOrder }).eq('id', b.id)
+    fetchMenu()
+  }
+
+  async function moveCategory(catId: string, direction: 'up'|'down') {
+    const idx = categories.findIndex(c => c.id === catId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === categories.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const a = categories[idx]; const b = categories[swapIdx]
+    const aOrder = a.sort_order ?? idx; const bOrder = b.sort_order ?? swapIdx
+    await supabase.from('menu_categories').update({ sort_order: bOrder }).eq('id', a.id)
+    await supabase.from('menu_categories').update({ sort_order: aOrder }).eq('id', b.id)
+    fetchMenu()
   }
 
   async function addCategory() {
@@ -227,12 +281,18 @@ export default function MerchantMenuEditor() {
           <div>
             {filteredCategories.map(cat => (
               <div key={cat.id} style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', marginBottom: '12px', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer' }} onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOverItem('cat-' + cat.id) }}
+                  onDragLeave={() => setDragOverItem(null)}
+                  onDrop={e => { e.stopPropagation(); handleCatDrop(cat.id) }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer', background: dragOverItem === 'cat-' + cat.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === 'cat-' + cat.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}
+                  onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '15px', fontWeight: 700 }}>{cat.name}</span>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>{cat.menu_items?.length || 0} items</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span draggable onDragStart={e => { e.stopPropagation(); dragItem.current = cat }} style={{ cursor: 'grab', color: '#94a3b8', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                     <button onClick={e => { e.stopPropagation(); setEditingCat(cat) }} style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Rename</button>
                     <button onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer' }}>Delete</button>
                     <span style={{ color: '#64748b', fontSize: '12px' }}>{expandedCat === cat.id ? 'v' : '>'}</span>
@@ -286,6 +346,7 @@ export default function MerchantMenuEditor() {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                              <span draggable onDragStart={() => { dragItem.current = item }} style={{ cursor: 'grab', color: '#94a3b8', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                               <button onClick={() => toggleItemAvailable(item.id, item.is_available)} style={{ fontSize: '11px', padding: '4px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? '#22c55e' : '#ef4444', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                 {item.is_available ? 'On' : 'Off'}
                               </button>
