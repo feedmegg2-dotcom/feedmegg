@@ -122,7 +122,7 @@ export const bluetoothPrinter = {
 
   async connect(
     deviceId: string
-  ): Promise<BluetoothRemoteGATTCharacteristic | null> {
+  ): Promise<any | null> {
     if (typeof window === 'undefined') return null;
 
     try {
@@ -148,7 +148,7 @@ export const bluetoothPrinter = {
   },
 
   async sendCommand(
-    characteristic: BluetoothRemoteGATTCharacteristic,
+    characteristic: any,
     data: Uint8Array
   ): Promise<boolean> {
     try {
