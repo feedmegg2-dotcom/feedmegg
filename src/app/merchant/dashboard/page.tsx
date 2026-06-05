@@ -23,6 +23,8 @@ export default function MerchantDashboard() {
   // Settings modal
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [showZones, setShowZones] = useState<string|null>(null)
+  const [showHours, setShowHours] = useState<string|null>(null)
   const [zones, setZones] = useState<any[]>([])
   const [zonesLoading, setZonesLoading] = useState(false)
 
@@ -322,51 +324,72 @@ export default function MerchantDashboard() {
                 <label htmlFor="pick" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Pickup</label>
               </div>
             </div>
-            {/* OPENING HOURS */}
-            <div style={{ gridColumn: 'span 2', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Opening Hours</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Opens</label><input type="time" value={editingRestaurant.opening_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, opening_time: e.target.value})} style={inputStyle} /></div>
-                <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Closes</label><input type="time" value={editingRestaurant.closing_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, closing_time: e.target.value})} style={inputStyle} /></div>
-              </div>
-            </div>
-
-            {/* DELIVERY ZONES */}
-            <div style={{ gridColumn: 'span 2', marginTop: '8px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>Delivery Zones</div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '12px' }}>Set delivery fee and minimum order per parish. Untick to disable delivery to that parish.</div>
-              {zonesLoading ? (
-                <div style={{ textAlign: 'center', color: '#64748b', padding: '12px' }}>Loading zones...</div>
-              ) : (
-                <div style={{ display: 'grid', gap: '6px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
-                    <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
-                  </div>
-                  {zones.map(zone => (
-                    <div key={zone.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px' }}>{zone.parish}</span>
-                      <input type="number" step="0.01" value={zone.fee || ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0)}
-                        style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                      <input type="number" value={zone.min_order || ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0)}
-                        style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                      <input type="checkbox" checked={zone.is_active} onChange={e => updateZone(zone.id, 'is_active', e.target.checked)} style={{ width: '16px', height: '16px' }} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ gridColumn: 'span 2', display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button onClick={saveSettings} disabled={savingSettings} style={{ flex: 1, padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {savingSettings ? 'Saving...' : 'Save Settings'}
               </button>
-              <button onClick={() => { setEditingRestaurant(null); setZones([]) }} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => setEditingRestaurant(null)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* PASSWORD MODAL */}
+      {/* HOURS MODAL */}
+      {showHours && editingRestaurant && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) { setShowHours(null); setEditingRestaurant(null) } }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Opening Hours</h3>
+              <button onClick={() => { setShowHours(null); setEditingRestaurant(null) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f1f5f9', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}>x</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Opens</label><input type="time" value={editingRestaurant.opening_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, opening_time: e.target.value})} style={inputStyle} /></div>
+              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Closes</label><input type="time" value={editingRestaurant.closing_time || ''} onChange={e => setEditingRestaurant({...editingRestaurant, closing_time: e.target.value})} style={inputStyle} /></div>
+            </div>
+            <button onClick={async () => {
+              await supabase.from('restaurants').update({ opening_time: editingRestaurant.opening_time, closing_time: editingRestaurant.closing_time }).eq('id', editingRestaurant.id)
+              setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { ...r, opening_time: editingRestaurant.opening_time, closing_time: editingRestaurant.closing_time } : r))
+              setShowHours(null); setEditingRestaurant(null)
+              setMsg('Hours saved!'); setTimeout(() => setMsg(''), 3000)
+            }} style={{ width: '100%', padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Save Hours</button>
+          </div>
+        </div>
+      )}
+
+      {/* ZONES MODAL */}
+      {showZones && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowZones(null) }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Delivery Zones</h3>
+              <button onClick={() => setShowZones(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f1f5f9', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}>x</button>
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>Set delivery fee and minimum order per parish. Untick to disable delivery to that parish.</div>
+            {zonesLoading ? (
+              <div style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Loading zones...</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
+                  <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
+                </div>
+                {zones.map(zone => (
+                  <div key={zone.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px' }}>{zone.parish}</span>
+                    <input type="number" step="0.01" value={zone.fee ?? ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0)}
+                      style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                    <input type="number" value={zone.min_order ?? ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0)}
+                      style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                    <input type="checkbox" checked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setShowZones(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* PASSWORD MODAL */}}
       {showPasswordModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowPasswordModal(false) }}>
           <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
