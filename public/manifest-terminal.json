@@ -3,7 +3,7 @@
   "short_name": "Terminal",
   "description": "feedme.gg Merchant Terminal",
   "start_url": "/merchant/login",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#0a0f1e",
   "theme_color": "#22c55e",
   "orientation": "any",
