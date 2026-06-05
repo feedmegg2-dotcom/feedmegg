@@ -27,6 +27,8 @@ export default function TerminalPage() {
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
+  const [historyStartDate, setHistoryStartDate] = useState<string>('')
+  const [historyEndDate, setHistoryEndDate] = useState<string>('')
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [delivTime, setDelivTime] = useState(25)
   const [pickTime, setPickTime] = useState(15)
@@ -553,28 +555,42 @@ export default function TerminalPage() {
 
       {screen === 'eod' && (
         <FullScreen title="End of Day Report" onBack={() => setScreen('main')}>
-          <EODReport orders={orders} onClear={() => { setArchivedOrders(prev => [...prev, ...orders.filter(o => ['paid','cancelled'].includes(o.status))]); setOrders(prev => prev.filter(o => o.status === 'pending')); setScreen('main') }} />
+          <EODReport orders={orders} onClear={() => { setArchivedOrders(prev => [...prev, ...orders.filter(o => ['paid','cancelled','accepted','waiting_payment'].includes(o.status))]); setOrders(prev => prev.filter(o => o.status === 'pending')); setScreen('main') }} />
         </FullScreen>
       )}
 
       {screen === 'history' && (
         <FullScreen title="Order History" onBack={() => setScreen('main')}>
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#94a3b8', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date Range</div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <input type="date" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+              <input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+              {(historyStartDate || historyEndDate) && <button onClick={() => { setHistoryStartDate(''); setHistoryEndDate('') }} style={{ padding: '6px 10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Clear</button>}
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px' }}>
             <span style={{ color: '#475569' }}></span>
-            <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search orders..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
+            <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search by order # or customer..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
           </div>
-          {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())).map(o => {
+          {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => {
+            const orderDate = new Date(o.created_at).toISOString().split('T')[0]
+            const matchesSearch = !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())
+            const matchesStartDate = !historyStartDate || orderDate >= historyStartDate
+            const matchesEndDate = !historyEndDate || orderDate <= historyEndDate
+            return matchesSearch && matchesStartDate && matchesEndDate
+          }).map(o => {
             const isExpanded = expandedOrderId === o.id
             return (
               <div key={o.id || o.order_number} style={{ marginBottom: '8px' }}>
                 <div onClick={() => setExpandedOrderId(isExpanded ? null : o.id)} style={{ background: '#060b18', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: isExpanded ? '8px 8px 0 0' : '8px', padding: 'clamp(8px,1.5vw,12px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
                   <div>
                     <div style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
-                    <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569' }}>{o.customer_name}</div>
+                    <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#475569' }}>{o.customer_name} • {new Date(o.created_at).toLocaleDateString()}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
+                      <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>£{o.total?.toFixed(2)}</div>
                       <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: o.status === 'paid' ? '#22c55e' : '#ef4444' }}>{o.status}</span>
                     </div>
                     <span style={{ fontSize: '14px', color: '#94a3b8', transition: 'transform 0.2s' }}>{isExpanded ? '▼' : '▶'}</span>
