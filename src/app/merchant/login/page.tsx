@@ -54,16 +54,16 @@ export default function MerchantLogin() {
 
           {/* DESTINATION PICKER */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-            <div onClick={() => setDestination('dashboard')} style={{ background: card, border: `2px solid ${destination === 'dashboard' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}></div>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Dashboard</div>
+            <button onClick={() => setDestination('dashboard')} style={{ background: destination === 'dashboard' ? 'rgba(34,197,94,0.08)' : card, border: `2px solid ${destination === 'dashboard' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s', fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px', color: text }}>Dashboard</div>
               <div style={{ fontSize: '11px', color: sub }}>Manage menu & settings</div>
-            </div>
-            <div onClick={() => setDestination('terminal')} style={{ background: card, border: `2px solid ${destination === 'terminal' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}></div>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Terminal</div>
+            </button>
+            <button onClick={() => setDestination('terminal')} style={{ background: destination === 'terminal' ? 'rgba(34,197,94,0.08)' : card, border: `2px solid ${destination === 'terminal' ? '#22c55e' : border}`, borderRadius: '14px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s', fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🖥️</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px', color: text }}>Terminal</div>
               <div style={{ fontSize: '11px', color: sub }}>Take & manage orders</div>
-            </div>
+            </button>
           </div>
 
           {/* LOGIN FORM */}
