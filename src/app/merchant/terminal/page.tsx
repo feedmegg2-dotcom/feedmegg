@@ -214,22 +214,6 @@ export default function TerminalPage() {
     setMenuItems(prev => prev.map(i => i.id === id ? { ...i, is_available: !current } : i))
   }
 
-  // Start/stop food.gg sync when toggle changes
-  useEffect(() => {
-    if (toggles.sync && restaurant?.id) {
-      // Run immediately then every 5 minutes
-      syncFoodGG(restaurant.id)
-      syncRef.current = setInterval(() => syncFoodGG(restaurant.id), 5 * 60 * 1000)
-    } else {
-      if (syncRef.current) {
-        clearInterval(syncRef.current)
-        syncRef.current = null
-      }
-    }
-    return () => {
-      if (syncRef.current) clearInterval(syncRef.current)
-    }
-  }, [toggles.sync, restaurant?.id])
 
   const filteredItems = menuItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()) || i.menu_categories?.name?.toLowerCase().includes(itemSearch.toLowerCase()))
 
