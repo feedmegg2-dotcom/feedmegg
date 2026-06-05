@@ -27,6 +27,7 @@ export default function TerminalPage() {
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [delivTime, setDelivTime] = useState(25)
   const [pickTime, setPickTime] = useState(15)
   const [timeModal, setTimeModal] = useState<'delivery' | 'pickup' | null>(null)
@@ -562,18 +563,73 @@ export default function TerminalPage() {
             <span style={{ color: '#475569' }}></span>
             <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search orders..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
           </div>
-          {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())).map(o => (
-            <div key={o.id || o.order_number} style={{ background: '#060b18', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: 'clamp(8px,1.5vw,12px)', marginBottom: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
-                <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569' }}>{o.customer_name}</div>
+          {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())).map(o => {
+            const isExpanded = expandedOrderId === o.id
+            return (
+              <div key={o.id || o.order_number} style={{ marginBottom: '8px' }}>
+                <div onClick={() => setExpandedOrderId(isExpanded ? null : o.id)} style={{ background: '#060b18', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: isExpanded ? '8px 8px 0 0' : '8px', padding: 'clamp(8px,1.5vw,12px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <div>
+                    <div style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
+                    <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569' }}>{o.customer_name}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
+                      <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: o.status === 'paid' ? '#22c55e' : '#ef4444' }}>{o.status}</span>
+                    </div>
+                    <span style={{ fontSize: '14px', color: '#94a3b8', transition: 'transform 0.2s' }}>{isExpanded ? '▼' : '▶'}</span>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '0 0 8px 8px', borderTop: 'none', padding: 'clamp(10px,1.5vw,14px)', fontSize: 'clamp(10px,1.6vw,12px)', color: '#64748b' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Customer</div>
+                      <div>{o.customer_name}</div>
+                      <div>{o.customer_phone}</div>
+                      <div>{o.customer_email || 'No email'}</div>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Order Type</div>
+                      <div>{o.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</div>
+                      {o.order_type === 'delivery' && o.delivery_address && <div>{o.delivery_address}</div>}
+                      {o.delivery_what3words && <div style={{ color: '#ef4444', fontWeight: 600 }}>/// {o.delivery_what3words}</div>}
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Items</div>
+                      {o.order_items?.map((item: any) => (
+                        <div key={item.id}>{item.quantity}x {item.name} - £{item.subtotal?.toFixed(2)}</div>
+                      ))}
+                    </div>
+                    <div style={{ marginBottom: '8px', paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                        <span>Subtotal:</span>
+                        <span>£{o.subtotal?.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                        <span>Delivery:</span>
+                        <span>£{o.delivery_fee?.toFixed(2)}</span>
+                      </div>
+                      {o.tip > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                          <span>Tip:</span>
+                          <span>£{o.tip?.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#22c55e', paddingTop: '4px', borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                        <span>Total:</span>
+                        <span>£{o.total?.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Payment</div>
+                      <div>{o.payment_method}</div>
+                      <div style={{ color: '#94a3b8', fontSize: 'clamp(9px,1.5vw,11px)' }}>{new Date(o.created_at).toLocaleString()}</div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#22c55e' }}>{o.total?.toFixed(2)}</div>
-                <span style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: o.status === 'paid' ? '#22c55e' : '#ef4444' }}>{o.status}</span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </FullScreen>
       )}
 
@@ -647,7 +703,7 @@ export default function TerminalPage() {
 }
 
 function TerminalCatSection({ catName, items, onToggle }: { catName: string; items: any[]; onToggle: (id: string, current: boolean) => void }) {
-  const [open, setOpen] = React.useState(true)
+  const [open, setOpen] = React.useState(false)
   return (
     <div style={{ marginBottom: '8px' }}>
       <div onClick={() => setOpen(!open)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', marginBottom: open ? '6px' : '0' }}>
