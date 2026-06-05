@@ -29,6 +29,8 @@ export default function AdminPage() {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [menuSearch, setMenuSearch] = useState('')
   const [expandedCat, setExpandedCat] = useState<string|null>(null)
+  const [dragItem, setDragItem] = useState<any>(null)
+  const [dragOverItem, setDragOverItem] = useState<any>(null)
   const [showImport, setShowImport] = useState(false)
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [showHours, setShowHours] = useState(false)
@@ -398,6 +400,34 @@ export default function AdminPage() {
     if (!res.ok) { setMsg('Error: ' + data.error); return }
     setMsg(data.message); setShowAddMerchant(false)
     setNewMerchant({ name: '', email: '', phone: '', commission_rate: '4', password: '' }); fetchAll()
+  }
+
+  async function handleItemDrop(catId: string) {
+    if (!dragItem || !dragOverItem || dragItem.id === dragOverItem.id) { setDragItem(null); setDragOverItem(null); return }
+    const catItems = menuItems.filter(i => i.category_id === catId)
+    const dragIdx = catItems.findIndex(i => i.id === dragItem.id)
+    const overIdx = catItems.findIndex(i => i.id === dragOverItem.id)
+    if (dragIdx === -1 || overIdx === -1) { setDragItem(null); setDragOverItem(null); return }
+    // Reorder and update sort_order for all items in category
+    const reordered = [...catItems]
+    reordered.splice(dragIdx, 1)
+    reordered.splice(overIdx, 0, dragItem)
+    await Promise.all(reordered.map((item, idx) => supabase.from('menu_items').update({ sort_order: idx + 1 }).eq('id', item.id)))
+    setDragItem(null); setDragOverItem(null)
+    fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
+  async function handleCatDrop() {
+    if (!dragItem || !dragOverItem || dragItem.id === dragOverItem.id) { setDragItem(null); setDragOverItem(null); return }
+    const dragIdx = categories.findIndex(c => c.id === dragItem.id)
+    const overIdx = categories.findIndex(c => c.id === dragOverItem.id)
+    if (dragIdx === -1 || overIdx === -1) { setDragItem(null); setDragOverItem(null); return }
+    const reordered = [...categories]
+    reordered.splice(dragIdx, 1)
+    reordered.splice(overIdx, 0, dragItem)
+    await Promise.all(reordered.map((cat, idx) => supabase.from('menu_categories').update({ sort_order: idx + 1 }).eq('id', cat.id)))
+    setDragItem(null); setDragOverItem(null)
+    fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
   async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
@@ -816,7 +846,7 @@ export default function AdminPage() {
                       {(expandedCat === cat.id || menuSearch) && (
                         <div style={{ borderTop: '1px solid var(--border)' }}>
                           {catItems.map(item => (
-                            <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                            <div key={item.id} draggable onDragStart={() => setDragItem(item)} onDragOver={e => { e.preventDefault(); setDragOverItem(item) }} onDrop={() => handleItemDrop(cat.id)} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', background: dragOverItem?.id === item.id ? 'rgba(34,197,94,0.06)' : 'transparent', transition: 'background 0.15s' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ fontSize: '24px' }}>{item.emoji}</span>
                                 <div>
@@ -829,8 +859,7 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--orange)' }}>GBP{item.price?.toFixed(2)}</span>
-                                <button onClick={() => moveItem(item.id, 'up', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '11px' }}>up</button>
-                                <button onClick={() => moveItem(item.id, 'down', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '11px' }}>dn</button>
+                                <span draggable onDragStart={() => setDragItem(item)} onDragOver={e => { e.preventDefault(); setDragOverItem(item) }} onDrop={() => handleItemDrop(cat.id)} style={{ cursor: 'grab', color: 'var(--sub)', fontSize: '16px', padding: '2px 6px', userSelect: 'none' }} title="Drag to reorder">&#8597;</span>
                                 <button onClick={() => toggleItem(item.id, item.is_available)} style={{ fontSize: '11px', padding: '3px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? 'var(--green)' : 'var(--red)', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                   {item.is_available ? 'On' : 'Off'}
                                 </button>
