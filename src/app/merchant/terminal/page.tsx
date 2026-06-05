@@ -295,7 +295,7 @@ export default function TerminalPage() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => playSound()} style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }} onClick={() => playAlertSound()}>Test Sound</button>
+              <button onClick={() => playAlertSound()} style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>Test Sound</button>
             </div>
           </div>
         )}
