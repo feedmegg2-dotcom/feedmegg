@@ -70,8 +70,12 @@ export default function MerchantMenuEditor() {
 
   async function fetchMenu() {
     const { data } = await supabase.from('menu_categories').select('*, menu_items(*)').eq('restaurant_id', restaurantId).order('sort_order')
-    setCategories(data || [])
-    setAllItems((data || []).flatMap((c: any) => c.menu_items || []))
+    const sorted = (data || []).map((cat: any) => ({
+      ...cat,
+      menu_items: (cat.menu_items || []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    }))
+    setCategories(sorted)
+    setAllItems(sorted.flatMap((c: any) => c.menu_items || []))
   }
 
   async function fetchSharedGroups() {
