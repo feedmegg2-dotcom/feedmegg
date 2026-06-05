@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -13,6 +13,7 @@ export default function MerchantMenuEditor() {
   const [merchant, setMerchant] = useState<any>(null)
   const [categories, setCategories] = useState<any[]>([])
   const [allItems, setAllItems] = useState<any[]>([])
+  const [menuItems, setMenuItems] = useState<any[]>([])
   const [allSharedGroups, setAllSharedGroups] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
@@ -75,7 +76,9 @@ export default function MerchantMenuEditor() {
       menu_items: (cat.menu_items || []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     }))
     setCategories(sorted)
-    setAllItems(sorted.flatMap((c: any) => c.menu_items || []))
+    const flat = sorted.flatMap((c: any) => c.menu_items || [])
+    setAllItems(flat)
+    setMenuItems(flat)
   }
 
   async function fetchSharedGroups() {
@@ -103,7 +106,7 @@ export default function MerchantMenuEditor() {
 
   async function handleItemDrop(catId: string, overItemId: string) {
     if (!dragItem.current || dragItem.current.id === overItemId) { dragItem.current = null; setDragOverItem(null); return }
-    const catItems = [...allItems.filter((i: any) => i.category_id === catId)]
+    const catItems = [...menuItems.filter((i: any) => i.category_id === catId)]
     const dragIdx = catItems.findIndex((i: any) => i.id === dragItem.current.id)
     const overIdx = catItems.findIndex((i: any) => i.id === overItemId)
     if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
@@ -128,7 +131,7 @@ export default function MerchantMenuEditor() {
   }
 
   async function moveItem(itemId: string, direction: 'up'|'down', catId: string) {
-    const catItems = [...(categories.find(c => c.id === catId)?.menu_items || [])]
+    const catItems = [...menuItems.filter((i: any) => i.category_id === catId)]
     const idx = catItems.findIndex((i: any) => i.id === itemId)
     if (direction === 'up' && idx === 0) return
     if (direction === 'down' && idx === catItems.length - 1) return
