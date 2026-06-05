@@ -348,7 +348,7 @@ export const networkPrinter = {
     try {
       const response = await fetch(`http://${ipAddress}:9100`, {
         method: 'POST',
-        body: commands,
+        body: commands as any,
         mode: 'no-cors',
       });
       return response.ok || response.status === 0;
