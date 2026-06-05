@@ -389,7 +389,7 @@ export default function MerchantDashboard() {
         </div>
       )}
 
-      {/* PASSWORD MODAL */}}
+      {/* PASSWORD MODAL */}
       {showPasswordModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowPasswordModal(false) }}>
           <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px' }}>
