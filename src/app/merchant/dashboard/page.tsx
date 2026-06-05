@@ -125,7 +125,7 @@ export default function MerchantDashboard() {
         missing.map((z: any) => ({ restaurant_id: restId, parish: z.parish, name: z.name, fee: z.fee, min_order: z.min_order, is_active: z.is_active }))
       ).select()
       const allZones = [...(data || []), ...(newZones || [])]
-      setZones(PARISHES.map(p => allZones.find((z: any) => z.parish === p || z.name === p)))
+      setZones(PARISHES.map(p => allZones.find((z: any) => z.parish === p || z.name === p) || { parish: p, name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId }))
     } else {
       setZones(merged)
     }
