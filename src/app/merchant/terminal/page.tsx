@@ -40,8 +40,23 @@ export default function TerminalPage() {
   const syncRef = useRef<any>(null)
   const audioCtx = useRef<any>(null)
 
+  const wakeLockRef = useRef<any>(null)
+
   useEffect(() => {
     checkAuth()
+    // Keep screen awake
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
+        }
+      } catch (e) { console.log('Wake lock failed:', e) }
+    }
+    requestWakeLock()
+    // Re-request wake lock when tab becomes visible again
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') requestWakeLock()
+    })
     // Request fullscreen automatically
     const requestFullscreen = () => {
       const el = document.documentElement
@@ -58,6 +73,7 @@ export default function TerminalPage() {
       if (countdownRef.current) clearInterval(countdownRef.current)
       if (syncRef.current) clearInterval(syncRef.current)
       if (alertRef.current) clearInterval(alertRef.current)
+      if (wakeLockRef.current) wakeLockRef.current.release()
       document.removeEventListener('touchstart', handler)
       document.removeEventListener('click', handler)
     }
@@ -308,6 +324,8 @@ export default function TerminalPage() {
         </div>
 
         <button onClick={() => setCogOpen(!cogOpen)} style={{ background: cogOpen ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.06)', border: `0.5px solid ${cogOpen ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: cogOpen ? '#22c55e' : '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}>&#9881;</button>
+
+        <a href="/merchant/dashboard" style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(10px,1.6vw,12px)', cursor: 'pointer', flexShrink: 0, textDecoration: 'none', fontWeight: 600 }}>&#8962;</a>
 
         {cogOpen && (
           <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,240px)' }}>
