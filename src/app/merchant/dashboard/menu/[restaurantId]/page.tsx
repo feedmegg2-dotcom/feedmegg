@@ -103,8 +103,7 @@ export default function MerchantMenuEditor() {
 
   async function handleItemDrop(catId: string, overItemId: string) {
     if (!dragItem.current || dragItem.current.id === overItemId) { dragItem.current = null; setDragOverItem(null); return }
-    const cat = categories.find(c => c.id === catId)
-    const catItems = [...(cat?.menu_items || [])]
+    const catItems = [...allItems.filter((i: any) => i.category_id === catId)]
     const dragIdx = catItems.findIndex((i: any) => i.id === dragItem.current.id)
     const overIdx = catItems.findIndex((i: any) => i.id === overItemId)
     if (dragIdx === -1 || overIdx === -1) { dragItem.current = null; setDragOverItem(null); return }
@@ -297,8 +296,7 @@ export default function MerchantMenuEditor() {
                     <span style={{ fontSize: '11px', color: '#64748b' }}>{cat.menu_items?.length || 0} items</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'up') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>up</button>
-                    <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'down') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>dn</button>
+                    <span draggable onDragStart={e => { e.stopPropagation(); dragItem.current = cat }} style={{ cursor: 'grab', color: '#94a3b8', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                     <button onClick={e => { e.stopPropagation(); setEditingCat(cat) }} style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Rename</button>
                     <button onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer' }}>Delete</button>
                     <span style={{ color: '#64748b', fontSize: '12px' }}>{expandedCat === cat.id ? 'v' : '>'}</span>
@@ -352,8 +350,7 @@ export default function MerchantMenuEditor() {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                              <button onClick={() => moveItem(item.id, 'up', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>up</button>
-                              <button onClick={() => moveItem(item.id, 'down', cat.id)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#94a3b8', cursor: 'pointer', borderRadius: '4px', padding: '3px 7px', fontSize: '11px' }}>dn</button>
+                              <span draggable onDragStart={() => { dragItem.current = item }} style={{ cursor: 'grab', color: '#94a3b8', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                               <button onClick={() => toggleItemAvailable(item.id, item.is_available)} style={{ fontSize: '11px', padding: '4px 8px', background: item.is_available ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: item.is_available ? '#22c55e' : '#ef4444', border: `1px solid ${item.is_available ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '6px', cursor: 'pointer' }}>
                                 {item.is_available ? 'On' : 'Off'}
                               </button>
