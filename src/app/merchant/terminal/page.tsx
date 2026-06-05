@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -21,6 +21,7 @@ export default function TerminalPage() {
   const [countdown, setCountdown] = useState(120)
   const [restaurant, setRestaurant] = useState<any>(null)
   const [aiTagging, setAiTagging] = useState(false)
+  const [selectedSound, setSelectedSound] = useState('chime')
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
@@ -86,6 +87,48 @@ export default function TerminalPage() {
       alert('AI tagging failed')
     }
     setAiTagging(false)
+  }
+
+  function playSound(soundName?: string) {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const name = soundName || selectedSound
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+
+      if (name === 'chime') {
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(880, ctx.currentTime)
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15)
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
+      } else if (name === 'ding') {
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(1200, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.5)
+      } else if (name === 'beep') {
+        osc.type = 'square'
+        osc.frequency.setValueAtTime(800, ctx.currentTime)
+        gain.gain.setValueAtTime(0.1, ctx.currentTime)
+      } else if (name === 'alert') {
+        osc.type = 'sawtooth'
+        osc.frequency.setValueAtTime(440, ctx.currentTime)
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1)
+        osc.frequency.setValueAtTime(440, ctx.currentTime + 0.2)
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
+      } else if (name === 'bell') {
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(1568, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(784, ctx.currentTime + 1)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
+      }
+
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 1.2)
+    } catch (e) { console.log('Sound error:', e) }
   }
 
   async function syncFoodGG(restId: string) {
@@ -221,27 +264,39 @@ export default function TerminalPage() {
         </div>
 
         {/* Cog */}
-        <button onClick={() => setCogOpen(!cogOpen)} style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}></button>
+        <button onClick={() => setCogOpen(!cogOpen)} style={{ background: cogOpen ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.06)', border: `0.5px solid ${cogOpen ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: cogOpen ? '#22c55e' : '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}>&#9881;</button>
 
         {cogOpen && (
           <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,220px)' }}>
             {[
-              { icon: '', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
-              { icon: '', label: 'Printer Settings', sub: 'Test, check, configure', screen: 'printer' },
-              { icon: '', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
-              { icon: '', label: 'Order History', sub: 'Search past orders', screen: 'history' },
+              { icon: '&#9776;', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
+              { icon: '&#128438;', label: 'Printer Settings', sub: 'Test, check, configure', screen: 'printer' },
+              { icon: '&#128203;', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
+              { icon: '&#128337;', label: 'Order History', sub: 'Search past orders', screen: 'history' },
             ].map(btn => (
               <button key={btn.screen} onClick={() => { if (btn.screen === 'aitag') { setCogOpen(false); aiTagMenu() } else { setScreen(btn.screen as any); setCogOpen(false) } }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f8fafc', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}
               >
-                <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }}>{btn.icon}</span>
+                <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: btn.icon }} />
                 <div>
                   <div style={{ fontWeight: 600 }}>{btn.label}</div>
                   <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: '#64748b' }}>{btn.sub}</div>
                 </div>
               </button>
             ))}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0', padding: '10px 14px' }}>
+              <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Alert Sound</div>
+              <div style={{ display: 'grid', gap: '4px' }}>
+                {['chime','ding','beep','alert','bell'].map(s => (
+                  <div key={s} onClick={() => setSelectedSound(s)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: '6px', background: selectedSound === s ? 'rgba(34,197,94,0.1)' : 'none', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '12px', color: selectedSound === s ? '#22c55e' : '#94a3b8', textTransform: 'capitalize', fontWeight: selectedSound === s ? 600 : 400 }}>{s}</span>
+                    {selectedSound === s && <span style={{ fontSize: '10px', color: '#22c55e' }}>&#10003;</span>}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => playSound()} style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>Test Sound</button>
+            </div>
           </div>
         )}
       </div>
@@ -403,26 +458,35 @@ export default function TerminalPage() {
       {screen === 'items' && (
         <FullScreen title="Menu Items" onBack={() => setScreen('main')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px' }}>
-            <span style={{ color: '#475569' }}></span>
             <input type="text" value={itemSearch} onChange={e => setItemSearch(e.target.value)} placeholder="Search items..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
+            {itemSearch && <button onClick={() => setItemSearch('')} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '16px' }}>x</button>}
           </div>
-          {filteredItems.map(item => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'clamp(8px,1.5vw,12px)', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: 'clamp(18px,3vw,22px)' }}>{item.emoji}</span>
-                <div>
-                  <div style={{ fontSize: 'clamp(12px,2vw,14px)', fontWeight: 500, color: '#f8fafc' }}>{item.name}</div>
-                  <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#475569' }}>{item.menu_categories?.name}</div>
+          {itemSearch ? (
+            filteredItems.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'clamp(8px,1.5vw,12px)', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: 'clamp(18px,3vw,22px)' }}>{item.emoji}</span>
+                  <div>
+                    <div style={{ fontSize: 'clamp(12px,2vw,14px)', fontWeight: 500, color: '#f8fafc' }}>{item.name}</div>
+                    <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#475569' }}>{item.menu_categories?.name}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#22c55e' }}>{item.price?.toFixed(2)}</span>
+                  <div onClick={() => toggleMenuItem(item.id, item.is_available)} style={{ width: '32px', height: '17px', borderRadius: '9px', background: item.is_available ? '#22c55e' : '#334155', position: 'relative', cursor: 'pointer' }}>
+                    <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '17px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                  </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: '#22c55e' }}>{item.price?.toFixed(2)}</span>
-                <div onClick={() => toggleMenuItem(item.id, item.is_available)} style={{ width: '32px', height: '17px', borderRadius: '9px', background: item.is_available ? '#22c55e' : '#334155', position: 'relative', cursor: 'pointer' }}>
-                  <div style={{ position: 'absolute', top: '2px', left: item.is_available ? '17px' : '2px', width: '13px', height: '13px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
-                </div>
-              </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            Array.from(new Set(menuItems.map(i => i.menu_categories?.name || 'Uncategorised'))).map(catName => {
+              const catItems = menuItems.filter(i => (i.menu_categories?.name || 'Uncategorised') === catName)
+              return (
+                <TerminalCatSection key={catName} catName={catName} items={catItems} onToggle={toggleMenuItem} />
+              )
+            })
+          )}
         </FullScreen>
       )}
 
@@ -531,6 +595,35 @@ export default function TerminalPage() {
         @keyframes bounce-in { 0%{transform:scale(0.3);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
         * { -webkit-tap-highlight-color: transparent; }
       `}</style>
+    </div>
+  )
+}
+
+function TerminalCatSection({ catName, items, onToggle }: { catName: string; items: any[]; onToggle: (id: string, current: boolean) => void }) {
+  const [open, setOpen] = React.useState(true)
+  return (
+    <div style={{ marginBottom: '8px' }}>
+      <div onClick={() => setOpen(!open)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', marginBottom: open ? '6px' : '0' }}>
+        <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{catName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#475569' }}>{items.length} items</span>
+          <span style={{ color: '#475569', fontSize: '12px' }}>{open ? 'v' : '>'}</span>
+        </div>
+      </div>
+      {open && items.map(item => (
+        <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'clamp(8px,1.5vw,12px)', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: 'clamp(18px,3vw,22px)' }}>{item.emoji}</span>
+            <div>
+              <div style={{ fontSize: 'clamp(12px,2vw,14px)', fontWeight: 500, color: item.is_available ? '#f8fafc' : '#475569' }}>{item.name}</div>
+              <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#475569' }}>GBP{item.price?.toFixed(2)}</div>
+            </div>
+          </div>
+          <div onClick={() => onToggle(item.id, item.is_available)} style={{ width: '40px', height: '22px', borderRadius: '11px', background: item.is_available ? '#22c55e' : '#334155', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', top: '3px', left: item.is_available ? '21px' : '3px', width: '16px', height: '16px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
