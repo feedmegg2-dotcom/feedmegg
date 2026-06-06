@@ -371,12 +371,43 @@ export default function TerminalPage() {
               </div>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-Order Lead Time</div>
-                <select value={preOrderLeadTime} onChange={e => setPreOrderLeadTime(parseInt(e.target.value))} style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
+                <select value={preOrderLeadTime} onChange={e => setPreOrderLeadTime(parseInt(e.target.value))} style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none', marginBottom: '12px' }}>
                   {[15, 20, 30, 45, 60].map(t => (
                     <option key={t} value={t} style={{ background: '#0f172a' }}>{t} min</option>
                   ))}
                 </select>
               </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Time Slot Capacity</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '2px', display: 'block' }}>15-min</label>
+                    <input type="number" value={timeSlotCapacity[15]} onChange={e => setTimeSlotCapacity({ ...timeSlotCapacity, 15: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '6px 6px', background: '#060b18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '2px', display: 'block' }}>30-min</label>
+                    <input type="number" value={timeSlotCapacity[30]} onChange={e => setTimeSlotCapacity({ ...timeSlotCapacity, 30: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '6px 6px', background: '#060b18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '2px', display: 'block' }}>60-min</label>
+                    <input type="number" value={timeSlotCapacity[60]} onChange={e => setTimeSlotCapacity({ ...timeSlotCapacity, 60: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '6px 6px', background: '#060b18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+                  </div>
+                </div>
+                <button onClick={async () => {
+                  if (restaurant) {
+                    await supabase.from('restaurants').update({
+                      time_slot_capacity_15: timeSlotCapacity[15],
+                      time_slot_capacity_30: timeSlotCapacity[30],
+                      time_slot_capacity_60: timeSlotCapacity[60],
+                      preorder_lead_time_mins: preOrderLeadTime
+                    }).eq('id', restaurant.id)
+                  }
+                }} style={{ width: '100%', padding: '6px 8px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                  Save Settings
+                </button>
+              </div>
+
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Theme</div>
                 <div style={{ display: 'flex', gap: '6px' }}>
