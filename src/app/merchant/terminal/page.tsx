@@ -379,7 +379,7 @@ export default function TerminalPage() {
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Order Sound</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                 <select value={selectedSound} onChange={e => setSelectedSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
-                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','church-bell','school-bell','loud-doorbell','loud-buzzer','rooster','wolf-whistle','boatswain-whistle'].map(s => (
+                  {['chime','cuckoo','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','loud-doorbell','loud-buzzer','siren'].map(s => (
                     <option key={s} value={s} style={{ background: '#0f172a' }}>{s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
                   ))}
                 </select>
@@ -388,7 +388,7 @@ export default function TerminalPage() {
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Sound</div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <select value={paymentSound} onChange={e => setPaymentSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
-                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','church-bell','school-bell','loud-doorbell','loud-buzzer','rooster','wolf-whistle','boatswain-whistle'].map(s => (
+                  {['chime','cuckoo','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','loud-doorbell','loud-buzzer','siren'].map(s => (
                     <option key={s} value={s} style={{ background: '#0f172a' }}>{s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
                   ))}
                 </select>
@@ -669,9 +669,27 @@ export default function TerminalPage() {
                     <div style={{ marginBottom: '8px' }}><div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Items</div>
                       {o.order_items?.map((item: any) => <div key={item.id}>{item.quantity}x {item.name} - GBP{item.subtotal?.toFixed(2)}</div>)}
                     </div>
-                    <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#22c55e' }}><span>Total:</span><span>GBP{o.total?.toFixed(2)}</span></div>
                     </div>
+                    <button onClick={() => {
+                      manualReprint({
+                        id: o.id,
+                        orderNumber: o.order_number,
+                        restaurantName: restaurant?.name || 'Restaurant',
+                        customerName: o.customer_name,
+                        deliveryAddress: o.delivery_address,
+                        isCollection: o.order_type === 'collection',
+                        items: o.order_items || [],
+                        specialInstructions: o.special_instructions,
+                        subtotal: o.subtotal,
+                        deliveryFee: o.delivery_fee,
+                        tip: o.tip,
+                        total: o.total,
+                      })
+                    }} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                      Reprint Tickets
+                    </button>
                   </div>
                 )}
               </div>
