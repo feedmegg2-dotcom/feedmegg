@@ -395,6 +395,14 @@ export default function TerminalPage() {
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-Order Lead Time</div>
+                <select value={preOrderLeadTime} onChange={e => setPreOrderLeadTime(parseInt(e.target.value))} style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
+                  {[15, 20, 30, 45, 60].map(t => (
+                    <option key={t} value={t} style={{ background: '#0f172a' }}>{t} min</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Theme</div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={() => setTheme('light')} style={{ flex: 1, padding: '6px 10px', background: theme === 'light' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${theme === 'light' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: theme === 'light' ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>Light</button>
