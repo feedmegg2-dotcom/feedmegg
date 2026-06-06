@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { PrinterSettingsScreen } from '@/components/PrinterSettingsScreen'
 import { usePrinterAutoprint } from '@/hooks/usePrinterAutoprint'
+import { playSound } from '@/lib/soundGenerator'
 
 export default function TerminalPage() {
   const router = useRouter()
@@ -142,37 +143,11 @@ export default function TerminalPage() {
 
   function playAlertSound(soundName?: string) {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
       const name = soundName || selectedSound
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain); gain.connect(ctx.destination)
-      const t = ctx.currentTime
-      gain.gain.setValueAtTime(0.3, t)
-
-      if (name === 'chime') { osc.type = 'sine'; osc.frequency.setValueAtTime(880, t); osc.frequency.setValueAtTime(1100, t+0.15); osc.frequency.setValueAtTime(880, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.8) }
-      else if (name === 'ding') { osc.type = 'sine'; osc.frequency.setValueAtTime(1200, t); osc.frequency.exponentialRampToValueAtTime(600, t+0.5); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
-      else if (name === 'beep') { osc.type = 'square'; osc.frequency.setValueAtTime(800, t); gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.3) }
-      else if (name === 'alert') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, t); osc.frequency.setValueAtTime(880, t+0.1); osc.frequency.setValueAtTime(440, t+0.2); osc.frequency.setValueAtTime(880, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.5) }
-      else if (name === 'bell') { osc.type = 'triangle'; osc.frequency.setValueAtTime(1568, t); osc.frequency.exponentialRampToValueAtTime(784, t+1); gain.gain.exponentialRampToValueAtTime(0.001, t+1.2) }
-      else if (name === 'ping') { osc.type = 'sine'; osc.frequency.setValueAtTime(1400, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
-      else if (name === 'buzz') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.3) }
-      else if (name === 'pop') { osc.type = 'sine'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.15) }
-      else if (name === 'blip') { osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(900, t+0.05); gain.gain.exponentialRampToValueAtTime(0.001, t+0.2) }
-      else if (name === 'horn') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(350, t); osc.frequency.setValueAtTime(400, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
-      else if (name === 'whistle') { osc.type = 'sine'; osc.frequency.setValueAtTime(2000, t); osc.frequency.setValueAtTime(1800, t+0.1); osc.frequency.setValueAtTime(2000, t+0.2); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
-      else if (name === 'cuckoo') { osc.type = 'triangle'; osc.frequency.setValueAtTime(528, t); osc.frequency.setValueAtTime(440, t+0.2); osc.frequency.setValueAtTime(528, t+0.5); osc.frequency.setValueAtTime(440, t+0.7); gain.gain.exponentialRampToValueAtTime(0.001, t+1) }
-      else if (name === 'siren') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, t); osc.frequency.linearRampToValueAtTime(800, t+0.4); osc.frequency.linearRampToValueAtTime(400, t+0.8); gain.gain.exponentialRampToValueAtTime(0.001, t+1) }
-      else if (name === 'doorbell') { osc.type = 'sine'; osc.frequency.setValueAtTime(698, t); osc.frequency.setValueAtTime(587, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.8) }
-      else if (name === 'chirp') { osc.type = 'sine'; osc.frequency.setValueAtTime(1000, t); osc.frequency.exponentialRampToValueAtTime(2000, t+0.1); gain.gain.exponentialRampToValueAtTime(0.001, t+0.2) }
-      else if (name === 'gong') { osc.type = 'triangle'; osc.frequency.setValueAtTime(220, t); gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.001, t+2) }
-      else if (name === 'xylophone') { osc.type = 'triangle'; osc.frequency.setValueAtTime(1046, t); osc.frequency.setValueAtTime(880, t+0.15); osc.frequency.setValueAtTime(1046, t+0.3); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
-      else if (name === 'trumpet') { osc.type = 'square'; osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(659, t+0.15); osc.frequency.setValueAtTime(784, t+0.3); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
-      else if (name === 'sonar') { osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(200, t+0.5); gain.gain.exponentialRampToValueAtTime(0.001, t+0.6) }
-      else if (name === 'sparkle') { osc.type = 'sine'; osc.frequency.setValueAtTime(2000, t); osc.frequency.setValueAtTime(2500, t+0.05); osc.frequency.setValueAtTime(3000, t+0.1); osc.frequency.setValueAtTime(2500, t+0.15); gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.001, t+0.4) }
-
-      osc.start(t); osc.stop(t + 2)
-    } catch (e) { console.log('Sound error:', e) }
+      playSound(name)
+    } catch (e) { 
+      console.log('Sound error:', e) 
+    }
   }
 
   async function syncFoodGG(restId: string) {
