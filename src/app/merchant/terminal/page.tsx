@@ -11,7 +11,7 @@ export default function TerminalPage() {
   const supabase = createClient()
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
-  const [tab, setTab] = useState<'incoming' | 'accepted'>('incoming')
+  const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders'>('incoming')
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [screen, setScreen] = useState<'main' | 'neworder' | 'detail' | 'paying' | 'paid' | 'items' | 'printer' | 'eod' | 'history'>('main')
   const [cogOpen, setCogOpen] = useState(false)
@@ -42,6 +42,13 @@ export default function TerminalPage() {
   const syncRef = useRef<any>(null)
   const audioCtx = useRef<any>(null)
   const wakeLockRef = useRef<any>(null)
+  const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false)
+  const [autoPrintRings, setAutoPrintRings] = useState(3)
+  const [timeSlotCapacity, setTimeSlotCapacity] = useState({ 15: 10, 30: 15, 60: 20 })
+  const soundRepeatRef = useRef<any>(null)
+  const [soundRingsPlayed, setSoundRingsPlayed] = useState(0)
+  const [pendingTicketsReady, setPendingTicketsReady] = useState<Set<string>>(new Set())
 
   // Printer hook
   const { triggerAutoPrint, manualReprint } = usePrinterAutoprint()
@@ -222,7 +229,8 @@ export default function TerminalPage() {
   }
 
   const currentOrder = orders.find(o => o.id === currentOrderId)
-  const pendingOrders = orders.filter(o => o.status === 'pending')
+  const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
+  const preOrders = orders.filter(o => o.scheduled_for)
   const acceptedOrders = orders.filter(o => ['accepted','waiting_payment','paid'].includes(o.status))
 
   async function acceptOrder() {
@@ -371,8 +379,8 @@ export default function TerminalPage() {
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Order Sound</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                 <select value={selectedSound} onChange={e => setSelectedSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
-                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle'].map(s => (
-                    <option key={s} value={s} style={{ background: '#0f172a' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','church-bell','school-bell','loud-doorbell','loud-buzzer','rooster','wolf-whistle','boatswain-whistle'].map(s => (
+                    <option key={s} value={s} style={{ background: '#0f172a' }}>{s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
                   ))}
                 </select>
                 <button onClick={() => playAlertSound(selectedSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
@@ -380,8 +388,8 @@ export default function TerminalPage() {
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Sound</div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <select value={paymentSound} onChange={e => setPaymentSound(e.target.value)} style={{ flex: 1, padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none' }}>
-                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle'].map(s => (
-                    <option key={s} value={s} style={{ background: '#0f172a' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  {['chime','ding','beep','alert','bell','ping','buzz','pop','blip','horn','whistle','cuckoo','siren','doorbell','chirp','gong','xylophone','trumpet','sonar','sparkle','air-horn','klaxon','alarm-clock','fire-alarm','police-siren','ambulance','car-horn','train-horn','foghorn','church-bell','school-bell','loud-doorbell','loud-buzzer','rooster','wolf-whistle','boatswain-whistle'].map(s => (
+                    <option key={s} value={s} style={{ background: '#0f172a' }}>{s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
                   ))}
                 </select>
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
@@ -400,12 +408,17 @@ export default function TerminalPage() {
 
       {/* TABS */}
       <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
-        {(['incoming', 'accepted'] as const).map(t => (
+        {(['incoming', 'preorders', 'accepted'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : colors.textTertiary, border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer' }}>
-            {t === 'incoming' ? 'Orders Incoming' : 'Orders Accepted'}
+            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : 'Accepted'}
             {t === 'incoming' && pendingOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
                 {pendingOrders.length}
+              </span>
+            )}
+            {t === 'preorders' && preOrders.length > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
+                {preOrders.length}
               </span>
             )}
           </button>
@@ -417,15 +430,15 @@ export default function TerminalPage() {
         {tab === 'incoming' ? (
           pendingOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
-              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pending orders</div>
+              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No incoming orders</div>
             </div>
           ) : (
             pendingOrders.map(o => (
-              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: `3px solid ${o.scheduled_for ? '#3b82f6' : '#22c55e'}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: '3px solid #22c55e', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
                   <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number}</div>
-                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.scheduled_for ? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)', color: o.scheduled_for ? '#3b82f6' : '#22c55e' }}>
-                    {o.scheduled_for ? 'Pre-order' : 'Live order'}
+                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>
+                    ASAP
                   </span>
                 </div>
                 <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>{o.customer_name} &bull; {o.order_type === 'delivery' ? 'Delivery' : 'Collection'} &bull; {o.payment_method}</div>
@@ -435,6 +448,32 @@ export default function TerminalPage() {
                 </div>
               </div>
             ))
+          )
+        ) : tab === 'preorders' ? (
+          preOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
+              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pre-orders scheduled</div>
+            </div>
+          ) : (
+            preOrders.map(o => {
+              const slotTime = new Date(o.scheduled_for)
+              const now = new Date()
+              const minsUntil = Math.max(0, Math.floor((slotTime.getTime() - now.getTime()) / 60000))
+              return (
+                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: '3px solid #3b82f6', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number}</div>
+                    <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                      {minsUntil} min
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>{o.customer_name} &bull; {slotTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
+                  </div>
+                </div>
+              )
+            })
           )
         ) : (
           acceptedOrders.length === 0 ? (
