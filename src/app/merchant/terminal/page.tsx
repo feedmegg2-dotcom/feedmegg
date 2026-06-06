@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { PrinterSettingsScreen } from '@/components/PrinterSettingsScreen'
 import { usePrinterAutoprint } from '@/hooks/usePrinterAutoprint'
-import { playSound } from '@/lib/soundGenerator'
+import { playSound as playSoundEffect } from '@/lib/soundGenerator'
 
 export default function TerminalPage() {
   const router = useRouter()
@@ -144,7 +144,7 @@ export default function TerminalPage() {
   function playAlertSound(soundName?: string) {
     try {
       const name = soundName || selectedSound
-      playSound(name)
+      playSoundEffect(name)
     } catch (e) { 
       console.log('Sound error:', e) 
     }
