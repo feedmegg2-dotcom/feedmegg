@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
+import { TicketEditor } from '@/components/TicketEditor'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
@@ -44,6 +45,7 @@ export default function AdminPage() {
   const [editItem, setEditItem] = useState<any>(null)
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
   const [showSlotModal, setShowSlotModal] = useState<any>(null)
+  const [ticketEditorRestaurant, setTicketEditorRestaurant] = useState<any>(null)
   const [slotDeliveryTime, setSlotDeliveryTime] = useState(45)
   const [slotDeliveryDuration, setSlotDeliveryDuration] = useState(30)
   const [slotDeliveryCapacity, setSlotDeliveryCapacity] = useState(4)
@@ -635,6 +637,7 @@ export default function AdminPage() {
                     <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setHoursRestaurant(r); setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: r.id }))); setShowHours(true); fetchHours(r.id) }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#EAB308', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Hours</button>
                     <button onClick={() => { setSlotDeliveryTime(r.delivery_time_mins || 45); setSlotDeliveryDuration(r.delivery_slot_duration || 30); setSlotDeliveryCapacity(r.delivery_slot_capacity || 4); setSlotPickupTime(r.pickup_time_mins || 30); setSlotPickupDuration(r.pickup_slot_duration || 30); setSlotPickupCapacity(r.pickup_slot_capacity || 4); setShowSlotModal(r) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>Slots</button>
+                    <button onClick={() => setTicketEditorRestaurant(r)} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>🎫 Tickets</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
 
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
@@ -1421,6 +1424,14 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* TICKET EDITOR */}
+      {ticketEditorRestaurant && (
+        <TicketEditor
+          restaurantId={ticketEditorRestaurant.id}
+          restaurantName={ticketEditorRestaurant.name}
+          onClose={() => setTicketEditorRestaurant(null)}
+        />
       )}
     </div>
   )
