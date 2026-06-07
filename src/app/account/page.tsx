@@ -51,11 +51,17 @@ export default function AccountPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
     setUser(user)
-    // Try auth_id first then id
+    // Try auth_id first, then id, then email
     let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
     if (!cust) {
       const res2 = await supabase.from('customers').select('*').eq('id', user.id).single()
       cust = res2.data
+    }
+    if (!cust && user.email) {
+      const res3 = await supabase.from('customers').select('*').ilike('email', user.email).single()
+      cust = res3.data
+      // Link auth_id so future lookups work
+      if (cust) await supabase.from('customers').update({ auth_id: user.id }).eq('id', cust.id)
     }
     if (cust) {
       setCustomer(cust)
@@ -79,17 +85,24 @@ export default function AccountPage() {
   }
 
   async function saveProfile() {
-    if (!customer) return
+    if (!customer) {
+      setMsg('Error: Could not find your account. Please log out and back in.')
+      return
+    }
     setSaving(true)
-    await supabase.from('customers').update({
+    const { error } = await supabase.from('customers').update({
       first_name: firstName,
       last_name: lastName,
       phone,
       name: (firstName + ' ' + lastName).trim()
     }).eq('id', customer.id)
     setSaving(false)
-    setMsg('Profile updated!')
-    setTimeout(() => setMsg(''), 3000)
+    if (error) {
+      setMsg('Error saving: ' + error.message)
+    } else {
+      setMsg('Profile updated! ✓')
+    }
+    setTimeout(() => setMsg(''), 4000)
   }
 
   async function changePassword() {
