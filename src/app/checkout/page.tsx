@@ -300,7 +300,7 @@ export default function CheckoutPage() {
           <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2} style={{ ...inputStyle, resize: 'none' }} />
 
           {form.orderType === 'delivery' && (
-            <div onClick={() => setForm({...form, contactless: !form.contactless})} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
+            <div onClick={() => setForm({...form, contactless: !form.contactless, paymentMethod: !form.contactless ? 'card' : form.paymentMethod})} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: form.contactless ? '#22c55e' : '#f8fafc' }}>🚪 Contactless Delivery</div>
                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Driver leaves food at your door</div>
@@ -315,6 +315,11 @@ export default function CheckoutPage() {
         {/* PAYMENT METHOD */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Payment Method</div>
+          {form.contactless && (
+            <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '12px', color: '#22c55e' }}>
+              🚪 Contactless delivery requires card payment
+            </div>
+          )}
           <div style={{ display: 'grid', gap: '10px' }}>
             <button onClick={() => setForm({...form, paymentMethod: 'card'})}
               style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -323,13 +328,15 @@ export default function CheckoutPage() {
                 <div style={{ fontSize: '11px', color: sub }}>Secure online payment via SumUp</div>
               </div>
             </button>
-            <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
-              style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
-                <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
-              </div>
-            </button>
+            {!form.contactless && (
+              <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
+                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
+                  <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
