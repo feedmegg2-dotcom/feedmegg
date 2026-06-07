@@ -22,6 +22,8 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const [form, setForm] = useState({
     name: '', phone: '', email: '',
     orderType: 'delivery',
     paymentMethod: 'card',
