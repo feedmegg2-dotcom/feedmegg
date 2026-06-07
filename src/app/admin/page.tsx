@@ -1415,7 +1415,7 @@ export default function AdminPage() {
               <button onClick={() => setShowSlotModal(null)} style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--sub)', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>Cancel</button>
               <button onClick={async () => {
                 await fetch('/api/admin/update-restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurantId: showSlotModal.id, delivery_time_mins: slotDeliveryTime, delivery_slot_duration: slotDeliveryDuration, delivery_slot_capacity: slotDeliveryCapacity, pickup_time_mins: slotPickupTime, pickup_slot_duration: slotPickupDuration, pickup_slot_capacity: slotPickupCapacity }) })
-                fetchRestaurants()
+                fetchAll()
                 setShowSlotModal(null)
               }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
