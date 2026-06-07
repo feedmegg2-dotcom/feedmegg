@@ -53,42 +53,45 @@ export default function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    if (form.isPreOrder) generateSlots()
-  }, [form.isPreOrder, form.preOrderDate, restaurant])
+    if (form.isPreOrder && restaurant) generateSlots()
+  }, [form.isPreOrder, form.preOrderDate, form.orderType, restaurant])
 
   function generateSlots() {
+    if (!restaurant) return
     const slots: string[] = []
     const slotDuration = form.orderType === 'delivery'
       ? (restaurant?.delivery_slot_duration || 30)
       : (restaurant?.pickup_slot_duration || 30)
 
     const now = new Date()
-    const selectedDate = form.preOrderDate ? new Date(form.preOrderDate) : new Date()
+    const dateStr = form.preOrderDate || now.toISOString().split('T')[0]
+    const selectedDate = new Date(dateStr + 'T00:00:00')
     const isToday = selectedDate.toDateString() === now.toDateString()
 
     let startHour = 10
     let startMin = 0
 
     if (isToday) {
-      // Start from next available slot (at least 30 mins from now)
-      const minTime = new Date(now.getTime() + 30 * 60000)
+      const minTime = new Date(now.getTime() + 60 * 60000) // 1 hour from now minimum
       startHour = minTime.getHours()
       startMin = Math.ceil(minTime.getMinutes() / slotDuration) * slotDuration
-      if (startMin >= 60) { startHour++; startMin = 0 }
+      if (startMin >= 60) { startHour += 1; startMin = 0 }
     }
 
-    // Generate slots from start to 10pm
     for (let h = startHour; h < 22; h++) {
-      for (let m = (h === startHour ? startMin : 0); m < 60; m += slotDuration) {
-        const endM = m + slotDuration
-        const endH = endM >= 60 ? h + 1 : h
-        const endMin = endM >= 60 ? endM - 60 : endM
-        const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endMin).padStart(2,'0')}`
+      const mStart = h === startHour ? startMin : 0
+      for (let m = mStart; m < 60; m += slotDuration) {
+        const endTotal = h * 60 + m + slotDuration
+        const endH = Math.floor(endTotal / 60)
+        const endM = endTotal % 60
+        if (endH > 22) break
+        const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`
         slots.push(slot)
       }
     }
+
     setAvailableSlots(slots)
-    if (slots.length > 0 && !form.preOrderTime) setForm(f => ({...f, preOrderTime: slots[0]}))
+    if (slots.length > 0) setForm(f => ({...f, preOrderTime: f.preOrderTime || slots[0]}))
   }
 
   async function fetchCustomer() {
