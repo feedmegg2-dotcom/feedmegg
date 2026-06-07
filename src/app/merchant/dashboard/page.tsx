@@ -161,6 +161,10 @@ export default function MerchantDashboard() {
       closing_time: editingRestaurant.closing_time || null,
       accepts_delivery: editingRestaurant.accepts_delivery,
       accepts_pickup: editingRestaurant.accepts_pickup,
+      delivery_enabled: editingRestaurant.delivery_enabled ?? true,
+      pickup_enabled: editingRestaurant.pickup_enabled ?? true,
+      preorder_delivery_enabled: editingRestaurant.preorder_delivery_enabled ?? true,
+      preorder_pickup_enabled: editingRestaurant.preorder_pickup_enabled ?? true,
       custom_message: editingRestaurant.custom_message,
     }).eq('id', editingRestaurant.id)
     setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { ...r, ...editingRestaurant } : r))
@@ -364,6 +368,22 @@ export default function MerchantDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input type="checkbox" id="pick" checked={editingRestaurant.accepts_pickup} onChange={e => setEditingRestaurant({...editingRestaurant, accepts_pickup: e.target.checked})} />
                 <label htmlFor="pick" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Pickup</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" id="del_open" checked={editingRestaurant.delivery_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_enabled: e.target.checked})} />
+                <label htmlFor="del_open" style={{ fontSize: '13px', cursor: 'pointer' }}>🚗 Delivery Open Now</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" id="pick_open" checked={editingRestaurant.pickup_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_enabled: e.target.checked})} />
+                <label htmlFor="pick_open" style={{ fontSize: '13px', cursor: 'pointer' }}>🏪 Pickup Open Now</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" id="pre_del" checked={editingRestaurant.preorder_delivery_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, preorder_delivery_enabled: e.target.checked})} />
+                <label htmlFor="pre_del" style={{ fontSize: '13px', cursor: 'pointer' }}>📅 Pre-Order Delivery</label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" id="pre_pick" checked={editingRestaurant.preorder_pickup_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, preorder_pickup_enabled: e.target.checked})} />
+                <label htmlFor="pre_pick" style={{ fontSize: '13px', cursor: 'pointer' }}>📅 Pre-Order Pickup</label>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
