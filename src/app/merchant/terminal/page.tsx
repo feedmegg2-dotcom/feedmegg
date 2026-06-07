@@ -93,21 +93,43 @@ export default function TerminalPage() {
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/merchant/login'); return }
-    let { data: merchant } = await supabase.from('merchants').select('*, restaurants(*)').eq('auth_id', session.user.id).maybeSingle()
+    
+    // Get merchant
+    let { data: merchant } = await supabase.from('merchants').select('*').eq('auth_id', session.user.id).maybeSingle()
     if (!merchant) {
-      const res2 = await supabase.from('merchants').select('*, restaurants(*)').ilike('email', session.user.email || '').maybeSingle()
+      const res2 = await supabase.from('merchants').select('*').ilike('email', session.user.email || '').maybeSingle()
       merchant = res2.data
       if (merchant) await supabase.from('merchants').update({ auth_id: session.user.id }).eq('id', merchant.id)
     }
     if (!merchant) { router.push('/merchant/login'); return }
-    const rest = merchant.restaurants?.[0]
-    setRestaurant(rest)
-    if (rest) {
-      setDelivTime(rest.delivery_time_mins || 25)
-      setPickTime(rest.pickup_time_mins || 15)
+
+    // Get restaurant directly
+    const { data: rest } = await supabase.from('restaurants').select('*').eq('merchant_id', merchant.id).maybeSingle()
+    
+    if (!rest) { 
+      console.error('No restaurant found for merchant', merchant.id)
+      router.push('/merchant/login')
+      return 
     }
-    fetchMenuItems(rest?.id)
-    startPolling(rest?.id)
+
+    setRestaurant(rest)
+    setDelivTime(rest.delivery_time_mins || 25)
+    setPickTime(rest.pickup_time_mins || 15)
+    setDeliveryTime(rest.delivery_time_mins || 45)
+    setDeliverySlotDuration(rest.delivery_slot_duration || 30)
+    setDeliverySlotCapacity(rest.delivery_slot_capacity || 4)
+    setPickupTime(rest.pickup_time_mins || 30)
+    setPickupSlotDuration(rest.pickup_slot_duration || 30)
+    setPickupSlotCapacity(rest.pickup_slot_capacity || 4)
+    setToggles(t => ({
+      ...t,
+      delivery: rest.preorder_delivery_enabled ?? true,
+      pickups: rest.preorder_pickup_enabled ?? true,
+      delivery_enabled: rest.delivery_enabled ?? true,
+      pickup_enabled: rest.pickup_enabled ?? true,
+    }))
+    fetchMenuItems(rest.id)
+    startPolling(rest.id)
   }
 
   async function fetchMenuItems(restId: string) {
