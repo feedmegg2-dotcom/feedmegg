@@ -413,12 +413,17 @@ export default function TerminalPage() {
 
       {/* TABS */}
       <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
-        {(['incoming', 'accepted'] as const).map(t => (
+        {(['incoming', 'preorders', 'accepted'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : colors.textTertiary, border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer' }}>
-            {t === 'incoming' ? 'Orders Incoming' : 'Orders Accepted'}
+            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : 'Accepted'}
             {t === 'incoming' && pendingOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
                 {pendingOrders.length}
+              </span>
+            )}
+            {t === 'preorders' && preOrders.length > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
+                {preOrders.length}
               </span>
             )}
           </button>
@@ -710,7 +715,14 @@ export default function TerminalPage() {
           <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: 'clamp(11px,1.8vw,12px)', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
-              <input type="number" value={showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime} onChange={e => showTimeSlotModal === 'delivery' ? setDeliveryTime(parseInt(e.target.value)) : setPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+              <input type="number" value={showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime} onChange={e => showTimeSlotModal === 'delivery' ? setDeliveryTime(parseInt(e.target.value)) : setPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit', marginBottom: '8px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                {(showTimeSlotModal === 'delivery' ? [20, 30, 45, 60, 90] : [10, 15, 20, 30, 45]).map(t => (
+                  <button key={t} onClick={() => showTimeSlotModal === 'delivery' ? setDeliveryTime(t) : setPickupTime(t)} style={{ padding: '8px 4px', background: (showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime) === t ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${(showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime) === t ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: (showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime) === t ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {t}m
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label style={{ fontSize: 'clamp(11px,1.8vw,12px)', color: '#64748b', display: 'block', marginBottom: '8px', fontWeight: 600 }}>Slot Duration (mins)</label>
