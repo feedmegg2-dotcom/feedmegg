@@ -589,7 +589,7 @@ export default function TerminalPage() {
       )}
 
       {screen === 'detail' && currentOrder && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 9 }}>
+        <div style={{ position: 'fixed', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 200 }}>
           {/* HEADER */}
           <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(8px,2vw,14px)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
@@ -638,9 +638,9 @@ export default function TerminalPage() {
                   : '🏪 Collection'}
                 {currentOrder.delivery_what3words && <><br /><span style={{ color: '#ef4444', fontWeight: 600 }}>/// {currentOrder.delivery_what3words}</span></>}
               </div>
-              {currentOrder.special_instructions && (
+              {(currentOrder.special_instructions || currentOrder.notes) && (
                 <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(249,115,22,0.08)', border: '0.5px solid rgba(249,115,22,0.2)', borderRadius: '6px', fontSize: 'clamp(10px,1.6vw,12px)', color: '#f97316' }}>
-                  📝 {currentOrder.special_instructions}
+                  📝 {currentOrder.special_instructions || currentOrder.notes}
                 </div>
               )}
             </div>
@@ -699,10 +699,28 @@ export default function TerminalPage() {
               </div>
             )}
 
-            {/* Accepted orders show status */}
-            {['accepted', 'waiting_payment', 'paid'].includes(currentOrder.status) && (
-              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '12px', textAlign: 'center', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, color: '#22c55e' }}>
-                ✅ {currentOrder.status === 'paid' ? 'Order Paid' : currentOrder.status === 'waiting_payment' ? 'Waiting for Payment' : 'Accepted'}
+            {/* Accepted orders show status + reprint */}
+            {['accepted', 'waiting_payment', 'paid', 'complete'].includes(currentOrder.status) && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '12px', textAlign: 'center', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, color: '#22c55e' }}>
+                  ✅ {currentOrder.status === 'paid' || currentOrder.status === 'complete' ? 'Order Paid' : currentOrder.status === 'waiting_payment' ? 'Waiting for Payment' : 'Accepted'}
+                </div>
+                <button onClick={() => manualReprint({
+                  id: currentOrder.id,
+                  orderNumber: currentOrder.order_number,
+                  restaurantName: restaurant?.name || 'Restaurant',
+                  customerName: currentOrder.customer_name,
+                  deliveryAddress: currentOrder.delivery_address,
+                  isCollection: currentOrder.order_type === 'collection',
+                  items: currentOrder.order_items || [],
+                  specialInstructions: currentOrder.special_instructions || currentOrder.notes,
+                  subtotal: currentOrder.subtotal,
+                  deliveryFee: currentOrder.delivery_fee,
+                  tip: currentOrder.tip,
+                  total: currentOrder.total,
+                })} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', padding: '10px', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>
+                  🖨️ Reprint Tickets
+                </button>
               </div>
             )}
           </div>
