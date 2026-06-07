@@ -785,7 +785,7 @@ export default function AdminPage() {
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
                   <div style={{ marginBottom: '14px' }}><label>Custom Thank You Message</label><input className="input" value={editRestaurant.custom_message || ''} onChange={e => setEditRestaurant({...editRestaurant, custom_message: e.target.value})} /></div>
                   <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                    {[['is_open','Open for orders'],['is_active','Visible on site'],['accepts_delivery','Delivery'],['accepts_pickup','Pickup']].map(([key, label]) => (
+                    {[['is_open','Open for orders'],['is_active','Visible on site'],['accepts_delivery','Accepts Delivery'],['accepts_pickup','Accepts Pickup'],['delivery_enabled','Delivery Open Now'],['pickup_enabled','Pickup Open Now'],['preorder_delivery_enabled','Pre-Order Delivery'],['preorder_pickup_enabled','Pre-Order Pickup']].map(([key, label]) => (
                       <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editRestaurant[key]} onChange={e => setEditRestaurant({...editRestaurant, [key]: e.target.checked})} />
                         {label}
