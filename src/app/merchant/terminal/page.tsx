@@ -527,44 +527,123 @@ export default function TerminalPage() {
         </div>
       )}
 
-      {/* ORDER DETAIL */}
       {screen === 'detail' && currentOrder && (
         <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 9 }}>
+          {/* HEADER */}
           <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(8px,2vw,14px)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>Back</button>
-            <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>Order {currentOrder.order_number}</div>
+            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>Order #{currentOrder.order_number || String(currentOrder.id).slice(-6).toUpperCase()}</div>
+              <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#64748b' }}>
+                {currentOrder.scheduled_for ? `📅 PRE-ORDER - ${new Date(currentOrder.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '⚡ ASAP Order'}
+                {' • '}
+                {currentOrder.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                {' • '}
+                {currentOrder.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}
+              </div>
+            </div>
           </div>
+
+          {/* CONTENT */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(10px,2vw,16px)' }}>
-            <div style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '12px' }}>
-              <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#f8fafc', marginBottom: '5px' }}>{currentOrder.customer_name}</div>
-              <div style={{ fontSize: 'clamp(10px,1.8vw,13px)', color: '#64748b', lineHeight: 1.8 }}>
-                {currentOrder.customer_phone}<br />
-                {currentOrder.order_type === 'delivery' ? currentOrder.delivery_address : 'Collection'}
-                {currentOrder.delivery_what3words && <><br /><span style={{ color: '#ef4444', fontWeight: 600 }}>/// {currentOrder.delivery_what3words}</span></>}
-                <br />{currentOrder.payment_method}
-              </div>
-            </div>
-            <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px', fontWeight: 600 }}>Items</div>
-            {currentOrder.order_items?.map((item: any) => (
-              <div key={item.id} style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: 'clamp(8px,1.5vw,12px)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 500, color: '#f8fafc' }}>{item.quantity}x {item.name}</div>
-                  {item.special_instructions && <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#f97316', fontStyle: 'italic', marginTop: '2px' }}>"{item.special_instructions}"</div>}
+
+            {/* PRE-ORDER BADGE */}
+            {currentOrder.scheduled_for && (
+              <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '20px' }}>📅</div>
+                <div>
+                  <div style={{ fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, color: '#3b82f6' }}>PRE-ORDER</div>
+                  <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#64748b' }}>
+                    Scheduled for {new Date(currentOrder.scheduled_for).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-                <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 600, color: '#22c55e' }}>GBP{item.subtotal?.toFixed(2)}</div>
               </div>
-            ))}
-          </div>
-          <div style={{ background: '#060b18', borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}><span>Subtotal</span><span>GBP{currentOrder.subtotal?.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '8px' }}><span>Delivery</span><span>{currentOrder.order_type === 'delivery' ? `GBP${currentOrder.delivery_fee?.toFixed(2)}` : 'Free'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(16px,3vw,20px)', fontWeight: 700, color: '#f8fafc', marginBottom: '12px' }}><span>Total</span><span style={{ color: '#22c55e' }}>GBP{currentOrder.total?.toFixed(2)}</span></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
-              <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>
-                {currentOrder.payment_method === 'cash' ? '✓ Accept (Cash)' : '✓ Accept & Send Payment Link'}
-              </button>
-              <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer' }}>Reject</button>
+            )}
+
+            {/* CONTACTLESS BADGE */}
+            {currentOrder.contactless_delivery && (
+              <div style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '12px', fontSize: 'clamp(11px,1.8vw,13px)', color: '#f97316', fontWeight: 600 }}>
+                🚪 CONTACTLESS DELIVERY
+              </div>
+            )}
+
+            {/* CUSTOMER INFO */}
+            <div style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '12px' }}>
+              <div style={{ fontSize: 'clamp(13px,2.5vw,15px)', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>{currentOrder.customer_name}</div>
+              <div style={{ fontSize: 'clamp(10px,1.8vw,13px)', color: '#64748b', lineHeight: 1.8 }}>
+                📞 {currentOrder.customer_phone}<br />
+                {currentOrder.order_type === 'delivery' 
+                  ? <>📍 {currentOrder.delivery_address}</> 
+                  : '🏪 Collection'}
+                {currentOrder.delivery_what3words && <><br /><span style={{ color: '#ef4444', fontWeight: 600 }}>/// {currentOrder.delivery_what3words}</span></>}
+              </div>
+              {currentOrder.special_instructions && (
+                <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(249,115,22,0.08)', border: '0.5px solid rgba(249,115,22,0.2)', borderRadius: '6px', fontSize: 'clamp(10px,1.6vw,12px)', color: '#f97316' }}>
+                  📝 {currentOrder.special_instructions}
+                </div>
+              )}
             </div>
+
+            {/* ITEMS */}
+            <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px', fontWeight: 600 }}>
+              Items ({currentOrder.order_items?.length || 0})
+            </div>
+            {currentOrder.order_items?.length > 0 ? (
+              currentOrder.order_items.map((item: any) => (
+                <div key={item.id} style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: 'clamp(8px,1.5vw,12px)', marginBottom: '6px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 'clamp(13px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{item.quantity}x {item.name}</div>
+                    {item.special_instructions && (
+                      <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#f97316', fontStyle: 'italic', marginTop: '4px' }}>
+                        → {item.special_instructions}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,14px)', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>GBP{item.subtotal?.toFixed(2)}</div>
+                </div>
+              ))
+            ) : (
+              <div style={{ background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '12px', marginBottom: '6px', fontSize: '12px', color: '#475569', textAlign: 'center' }}>
+                No items data available
+              </div>
+            )}
+          </div>
+
+          {/* FOOTER - TOTALS + BUTTONS */}
+          <div style={{ background: '#060b18', borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(10px,2vw,14px)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}>
+              <span>Subtotal</span><span>GBP{currentOrder.subtotal?.toFixed(2)}</span>
+            </div>
+            {currentOrder.delivery_fee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}>
+                <span>Delivery</span><span>GBP{currentOrder.delivery_fee?.toFixed(2)}</span>
+              </div>
+            )}
+            {currentOrder.tip > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '3px' }}>
+                <span>Tip</span><span>GBP{currentOrder.tip?.toFixed(2)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(16px,3vw,20px)', fontWeight: 700, color: '#f8fafc', marginBottom: '12px', paddingTop: '6px', borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+              <span>Total</span><span style={{ color: '#22c55e' }}>GBP{currentOrder.total?.toFixed(2)}</span>
+            </div>
+
+            {/* Only show accept/reject for pending orders */}
+            {currentOrder.status === 'pending' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+                <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>
+                  {currentOrder.payment_method === 'cash' ? '✓ Accept (Cash)' : '✓ Accept & Send Payment Link'}
+                </button>
+                <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer', fontWeight: 600 }}>Reject</button>
+              </div>
+            )}
+
+            {/* Accepted orders show status */}
+            {['accepted', 'waiting_payment', 'paid'].includes(currentOrder.status) && (
+              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '12px', textAlign: 'center', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, color: '#22c55e' }}>
+                ✅ {currentOrder.status === 'paid' ? 'Order Paid' : currentOrder.status === 'waiting_payment' ? 'Waiting for Payment' : 'Accepted'}
+              </div>
+            )}
           </div>
         </div>
       )}
