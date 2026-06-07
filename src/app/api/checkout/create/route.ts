@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
     const total = subtotal + deliveryFee
     const commission = paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
 
+    // Validate customerId exists in auth if provided
+    let validUserId = null
+    if (customerId) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(customerId)
+      if (authUser?.user) validUserId = customerId
+    }
+
     // Generate order number
     const orderNumber = 'FM-' + Date.now().toString().slice(-6)
 
@@ -60,7 +67,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert({
         restaurant_id: restaurantId,
-        user_id: customerId || null,
+        user_id: validUserId,
         customer_name: customerName,
         customer_phone: customerPhone || '',
         customer_email: customerEmail || '',
