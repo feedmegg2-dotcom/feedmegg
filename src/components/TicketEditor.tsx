@@ -1,43 +1,44 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const ELEMENTS = [
-  { type: 'order_number', label: '# Order Number', icon: '🔢', conditional: false },
-  { type: 'customer_name', label: '👤 Customer Name', icon: '👤', conditional: false },
-  { type: 'items_list', label: '📦 Items + Extras', icon: '📦', conditional: false },
-  { type: 'total', label: '💷 Total', icon: '💷', conditional: false },
-  { type: 'subtotal', label: '💷 Subtotal', icon: '💷', conditional: false },
-  { type: 'restaurant_name', label: '🏪 Restaurant Name', icon: '🏪', conditional: false },
-  { type: 'delivery_address', label: '📍 Delivery Address', icon: '📍', conditional: false },
-  { type: 'phone', label: '📞 Phone Number', icon: '📞', conditional: false },
-  { type: 'datetime', label: '⏰ Date & Time', icon: '⏰', conditional: false },
-  { type: 'order_type', label: '🚗 Order Type', icon: '🚗', conditional: false },
-  { type: 'special_instructions', label: '📝 Special Instructions', icon: '📝', conditional: false },
-  { type: 'preorder_badge', label: '📅 PRE-ORDER Badge', icon: '📅', conditional: true },
-  { type: 'preorder_time', label: '🕐 Scheduled Time', icon: '🕐', conditional: true },
-  { type: 'contactless', label: '🚪 Contactless Delivery', icon: '🚪', conditional: true },
-  { type: 'divider', label: '➖ Divider Line', icon: '➖', conditional: false },
-  { type: 'spacer', label: '⬜ Spacer', icon: '⬜', conditional: false },
-  { type: 'custom_text', label: '✏️ Custom Text', icon: '✏️', conditional: false },
+  { type: 'order_number', label: '# Order Number', conditional: false },
+  { type: 'customer_name', label: '👤 Customer Name', conditional: false },
+  { type: 'items_list', label: '📦 Items + Extras', conditional: false },
+  { type: 'total', label: '💷 Total', conditional: false },
+  { type: 'subtotal', label: '💷 Subtotal + Fees', conditional: false },
+  { type: 'restaurant_name', label: '🏪 Restaurant Name', conditional: false },
+  { type: 'delivery_address', label: '📍 Delivery Address', conditional: false },
+  { type: 'phone', label: '📞 Phone Number', conditional: false },
+  { type: 'datetime', label: '⏰ Date & Time', conditional: false },
+  { type: 'order_type', label: '🚗 Order Type', conditional: false },
+  { type: 'special_instructions', label: '📝 Special Instructions', conditional: false },
+  { type: 'divider', label: '➖ Divider Line', conditional: false },
+  { type: 'spacer', label: '⬜ Spacer', conditional: false },
+  { type: 'custom_text', label: '✏️ Custom Text', conditional: false },
+  { type: 'preorder_badge', label: '📅 PRE-ORDER Badge', conditional: true },
+  { type: 'preorder_time', label: '🕐 Scheduled Time', conditional: true },
+  { type: 'contactless', label: '🚪 Contactless Delivery', conditional: true },
 ]
 
 const SAMPLE_ORDER = {
   order_number: 'FM-2024-001',
   customer_name: 'John Smith',
   customer_phone: '07700 900123',
-  delivery_address: '12 Le Vauquiedor, St Andrews, Guernsey',
+  delivery_address: '12 Le Vauquiedor\nSt Andrews\nGuernsey GY6 8TP',
   order_type: 'delivery',
   contactless_delivery: true,
-  scheduled_for: '2024-06-15T18:00:00',
-  special_instructions: 'Extra sauce please',
+  scheduled_for: new Date(Date.now() + 3600000).toISOString(),
+  special_instructions: 'Extra sauce please, no onions',
+  restaurant_name: 'The Grand Bistro',
   subtotal: 24.50,
   delivery_fee: 2.50,
   tip: 2.00,
   total: 29.00,
   items: [
-    { quantity: 2, name: 'Margherita Pizza', price: 10.00, special_instructions: 'Extra cheese' },
+    { quantity: 2, name: 'Margherita Pizza', price: 10.00, special_instructions: 'Extra cheese, thin crust' },
     { quantity: 1, name: 'Garlic Bread', price: 3.50, special_instructions: '' },
     { quantity: 1, name: 'Coca Cola', price: 1.50, special_instructions: '' },
   ]
@@ -107,17 +108,26 @@ const DEFAULT_TEMPLATES = [
   }
 ]
 
-function renderElement(el: any, order: any = SAMPLE_ORDER) {
-  const sizeMap: any = { small: '11px', medium: '13px', large: '16px', xl: '20px' }
-  const fontSize = sizeMap[el.size] || '13px'
+function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number = 80) {
+  const scale = printerWidth === 58 ? 0.75 : 1
+  const sizeMap: any = {
+    small: Math.round(10 * scale) + 'px',
+    medium: Math.round(12 * scale) + 'px',
+    large: Math.round(15 * scale) + 'px',
+    xl: Math.round(18 * scale) + 'px'
+  }
+  const fontSize = sizeMap[el.size] || sizeMap.medium
   const style: any = {
     fontSize,
     fontWeight: el.bold ? 700 : 400,
     textAlign: el.align || 'left',
     textTransform: el.caps ? 'uppercase' : 'none',
-    fontFamily: 'monospace',
+    fontFamily: '"Courier New", Courier, monospace',
     width: '100%',
     padding: '1px 0',
+    lineHeight: 1.4,
+    wordBreak: 'break-word',
+    color: '#000',
   }
 
   const isPreOrder = !!order.scheduled_for
@@ -127,39 +137,50 @@ function renderElement(el: any, order: any = SAMPLE_ORDER) {
     case 'order_number': return <div style={style}>{order.order_number}</div>
     case 'customer_name': return <div style={style}>{order.customer_name}</div>
     case 'phone': return <div style={style}>{order.customer_phone}</div>
-    case 'delivery_address': return <div style={style}>{order.delivery_address}</div>
+    case 'delivery_address': return <div style={{ ...style, whiteSpace: 'pre-line' }}>{order.delivery_address}</div>
     case 'order_type': return <div style={style}>{order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
-    case 'restaurant_name': return <div style={style}>{order.restaurant_name || 'Restaurant Name'}</div>
-    case 'datetime': return <div style={style}>{new Date().toLocaleString('en-GB')}</div>
-    case 'subtotal': return <div style={style}>Subtotal: GBP{order.subtotal?.toFixed(2)}{order.delivery_fee ? ` | Delivery: GBP${order.delivery_fee?.toFixed(2)}` : ''}</div>
+    case 'restaurant_name': return <div style={style}>{order.restaurant_name}</div>
+    case 'datetime': return <div style={style}>{new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+    case 'subtotal': return (
+      <div style={style}>
+        <div>Subtotal: GBP{order.subtotal?.toFixed(2)}</div>
+        {order.delivery_fee > 0 && <div>Delivery: GBP{order.delivery_fee?.toFixed(2)}</div>}
+        {order.tip > 0 && <div>Tip: GBP{order.tip?.toFixed(2)}</div>}
+      </div>
+    )
     case 'total': return <div style={style}>TOTAL: GBP{order.total?.toFixed(2)}</div>
-    case 'special_instructions': return order.special_instructions ? <div style={style}>Note: {order.special_instructions}</div> : null
+    case 'special_instructions': return order.special_instructions ? (
+      <div style={style}>
+        <div style={{ fontWeight: 700 }}>** NOTES **</div>
+        <div>{order.special_instructions}</div>
+      </div>
+    ) : null
     case 'custom_text': return <div style={style}>{el.text || 'Custom text here'}</div>
     case 'divider': return <div style={{ borderTop: '1px dashed #000', margin: '4px 0', width: '100%' }} />
-    case 'spacer': return <div style={{ height: '8px' }} />
+    case 'spacer': return <div style={{ height: '10px' }} />
     case 'items_list': return (
       <div style={{ width: '100%' }}>
         {order.items?.map((item: any, i: number) => (
-          <div key={i} style={{ ...style, marginBottom: '4px' }}>
-            <div>{item.quantity}x {item.name}</div>
-            {item.special_instructions && <div style={{ fontSize: '11px', paddingLeft: '12px' }}>→ {item.special_instructions}</div>}
+          <div key={i} style={{ marginBottom: '6px' }}>
+            <div style={{ ...style, fontWeight: 700 }}>{item.quantity}x {item.name}</div>
+            {item.special_instructions && <div style={{ ...style, fontSize: Math.round(10 * scale) + 'px', paddingLeft: '10px', fontStyle: 'italic' }}>→ {item.special_instructions}</div>}
           </div>
         ))}
       </div>
     )
     case 'preorder_badge': return isPreOrder ? (
-      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '2px 0' }}>
-        📅 PRE-ORDER
+      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
+        *** PRE-ORDER ***
       </div>
     ) : null
     case 'preorder_time': return isPreOrder ? (
-      <div style={style}>
-        🕐 Ready: {new Date(order.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+      <div style={{ ...style, fontWeight: 700 }}>
+        Ready: {new Date(order.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
       </div>
     ) : null
     case 'contactless': return isContactless ? (
-      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '2px 0' }}>
-        🚪 CONTACTLESS DELIVERY
+      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
+        *** CONTACTLESS DELIVERY ***
       </div>
     ) : null
     default: return null
@@ -178,39 +199,49 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
   const [selectedTemplate, setSelectedTemplate] = useState<any>(DEFAULT_TEMPLATES[0])
   const [selectedElement, setSelectedElement] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [showPreview, setShowPreview] = useState(false)
+  const [printerWidth, setPrinterWidth] = useState<58 | 80>(80)
+  const [showPreOrder, setShowPreOrder] = useState(true)
+  const [showContactless, setShowContactless] = useState(true)
+  const dragItem = useRef<number | null>(null)
+  const dragOverItem = useRef<number | null>(null)
 
-  React.useEffect(() => {
-    loadTemplates()
-  }, [])
+  // Canvas width based on printer
+  const canvasWidth = printerWidth === 80 ? 300 : 220
+
+  React.useEffect(() => { loadTemplates() }, [])
 
   async function loadTemplates() {
-    setLoading(true)
+    const { data: rest } = await supabase.from('restaurants').select('printer_width').eq('id', restaurantId).single()
+    if (rest?.printer_width) setPrinterWidth(rest.printer_width as 58 | 80)
     const { data } = await supabase.from('ticket_templates').select('*').eq('restaurant_id', restaurantId).order('created_at')
     if (data && data.length > 0) {
       setTemplates(data)
       setSelectedTemplate(data[0])
     }
-    setLoading(false)
   }
 
-  async function saveTemplates() {
+  async function saveAll() {
     setSaving(true)
+    await supabase.from('restaurants').update({ printer_width: printerWidth }).eq('id', restaurantId)
     for (const t of templates) {
-      if (t.id && !['kitchen','customer','delivery'].includes(t.id)) {
-        await supabase.from('ticket_templates').upsert({ ...t, restaurant_id: restaurantId, updated_at: new Date().toISOString() })
+      const isDefault = ['kitchen', 'customer', 'delivery'].includes(t.id)
+      if (isDefault) {
+        const existing = await supabase.from('ticket_templates').select('id').eq('restaurant_id', restaurantId).eq('template_type', t.template_type).single()
+        if (existing.data) {
+          await supabase.from('ticket_templates').update({ name: t.name, copies: t.copies, elements: t.elements, updated_at: new Date().toISOString() }).eq('id', existing.data.id)
+        } else {
+          await supabase.from('ticket_templates').insert({ restaurant_id: restaurantId, name: t.name, template_type: t.template_type, copies: t.copies, elements: t.elements })
+        }
       } else {
-        const { data } = await supabase.from('ticket_templates').upsert({ ...t, id: undefined, restaurant_id: restaurantId, updated_at: new Date().toISOString() }).select().single()
-        if (data) setTemplates(prev => prev.map(tp => tp.id === t.id ? data : tp))
+        await supabase.from('ticket_templates').upsert({ id: t.id.length < 10 ? undefined : t.id, restaurant_id: restaurantId, name: t.name, template_type: t.template_type, copies: t.copies, elements: t.elements, updated_at: new Date().toISOString() })
       }
     }
     setSaving(false)
-    alert('Templates saved!')
+    alert('Saved!')
   }
 
   function addElement(type: string) {
-    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, text: type === 'custom_text' ? 'Custom text' : undefined }
+    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, text: type === 'custom_text' ? 'Your custom text here' : undefined }
     const updated = { ...selectedTemplate, elements: [...(selectedTemplate.elements || []), el] }
     setSelectedTemplate(updated)
     setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
@@ -231,11 +262,22 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
     setSelectedElement((prev: any) => prev?.id === id ? { ...prev, ...changes } : prev)
   }
 
-  function moveElement(id: string, dir: 'up' | 'down') {
+  function updateTemplate(changes: any) {
+    const updated = { ...selectedTemplate, ...changes }
+    setSelectedTemplate(updated)
+    setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
+  }
+
+  // DRAG AND DROP
+  function handleDragStart(idx: number) { dragItem.current = idx }
+  function handleDragEnter(idx: number) { dragOverItem.current = idx }
+  function handleDragEnd() {
+    if (dragItem.current === null || dragOverItem.current === null) return
     const els = [...selectedTemplate.elements]
-    const idx = els.findIndex((e: any) => e.id === id)
-    if (dir === 'up' && idx > 0) { [els[idx-1], els[idx]] = [els[idx], els[idx-1]] }
-    if (dir === 'down' && idx < els.length-1) { [els[idx+1], els[idx]] = [els[idx], els[idx+1]] }
+    const dragged = els.splice(dragItem.current, 1)[0]
+    els.splice(dragOverItem.current, 0, dragged)
+    dragItem.current = null
+    dragOverItem.current = null
     const updated = { ...selectedTemplate, elements: els }
     setSelectedTemplate(updated)
     setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
@@ -245,136 +287,191 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
     const newT = { id: Date.now().toString(), name: 'New Template', template_type: 'custom', copies: 1, elements: [] }
     setTemplates(prev => [...prev, newT])
     setSelectedTemplate(newT)
+    setSelectedElement(null)
   }
 
-  function deleteTemplate(id: string) {
-    if (templates.length <= 1) return alert('Must have at least one template')
+  async function deleteTemplate(id: string) {
+    if (templates.length <= 1) return
     const remaining = templates.filter(t => t.id !== id)
     setTemplates(remaining)
     setSelectedTemplate(remaining[0])
-    supabase.from('ticket_templates').delete().eq('id', id)
+    if (id.length > 10) await supabase.from('ticket_templates').delete().eq('id', id)
+  }
+
+  const sampleOrder = {
+    ...SAMPLE_ORDER,
+    scheduled_for: showPreOrder ? SAMPLE_ORDER.scheduled_for : null,
+    contactless_delivery: showContactless,
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#060b18', zIndex: 500, display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+
       {/* HEADER */}
-      <div style={{ background: '#0d1321', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>🎫 Ticket Editor</div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>{restaurantName}</div>
+      <div style={{ background: '#0d1321', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>🎫 Ticket Editor — {restaurantName}</div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowPreview(!showPreview)} style={{ padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-            {showPreview ? 'Hide Preview' : 'Preview'}
-          </button>
-          <button onClick={saveTemplates} disabled={saving} style={{ padding: '8px 16px', background: '#22c55e', border: 'none', color: '#0a0f1e', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-            {saving ? 'Saving...' : 'Save All'}
-          </button>
-          <button onClick={onClose} style={{ padding: '8px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+
+        {/* PRINTER WIDTH */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Printer:</span>
+          {([58, 80] as const).map(w => (
+            <button key={w} onClick={async () => { setPrinterWidth(w) }} style={{ padding: '5px 10px', background: printerWidth === w ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${printerWidth === w ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: printerWidth === w ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+              {w}mm
+            </button>
+          ))}
         </div>
+
+        {/* PREVIEW TOGGLES */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Preview:</span>
+          <button onClick={() => setShowPreOrder(!showPreOrder)} style={{ padding: '5px 10px', background: showPreOrder ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showPreOrder ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'}`, color: showPreOrder ? '#3b82f6' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+            📅 Pre-Order
+          </button>
+          <button onClick={() => setShowContactless(!showContactless)} style={{ padding: '5px 10px', background: showContactless ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showContactless ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'}`, color: showContactless ? '#3b82f6' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+            🚪 Contactless
+          </button>
+        </div>
+
+        <button onClick={saveAll} disabled={saving} style={{ padding: '8px 20px', background: '#22c55e', border: 'none', color: '#0a0f1e', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+          {saving ? 'Saving...' : '💾 Save All'}
+        </button>
+        <button onClick={onClose} style={{ padding: '8px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>✕ Close</button>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: showPreview ? '220px 1fr 260px 280px' : '220px 1fr 260px', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '200px 1fr 260px', overflow: 'hidden' }}>
 
-        {/* LEFT - TEMPLATE LIST */}
-        <div style={{ background: '#0a0f1e', borderRight: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Templates</div>
+        {/* LEFT - TEMPLATES */}
+        <div style={{ background: '#0a0f1e', borderRight: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '12px' }}>
+          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Templates</div>
           {templates.map(t => (
-            <div key={t.id} onClick={() => { setSelectedTemplate(t); setSelectedElement(null) }} style={{ background: selectedTemplate?.id === t.id ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedTemplate?.id === t.id ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: selectedTemplate?.id === t.id ? '#22c55e' : '#f8fafc' }}>{t.name}</div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                {t.elements?.length || 0} elements • {t.copies} cop{t.copies === 1 ? 'y' : 'ies'}
-              </div>
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                <select value={t.copies} onChange={e => { const updated = {...t, copies: parseInt(e.target.value)}; setTemplates(prev => prev.map(tp => tp.id === t.id ? updated : tp)); if (selectedTemplate?.id === t.id) setSelectedTemplate(updated) }} onClick={e => e.stopPropagation()} style={{ flex: 1, padding: '4px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '11px', outline: 'none' }}>
-                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} cop{n===1?'y':'ies'}</option>)}
+            <div key={t.id} onClick={() => { setSelectedTemplate(t); setSelectedElement(null) }} style={{ background: selectedTemplate?.id === t.id ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedTemplate?.id === t.id ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '8px', padding: '10px', marginBottom: '6px', cursor: 'pointer' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: selectedTemplate?.id === t.id ? '#22c55e' : '#f8fafc', marginBottom: '4px' }}>{t.name}</div>
+              <div style={{ fontSize: '10px', color: '#64748b' }}>{t.elements?.length || 0} elements</div>
+              <div style={{ display: 'flex', gap: '4px', marginTop: '8px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                <span style={{ fontSize: '10px', color: '#64748b' }}>Copies:</span>
+                <select value={t.copies} onChange={e => { const val = parseInt(e.target.value); const upd = {...t, copies: val}; setTemplates(prev => prev.map(tp => tp.id === t.id ? upd : tp)); if (selectedTemplate?.id === t.id) setSelectedTemplate(upd) }} style={{ flex: 1, padding: '3px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '11px', outline: 'none' }}>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}>✕</button>
+                <button onClick={() => deleteTemplate(t.id)} style={{ padding: '3px 6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           ))}
-          <button onClick={addTemplate} style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.15)', color: '#64748b', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', marginTop: '4px' }}>+ New Template</button>
+          <button onClick={addTemplate} style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)', color: '#64748b', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>+ New Template</button>
         </div>
 
-        {/* MIDDLE - CANVAS / ELEMENT LIST */}
-        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <input value={selectedTemplate?.name || ''} onChange={e => { const updated = {...selectedTemplate, name: e.target.value}; setSelectedTemplate(updated); setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t)) }} style={{ background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '18px', fontWeight: 700, outline: 'none', width: '200px' }} />
-            </div>
+        {/* MIDDLE - CANVAS */}
+        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {/* Template name */}
+          <div style={{ width: canvasWidth + 32, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <input value={selectedTemplate?.name || ''} onChange={e => updateTemplate({ name: e.target.value })} style={{ flex: 1, background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '16px', fontWeight: 700, outline: 'none' }} />
+            <span style={{ fontSize: '11px', color: '#64748b' }}>{printerWidth}mm • {selectedTemplate?.copies} cop{selectedTemplate?.copies === 1 ? 'y' : 'ies'}</span>
           </div>
 
-          {/* ELEMENT CANVAS */}
-          <div style={{ background: 'white', borderRadius: '8px', padding: '16px', width: '300px', margin: '0 auto', minHeight: '400px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontSize: '10px', color: '#999', textAlign: 'center', marginBottom: '8px', fontFamily: 'monospace' }}>── THERMAL TICKET ──</div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>🖱️ Drag elements to reorder • Click to edit</div>
+
+          {/* TICKET CANVAS */}
+          <div style={{ background: 'white', borderRadius: '4px', padding: '16px', width: canvasWidth, minHeight: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', transition: 'width 0.3s' }}>
+            <div style={{ fontSize: '9px', color: '#999', textAlign: 'center', marginBottom: '8px', fontFamily: 'monospace', letterSpacing: '2px' }}>{'─'.repeat(printerWidth === 80 ? 32 : 24)}</div>
             {selectedTemplate?.elements?.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#ccc', fontSize: '12px', padding: '40px 0' }}>Add elements from the right panel</div>
+              <div style={{ textAlign: 'center', color: '#ccc', fontSize: '12px', padding: '40px 0' }}>← Add elements from the right panel</div>
             )}
-            {selectedTemplate?.elements?.map((el: any) => (
-              <div key={el.id} onClick={() => setSelectedElement(selectedElement?.id === el.id ? null : el)} style={{ position: 'relative', cursor: 'pointer', padding: '3px', border: `2px solid ${selectedElement?.id === el.id ? '#3b82f6' : 'transparent'}`, borderRadius: '4px', marginBottom: '2px', background: selectedElement?.id === el.id ? 'rgba(59,130,246,0.05)' : 'transparent' }}>
-                {renderElement(el)}
+            {selectedTemplate?.elements?.map((el: any, idx: number) => (
+              <div
+                key={el.id}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragEnter={() => handleDragEnter(idx)}
+                onDragEnd={handleDragEnd}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => setSelectedElement(selectedElement?.id === el.id ? null : el)}
+                style={{
+                  position: 'relative',
+                  cursor: 'grab',
+                  padding: '3px 4px',
+                  border: `2px solid ${selectedElement?.id === el.id ? '#3b82f6' : 'transparent'}`,
+                  borderRadius: '4px',
+                  marginBottom: '2px',
+                  background: selectedElement?.id === el.id ? 'rgba(59,130,246,0.08)' : 'transparent',
+                  userSelect: 'none',
+                }}
+              >
+                {renderElement(el, sampleOrder, printerWidth)}
                 {selectedElement?.id === el.id && (
-                  <div style={{ position: 'absolute', right: '2px', top: '2px', display: 'flex', gap: '2px' }}>
-                    <button onClick={e => { e.stopPropagation(); moveElement(el.id, 'up') }} style={{ background: '#3b82f6', border: 'none', color: 'white', width: '18px', height: '18px', borderRadius: '3px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↑</button>
-                    <button onClick={e => { e.stopPropagation(); moveElement(el.id, 'down') }} style={{ background: '#3b82f6', border: 'none', color: 'white', width: '18px', height: '18px', borderRadius: '3px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↓</button>
+                  <div style={{ position: 'absolute', right: '2px', top: '2px', display: 'flex', gap: '2px', zIndex: 10 }}>
                     <button onClick={e => { e.stopPropagation(); removeElement(el.id) }} style={{ background: '#ef4444', border: 'none', color: 'white', width: '18px', height: '18px', borderRadius: '3px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                   </div>
                 )}
               </div>
             ))}
+            <div style={{ fontSize: '9px', color: '#999', textAlign: 'center', marginTop: '8px', fontFamily: 'monospace', letterSpacing: '2px' }}>{'─'.repeat(printerWidth === 80 ? 32 : 24)}</div>
           </div>
         </div>
 
-        {/* RIGHT - ADD ELEMENTS + PROPERTIES */}
-        <div style={{ background: '#0a0f1e', borderLeft: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '16px' }}>
+        {/* RIGHT - ELEMENTS + PROPERTIES */}
+        <div style={{ background: '#0a0f1e', borderLeft: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '14px' }}>
+
           {/* ELEMENT PROPERTIES */}
           {selectedElement && (
-            <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Element Settings</div>
-              
+            <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Edit: {ELEMENTS.find(e => e.type === selectedElement.type)?.label || selectedElement.type}
+              </div>
+
               {selectedElement.type === 'custom_text' && (
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Text</label>
-                  <input value={selectedElement.text || ''} onChange={e => updateElement(selectedElement.id, { text: e.target.value })} style={{ width: '100%', padding: '6px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none' }} />
+                  <textarea value={selectedElement.text || ''} onChange={e => updateElement(selectedElement.id, { text: e.target.value })} rows={2} style={{ width: '100%', padding: '6px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
                 </div>
               )}
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Size</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '4px' }}>
-                  {['small','medium','large','xl'].map(s => (
-                    <button key={s} onClick={() => updateElement(selectedElement.id, { size: s })} style={{ padding: '5px 2px', background: selectedElement.size === s ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.size === s ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.size === s ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>{s}</button>
-                  ))}
-                </div>
-              </div>
+              {!['divider','spacer'].includes(selectedElement.type) && (
+                <>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Size</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '4px' }}>
+                      {['small','medium','large','xl'].map(s => (
+                        <button key={s} onClick={() => updateElement(selectedElement.id, { size: s })} style={{ padding: '6px 2px', background: selectedElement.size === s ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.size === s ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.size === s ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>{s}</button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Align</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                  {['left','center','right'].map(a => (
-                    <button key={a} onClick={() => updateElement(selectedElement.id, { align: a })} style={{ padding: '5px', background: selectedElement.align === a ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.align === a ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.align === a ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
-                      {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Align</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
+                      {[['left','⬅ Left'],['center','↔ Centre'],['right','➡ Right']].map(([a,l]) => (
+                        <button key={a} onClick={() => updateElement(selectedElement.id, { align: a })} style={{ padding: '6px 2px', background: selectedElement.align === a ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.align === a ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.align === a ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
+                    <button onClick={() => updateElement(selectedElement.id, { bold: !selectedElement.bold })} style={{ padding: '8px', background: selectedElement.bold ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.bold ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.bold ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
+                      Bold {selectedElement.bold ? '✓' : ''}
                     </button>
-                  ))}
-                </div>
-              </div>
+                    <button onClick={() => updateElement(selectedElement.id, { caps: !selectedElement.caps })} style={{ padding: '8px', background: selectedElement.caps ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.caps ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.caps ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
+                      CAPS {selectedElement.caps ? '✓' : ''}
+                    </button>
+                  </div>
+                </>
+              )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                <button onClick={() => updateElement(selectedElement.id, { bold: !selectedElement.bold })} style={{ padding: '6px', background: selectedElement.bold ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.bold ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.bold ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>Bold {selectedElement.bold ? '✓' : ''}</button>
-                <button onClick={() => updateElement(selectedElement.id, { caps: !selectedElement.caps })} style={{ padding: '6px', background: selectedElement.caps ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.caps ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.caps ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>CAPS {selectedElement.caps ? '✓' : ''}</button>
-              </div>
+              <button onClick={() => { removeElement(selectedElement.id); setSelectedElement(null) }} style={{ width: '100%', padding: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
+                Remove Element
+              </button>
             </div>
           )}
 
           {/* ADD ELEMENTS */}
-          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Add Elements</div>
-          
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px', fontWeight: 600 }}>STANDARD</div>
+          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Add Elements</div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '10px', color: '#475569', fontWeight: 600, marginBottom: '6px' }}>STANDARD</div>
             {ELEMENTS.filter(e => !e.conditional).map(el => (
-              <button key={el.type} onClick={() => addElement(el.type)} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', color: '#94a3b8', fontSize: '12px', cursor: 'pointer', marginBottom: '4px', textAlign: 'left' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+              <button key={el.type} onClick={() => addElement(el.type)} style={{ display: 'block', width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', color: '#94a3b8', fontSize: '12px', cursor: 'pointer', marginBottom: '3px', textAlign: 'left' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
               >
                 {el.label}
               </button>
@@ -382,34 +479,18 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
           </div>
 
           <div>
-            <div style={{ fontSize: '10px', color: '#f97316', marginBottom: '6px', fontWeight: 600 }}>CONDITIONAL (only prints when applicable)</div>
+            <div style={{ fontSize: '10px', color: '#f97316', fontWeight: 600, marginBottom: '6px' }}>CONDITIONAL</div>
+            <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px' }}>Only prints when applicable</div>
             {ELEMENTS.filter(e => e.conditional).map(el => (
-              <button key={el.type} onClick={() => addElement(el.type)} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '6px', color: '#f97316', fontSize: '12px', cursor: 'pointer', marginBottom: '4px', textAlign: 'left' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.05)'}
+              <button key={el.type} onClick={() => addElement(el.type)} style={{ display: 'block', width: '100%', padding: '7px 10px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '6px', color: '#f97316', fontSize: '12px', cursor: 'pointer', marginBottom: '3px', textAlign: 'left' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.1)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.05)')}
               >
                 {el.label}
               </button>
             ))}
           </div>
         </div>
-
-        {/* PREVIEW PANEL */}
-        {showPreview && (
-          <div style={{ background: '#0a0f1e', borderLeft: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '16px' }}>
-            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Live Preview</div>
-            <div style={{ fontSize: '10px', color: '#475569', marginBottom: '12px' }}>Showing with sample pre-order + contactless order</div>
-            <div style={{ background: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', fontFamily: 'monospace' }}>
-              <div style={{ fontSize: '10px', color: '#999', textAlign: 'center', marginBottom: '8px' }}>── THERMAL TICKET ──</div>
-              {selectedTemplate?.elements?.map((el: any) => (
-                <div key={el.id}>{renderElement(el, SAMPLE_ORDER)}</div>
-              ))}
-            </div>
-            <div style={{ marginTop: '12px', fontSize: '11px', color: '#475569' }}>
-              {selectedTemplate?.copies} cop{selectedTemplate?.copies === 1 ? 'y' : 'ies'} will print
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
