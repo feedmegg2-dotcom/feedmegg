@@ -202,7 +202,7 @@ export default function TerminalPage() {
   }
 
   async function pollOrders(restId: string) {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid']).order('created_at', { ascending: false })
+    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete']).order('created_at', { ascending: false }).limit(50)
     if (!data) return
     const prevPendingIds = orders.filter(o => o.status === 'pending').map((o: any) => o.id)
     const newPending = data.filter(o => o.status === 'pending' && !prevPendingIds.includes(o.id))
@@ -231,7 +231,7 @@ export default function TerminalPage() {
   const currentOrder = orders.find(o => o.id === currentOrderId)
   const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
   const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
-  const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid'].includes(o.status))
+  const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
 
   async function acceptOrder() {
     if (!currentOrder) return
@@ -469,48 +469,87 @@ export default function TerminalPage() {
 
       {/* MAIN ORDER LIST */}
       <div style={{ flex: 1, padding: 'clamp(6px,1.5vw,12px)', overflowY: 'auto', background: colors.background }}>
-        {tab === 'incoming' ? (
+        
+        {/* INCOMING TAB */}
+        {tab === 'incoming' && (
           pendingOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
               <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pending orders</div>
             </div>
           ) : (
             pendingOrders.map(o => (
-              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: `3px solid ${o.scheduled_for ? '#3b82f6' : '#22c55e'}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: `3px solid #22c55e`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number}</div>
-                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.scheduled_for ? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)', color: o.scheduled_for ? '#3b82f6' : '#22c55e' }}>
-                    {o.scheduled_for ? 'Pre-order' : 'Live order'}
-                  </span>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
+                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>Live order</span>
                 </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>{o.customer_name} &bull; {o.order_type === 'delivery' ? 'Delivery' : 'Collection'} &bull; {o.payment_method}</div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>
+                  {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Collection'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>Tap to open</div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>Tap to view</div>
                 </div>
               </div>
             ))
           )
-        ) : (
+        )}
+
+        {/* PRE-ORDERS TAB */}
+        {tab === 'preorders' && (
+          preOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
+              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No pre-orders scheduled</div>
+            </div>
+          ) : (
+            preOrders.map(o => (
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: `3px solid #3b82f6`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
+                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>📅 Pre-order</span>
+                </div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#3b82f6', fontWeight: 600, marginBottom: '4px' }}>
+                  {o.scheduled_for ? `⏰ ${new Date(o.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                </div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>
+                  {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Collection'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#3b82f6' }}>GBP{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>Tap to view</div>
+                </div>
+              </div>
+            ))
+          )
+        )}
+
+        {/* ACCEPTED TAB */}
+        {tab === 'accepted' && (
           acceptedOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
               <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No accepted orders today</div>
             </div>
           ) : (
             acceptedOrders.map(o => (
-              <div key={o.id} style={{ background: '#0f172a', borderLeft: `3px solid ${o.status === 'paid' ? '#22c55e' : '#f97316'}`, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px' }}>
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: '#0f172a', borderLeft: `3px solid ${o.status === 'paid' ? '#22c55e' : '#f97316'}`, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number}</div>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
                   <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'paid' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'paid' ? '#22c55e' : '#f97316' }}>
-                    {o.status === 'paid' ? 'Paid' : 'Waiting payment...'}
+                    {o.status === 'paid' ? '✅ Paid' : o.status === 'accepted' ? '✓ Accepted' : '⏳ Waiting payment'}
                   </span>
                 </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>{o.customer_name} &bull; {o.order_type === 'delivery' ? 'Delivery' : 'Collection'}</div>
-                <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>
+                  {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Collection'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#475569' }}>Tap to view</div>
+                </div>
               </div>
             ))
           )
         )}
+
       </div>
 
       {/* NEW ORDER SCREEN */}
