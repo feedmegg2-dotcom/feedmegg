@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
     const { 
       restaurantId, 
       items, 
+      customerId,
       customerName, 
       customerPhone, 
       customerEmail, 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert({
         restaurant_id: restaurantId,
+        customer_id: customerId || null,
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_email: customerEmail,
@@ -82,16 +84,23 @@ export async function POST(request: NextRequest) {
     if (items && items.length > 0) {
       const orderItems = items.map((item: any) => ({
         order_id: order.id,
-        menu_item_id: item.id,
+        menu_item_id: item.id || null,
         name: item.name,
-        quantity: item.qty,
+        quantity: item.qty || item.quantity || 1,
         price: item.price,
-        subtotal: item.price * item.qty,
+        subtotal: item.price * (item.qty || item.quantity || 1),
         special_instructions: item.note || item.special_instructions || null,
       }))
 
+      console.log('Inserting order items:', JSON.stringify(orderItems))
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
-      if (itemsError) console.error('Order items error:', itemsError)
+      if (itemsError) {
+        console.error('Order items error:', itemsError)
+        // Try without menu_item_id
+        const itemsNoRef = orderItems.map(({ menu_item_id, ...rest }: any) => rest)
+        const { error: e2 } = await supabase.from('order_items').insert(itemsNoRef)
+        if (e2) console.error('Order items retry error:', e2)
+      }
     }
 
     // Return success - payment handled AFTER merchant accepts
