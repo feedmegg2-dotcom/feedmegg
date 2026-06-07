@@ -352,15 +352,6 @@ export default function TerminalPage() {
             <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: colors.textTertiary }}>Slot: {pickupSlotCapacity}/{pickupSlotDuration}m</div>
           </div>
         </div>
-          {(['preorders','delivery','pickups'] as const).map(key => (
-            <div key={key} onClick={() => setToggles(t => ({ ...t, [key]: !t[key] }))} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: toggles[key] ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `0.5px solid ${toggles[key] ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '8px', padding: 'clamp(4px,1vw,6px) clamp(6px,1.2vw,10px)', fontSize: 'clamp(9px,1.4vw,11px)', color: toggles[key] ? '#22c55e' : '#ef4444', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-              <div style={{ width: 'clamp(22px,3vw,28px)', height: 'clamp(12px,1.8vw,15px)', borderRadius: '8px', background: toggles[key] ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: '2px', left: toggles[key] ? 'calc(100% - 13px)' : '2px', width: 'clamp(8px,1.4vw,11px)', height: 'clamp(8px,1.4vw,11px)', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
-              </div>
-            </div>
-          ))}
-        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'clamp(9px,1.4vw,11px)', color: '#22c55e', flexShrink: 0 }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />Live
