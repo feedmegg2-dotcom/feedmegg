@@ -55,14 +55,28 @@ export default function WaitingPage() {
 
   function startPolling() {
     pollRef.current = setInterval(async () => {
-      const { data } = await supabase.from('orders').select('status, sumup_link').eq('id', orderId).single()
+      const { data } = await supabase.from('orders').select('status, sumup_link, payment_method').eq('id', orderId).single()
       if (!data) return
-      if ((data.status === 'accepted' || data.status === 'waiting_payment') && data.sumup_link) {
+
+      // Cash order - accepted means confirmed, go to confirmed page
+      if (data.payment_method === 'cash' && (data.status === 'paid' || data.status === 'accepted')) {
+        clearInterval(pollRef.current)
+        clearInterval(countdownRef.current)
+        setStatus('accepted')
+        router.push(`/order/${orderId}/confirmed`)
+        return
+      }
+
+      // Card order - wait for payment link then redirect to SumUp
+      if (data.payment_method === 'card' && (data.status === 'accepted' || data.status === 'waiting_payment') && data.sumup_link) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('accepted')
         window.location.href = data.sumup_link
-      } else if (data.status === 'rejected' || data.status === 'cancelled') {
+        return
+      }
+
+      if (data.status === 'rejected' || data.status === 'cancelled') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('rejected')
@@ -111,7 +125,10 @@ export default function WaitingPage() {
 
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>Order sent to the restaurant!</h1>
               <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '6px', maxWidth: '380px', margin: '0 auto 6px' }}>
-                Once your order is accepted you will automatically be taken to the SumUp payment page to complete your order.
+                {order?.payment_method === 'cash'
+                  ? `Once accepted you'll receive confirmation. Pay cash ${order?.order_type === 'delivery' ? 'on delivery' : 'on collection'}.`
+                  : 'Once your order is accepted you will automatically be taken to the SumUp payment page to complete your order.'
+                }
               </p>
               <p style={{ fontSize: '13px', color: dark ? '#334155' : '#94a3b8', marginBottom: '28px' }}>This usually takes less than a minute</p>
 
@@ -139,9 +156,14 @@ export default function WaitingPage() {
 
           {status === 'accepted' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#22c55e' }}></div>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#22c55e' }}>✅</div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px', color: '#22c55e' }}>Order accepted!</h1>
-              <p style={{ fontSize: '15px', color: sub }}>Taking you to payment now...</p>
+              <p style={{ fontSize: '15px', color: sub }}>
+                {order?.payment_method === 'cash'
+                  ? `Pay GBP${order?.total?.toFixed(2)} cash ${order?.order_type === 'delivery' ? 'when your order arrives' : 'when you collect'}.`
+                  : 'Taking you to payment now...'
+                }
+              </p>
             </div>
           )}
 
