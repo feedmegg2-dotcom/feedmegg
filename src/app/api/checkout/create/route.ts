@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
       scheduledFor,
     } = await request.json()
 
+    if (!customerName) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    if (!items || items.length === 0) return NextResponse.json({ error: 'No items in cart' }, { status: 400 })
+
     // Get restaurant
     const { data: restaurant } = await supabase
       .from('restaurants')
@@ -42,35 +45,40 @@ export async function POST(request: NextRequest) {
         .select('fee')
         .eq('restaurant_id', restaurantId)
         .eq('parish', parish)
-        .single()
+        .maybeSingle()
       deliveryFee = zone ? parseFloat(zone.fee) : parseFloat(restaurant.delivery_fee) || 2.50
     }
 
     const total = subtotal + deliveryFee
     const commission = paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
 
-    // ALL orders start as 'pending' - merchant must accept first
+    // Generate order number
+    const orderNumber = 'FM-' + Date.now().toString().slice(-6)
+
+    // Create order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         restaurant_id: restaurantId,
-        customer_id: customerId || null,
+        user_id: customerId || null,
         customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: customerEmail,
-        delivery_address: address,
-        delivery_notes: locationDescription,
-        parish,
+        customer_phone: customerPhone || '',
+        customer_email: customerEmail || '',
+        delivery_address: address || '',
+        delivery_notes: locationDescription || '',
+        delivery_parish: parish || '',
         order_type: orderType,
         payment_method: paymentMethod || 'card',
         contactless_delivery: contactlessDelivery || false,
         scheduled_for: scheduledFor || null,
         status: 'pending',
+        order_number: orderNumber,
         subtotal,
         delivery_fee: deliveryFee,
         total,
         commission,
-        notes: note,
+        notes: note || '',
+        items: JSON.stringify(items), // Store as JSON backup
       })
       .select()
       .single()
@@ -86,27 +94,33 @@ export async function POST(request: NextRequest) {
         order_id: order.id,
         menu_item_id: item.id || null,
         name: item.name,
-        quantity: item.qty || item.quantity || 1,
+        quantity: item.qty || 1,
         price: item.price,
-        subtotal: item.price * (item.qty || item.quantity || 1),
-        special_instructions: item.note || item.special_instructions || null,
+        subtotal: item.price * (item.qty || 1),
+        special_instructions: item.note || null,
       }))
 
-      console.log('Inserting order items:', JSON.stringify(orderItems))
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
       if (itemsError) {
-        console.error('Order items error:', itemsError)
-        // Try without menu_item_id
-        const itemsNoRef = orderItems.map(({ menu_item_id, ...rest }: any) => rest)
-        const { error: e2 } = await supabase.from('order_items').insert(itemsNoRef)
-        if (e2) console.error('Order items retry error:', e2)
+        console.error('Order items insert error:', itemsError.message)
+        // Try without menu_item_id if foreign key issue
+        const itemsMinimal = items.map((item: any) => ({
+          order_id: order.id,
+          name: item.name,
+          quantity: item.qty || 1,
+          price: item.price,
+          subtotal: item.price * (item.qty || 1),
+          special_instructions: item.note || null,
+        }))
+        const { error: e2 } = await supabase.from('order_items').insert(itemsMinimal)
+        if (e2) console.error('Order items retry error:', e2.message)
       }
     }
 
-    // Return success - payment handled AFTER merchant accepts
     return NextResponse.json({ 
       success: true, 
       orderId: order.id,
+      orderNumber,
       paymentMethod: paymentMethod || 'card',
     })
 
