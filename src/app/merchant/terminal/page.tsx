@@ -326,17 +326,32 @@ export default function TerminalPage() {
           feed<span style={{ color: colors.text }}>me</span>.gg
         </div>
 
-        <button onClick={() => setTimeModal('delivery')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: theme === 'light' ? 'rgba(30,41,59,0.06)' : 'rgba(255,255,255,0.06)', border: `1px solid ${colors.border}`, borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.3s' }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>Delivery</span>
-          <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{delivTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
-        </button>
+        {/* 2 BIG BOXES - DELIVERY & PICKUP */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(8px,1.5vw,12px)', flex: 1, maxWidth: '400px' }}>
+          {/* DELIVERY BOX */}
+          <div onClick={() => { setDeliveryTime(delivTime); setDeliverySlotDuration(30); setDeliverySlotCapacity(4); setShowTimeSlotModal('delivery') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: 'clamp(10px,1.5vw,14px)', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: 'clamp(13px,2vw,14px)', fontWeight: 700 }}>🚗</div>
+              <button onClick={(e) => { e.stopPropagation(); setToggles({...toggles, delivery: !toggles.delivery}); if (restaurant) supabase.from('restaurants').update({ preorder_delivery_enabled: !toggles.delivery }).eq('id', restaurant.id) }} style={{ background: toggles.delivery ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.delivery ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.delivery ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', padding: '3px 6px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {toggles.delivery ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div style={{ fontSize: 'clamp(16px,2.5vw,18px)', fontWeight: 700, color: '#22c55e' }}>{delivTime}m</div>
+            <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: colors.textTertiary }}>Slot: {deliverySlotCapacity}/{ deliverySlotDuration}m</div>
+          </div>
 
-        <button onClick={() => setTimeModal('pickup')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: theme === 'light' ? 'rgba(30,41,59,0.06)' : 'rgba(255,255,255,0.06)', border: `1px solid ${colors.border}`, borderRadius: '10px', padding: 'clamp(6px,1.5vw,10px) clamp(10px,2vw,18px)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.3s' }}>
-          <span style={{ fontSize: 'clamp(9px,1.5vw,12px)', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>Pickup</span>
-          <span style={{ fontSize: 'clamp(22px,4.5vw,36px)', fontWeight: 700, color: '#f97316', lineHeight: 1.1 }}>{pickTime}<span style={{ fontSize: 'clamp(11px,2vw,16px)', fontWeight: 400 }}>m</span></span>
-        </button>
-
-        <div style={{ display: 'flex', gap: 'clamp(4px,1vw,8px)', flexWrap: 'wrap', flex: 1 }}>
+          {/* PICKUP BOX */}
+          <div onClick={() => { setPickupTime(pickTime); setPickupSlotDuration(30); setPickupSlotCapacity(4); setShowTimeSlotModal('pickup') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: 'clamp(10px,1.5vw,14px)', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: 'clamp(13px,2vw,14px)', fontWeight: 700 }}>🏪</div>
+              <button onClick={(e) => { e.stopPropagation(); setToggles({...toggles, pickups: !toggles.pickups}); if (restaurant) supabase.from('restaurants').update({ preorder_pickup_enabled: !toggles.pickups }).eq('id', restaurant.id) }} style={{ background: toggles.pickups ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.pickups ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.pickups ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', padding: '3px 6px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {toggles.pickups ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div style={{ fontSize: 'clamp(16px,2.5vw,18px)', fontWeight: 700, color: '#22c55e' }}>{pickTime}m</div>
+            <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: colors.textTertiary }}>Slot: {pickupSlotCapacity}/{pickupSlotDuration}m</div>
+          </div>
+        </div>
           {(['preorders','delivery','pickups'] as const).map(key => (
             <div key={key} onClick={() => setToggles(t => ({ ...t, [key]: !t[key] }))} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: toggles[key] ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `0.5px solid ${toggles[key] ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '8px', padding: 'clamp(4px,1vw,6px) clamp(6px,1.2vw,10px)', fontSize: 'clamp(9px,1.4vw,11px)', color: toggles[key] ? '#22c55e' : '#ef4444', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               {key.charAt(0).toUpperCase() + key.slice(1)}
@@ -629,9 +644,12 @@ export default function TerminalPage() {
                     <div style={{ marginBottom: '8px' }}><div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Items</div>
                       {o.order_items?.map((item: any) => <div key={item.id}>{item.quantity}x {item.name} - GBP{item.subtotal?.toFixed(2)}</div>)}
                     </div>
-                    <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#22c55e' }}><span>Total:</span><span>GBP{o.total?.toFixed(2)}</span></div>
                     </div>
+                    <button onClick={() => manualReprint({ id: o.id, orderNumber: o.order_number, restaurantName: restaurant?.name || 'Restaurant', customerName: o.customer_name, deliveryAddress: o.delivery_address, isCollection: o.order_type === 'collection', items: o.order_items || [], specialInstructions: o.special_instructions, subtotal: o.subtotal, deliveryFee: o.delivery_fee, tip: o.tip, total: o.total })} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                      Reprint Tickets
+                    </button>
                   </div>
                 )}
               </div>
@@ -673,33 +691,6 @@ export default function TerminalPage() {
         </Modal>
       )}
 
-      {/* 2 BIG BOXES - DELIVERY & PICKUP */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', padding: '0 clamp(6px,1.5vw,12px)', marginBottom: '16px' }}>
-        {/* DELIVERY BOX */}
-        <div onClick={() => { setDeliveryTime(delivTime); setShowTimeSlotModal('delivery') }} style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '20px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 'clamp(14px,2.5vw,16px)', fontWeight: 700 }}>🚗 Delivery</div>
-            <button onClick={(e) => { e.stopPropagation(); setToggles({...toggles, delivery: !toggles.delivery}); if (restaurant) supabase.from('restaurants').update({ preorder_delivery_enabled: !toggles.delivery }).eq('id', restaurant.id) }} style={{ background: toggles.delivery ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.delivery ? '#22c55e' : '#ef4444', border: `1px solid ${toggles.delivery ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '6px', padding: '6px 10px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}>
-              Pre-Orders {toggles.delivery ? 'ON' : 'OFF'}
-            </button>
-          </div>
-          <div style={{ fontSize: 'clamp(20px,4vw,24px)', fontWeight: 700, color: '#22c55e' }}>{delivTime} mins</div>
-          <div style={{ fontSize: 'clamp(12px,2vw,13px)', color: '#64748b' }}>Time Slot: {deliverySlotCapacity} per {deliverySlotDuration} min</div>
-        </div>
-
-        {/* PICKUP BOX */}
-        <div onClick={() => { setPickupTime(pickTime); setShowTimeSlotModal('pickup') }} style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '20px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 'clamp(14px,2.5vw,16px)', fontWeight: 700 }}>🏪 Pickup</div>
-            <button onClick={(e) => { e.stopPropagation(); setToggles({...toggles, pickups: !toggles.pickups}); if (restaurant) supabase.from('restaurants').update({ preorder_pickup_enabled: !toggles.pickups }).eq('id', restaurant.id) }} style={{ background: toggles.pickups ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.pickups ? '#22c55e' : '#ef4444', border: `1px solid ${toggles.pickups ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '6px', padding: '6px 10px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}>
-              Pre-Orders {toggles.pickups ? 'ON' : 'OFF'}
-            </button>
-          </div>
-          <div style={{ fontSize: 'clamp(20px,4vw,24px)', fontWeight: 700, color: '#22c55e' }}>{pickTime} mins</div>
-          <div style={{ fontSize: 'clamp(12px,2vw,13px)', color: '#64748b' }}>Time Slot: {pickupSlotCapacity} per {pickupSlotDuration} min</div>
-        </div>
-      </div>
-
       {timeModal && (
         <Modal onClose={() => setTimeModal(null)}>
           <h3 style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 700, textAlign: 'center', marginBottom: '14px' }}>
@@ -719,22 +710,22 @@ export default function TerminalPage() {
         </Modal>
       )}
 
-      {/* TIME SLOT SETTINGS MODAL */}
+      {/* TIME SLOT MODAL */}
       {showTimeSlotModal && (
         <Modal onClose={() => setShowTimeSlotModal(null)}>
-          <h3 style={{ fontSize: 'clamp(14px,2.5vw,18px)', fontWeight: 700, textAlign: 'center', marginBottom: '20px', color: '#f8fafc' }}>
+          <h3 style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 700, textAlign: 'center', marginBottom: '16px' }}>
             {showTimeSlotModal === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} Time Slots
           </h3>
-          <div style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: 'clamp(11px,1.8vw,12px)', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
               <input type="number" value={showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime} onChange={e => showTimeSlotModal === 'delivery' ? setDeliveryTime(parseInt(e.target.value)) : setPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
             </div>
             <div>
               <label style={{ fontSize: 'clamp(11px,1.8vw,12px)', color: '#64748b', display: 'block', marginBottom: '8px', fontWeight: 600 }}>Slot Duration (mins)</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                 {[15, 20, 30, 45, 60].map(duration => (
-                  <button key={duration} onClick={() => showTimeSlotModal === 'delivery' ? setDeliverySlotDuration(duration) : setPickupSlotDuration(duration)} style={{ padding: '10px', background: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${(showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? '#22c55e' : '#94a3b8', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button key={duration} onClick={() => showTimeSlotModal === 'delivery' ? setDeliverySlotDuration(duration) : setPickupSlotDuration(duration)} style={{ padding: '10px', background: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${(showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {duration}m
                   </button>
                 ))}
@@ -745,9 +736,9 @@ export default function TerminalPage() {
               <input type="number" value={showTimeSlotModal === 'delivery' ? deliverySlotCapacity : pickupSlotCapacity} onChange={e => showTimeSlotModal === 'delivery' ? setDeliverySlotCapacity(parseInt(e.target.value)) : setPickupSlotCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setShowTimeSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, fontFamily: 'inherit' }}>Cancel</button>
-            <button onClick={async () => { if (showTimeSlotModal === 'delivery') { setDelivTime(deliveryTime); if (restaurant) await supabase.from('restaurants').update({ delivery_time_mins: deliveryTime, delivery_slot_duration: deliverySlotDuration, delivery_slot_capacity: deliverySlotCapacity }).eq('id', restaurant.id) } else { setPickTime(pickupTime); if (restaurant) await supabase.from('restaurants').update({ pickup_time_mins: pickupTime, pickup_slot_duration: pickupSlotDuration, pickup_slot_capacity: pickupSlotCapacity }).eq('id', restaurant.id) } setShowTimeSlotModal(null) }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setShowTimeSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, fontFamily: 'inherit' }}>Cancel</button>
+            <button onClick={async () => { if (showTimeSlotModal === 'delivery') { setDelivTime(deliveryTime); if (restaurant) await supabase.from('restaurants').update({ delivery_time_mins: deliveryTime, delivery_slot_duration: deliverySlotDuration, delivery_slot_capacity: deliverySlotCapacity }).eq('id', restaurant.id) } else { setPickTime(pickupTime); if (restaurant) await supabase.from('restaurants').update({ pickup_time_mins: pickupTime, pickup_slot_duration: pickupSlotDuration, pickup_slot_capacity: pickupSlotCapacity }).eq('id', restaurant.id) } setShowTimeSlotModal(null) }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
           </div>
         </Modal>
       )}
