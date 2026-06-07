@@ -22,9 +22,8 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     name: '', phone: '', email: '',
     orderType: 'delivery',
-    contactless: false,
     paymentMethod: 'card',
-    addressMode: 'new', // 'saved' | 'new' | 'temp'
+    addressMode: 'new',
     savedAddressId: '',
     addressLine1: '',
     addressLine2: '',
@@ -32,7 +31,15 @@ export default function CheckoutPage() {
     postcode: '',
     locationDesc: '',
     note: '',
+    contactless: false,
+    // Pre-order
+    isPreOrder: false,
+    preOrderDate: '',
+    preOrderTime: '',
   })
+
+  // Generate available time slots
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
 
   useEffect(() => {
     const saved = localStorage.getItem('feedme-theme')
@@ -45,29 +52,66 @@ export default function CheckoutPage() {
     fetchCustomer()
   }, [])
 
+  useEffect(() => {
+    if (form.isPreOrder) generateSlots()
+  }, [form.isPreOrder, form.preOrderDate, restaurant])
+
+  function generateSlots() {
+    const slots: string[] = []
+    const slotDuration = form.orderType === 'delivery'
+      ? (restaurant?.delivery_slot_duration || 30)
+      : (restaurant?.pickup_slot_duration || 30)
+
+    const now = new Date()
+    const selectedDate = form.preOrderDate ? new Date(form.preOrderDate) : new Date()
+    const isToday = selectedDate.toDateString() === now.toDateString()
+
+    let startHour = 10
+    let startMin = 0
+
+    if (isToday) {
+      // Start from next available slot (at least 30 mins from now)
+      const minTime = new Date(now.getTime() + 30 * 60000)
+      startHour = minTime.getHours()
+      startMin = Math.ceil(minTime.getMinutes() / slotDuration) * slotDuration
+      if (startMin >= 60) { startHour++; startMin = 0 }
+    }
+
+    // Generate slots from start to 10pm
+    for (let h = startHour; h < 22; h++) {
+      for (let m = (h === startHour ? startMin : 0); m < 60; m += slotDuration) {
+        const endM = m + slotDuration
+        const endH = endM >= 60 ? h + 1 : h
+        const endMin = endM >= 60 ? endM - 60 : endM
+        const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endMin).padStart(2,'0')}`
+        slots.push(slot)
+      }
+    }
+    setAvailableSlots(slots)
+    if (slots.length > 0 && !form.preOrderTime) setForm(f => ({...f, preOrderTime: slots[0]}))
+  }
+
   async function fetchCustomer() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: cust } = await supabase.from('customers').select('*').eq('id', user.id).single()
+    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    if (!cust) {
+      const r2 = await supabase.from('customers').select('*').eq('id', user.id).single()
+      cust = r2.data
+    }
     if (cust) {
       setCustomer(cust)
       setForm(f => ({
         ...f,
-        name: cust.name || (cust.first_name ? `${cust.first_name} ${cust.last_name || ''}`.trim() : f.name),
+        name: cust.name || `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || f.name,
         phone: cust.phone || f.phone,
         email: user.email || f.email,
       }))
-      // Fetch saved addresses
       const { data: addrs } = await supabase.from('customer_addresses').select('*').eq('customer_id', cust.id).order('is_default', { ascending: false })
       if (addrs && addrs.length > 0) {
         setSavedAddresses(addrs)
         const def = addrs.find(a => a.is_default) || addrs[0]
-        setForm(f => ({
-          ...f,
-          addressMode: 'saved',
-          savedAddressId: def.id,
-          parish: def.parish || f.parish,
-        }))
+        setForm(f => ({ ...f, addressMode: 'saved', savedAddressId: def.id, parish: def.parish || f.parish }))
       }
     }
   }
@@ -80,17 +124,17 @@ export default function CheckoutPage() {
   }
 
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
+
   function getDeliveryFee() {
     if (form.orderType !== 'delivery') return 0
     const parish = form.addressMode === 'saved' ? (getSelectedAddress()?.parish || form.parish) : form.parish
-    // Check delivery zones for this parish
     if (deliveryZones.length > 0) {
       const zone = deliveryZones.find((z: any) => z.parish === parish || z.name === parish)
       if (zone) return parseFloat(zone.fee) || 0
     }
-    // Fall back to restaurant default delivery fee
     return parseFloat(restaurant?.delivery_fee) || 2.50
   }
+
   const deliveryFee = getDeliveryFee()
   const orderTotal = cartTotal + deliveryFee
   const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
@@ -109,6 +153,13 @@ export default function CheckoutPage() {
     return [form.addressLine1, form.addressLine2, form.parish, form.postcode].filter(Boolean).join(', ')
   }
 
+  function getScheduledFor() {
+    if (!form.isPreOrder || !form.preOrderTime) return null
+    const date = form.preOrderDate || new Date().toISOString().split('T')[0]
+    const time = form.preOrderTime.split(' - ')[0] // Take start time
+    return `${date}T${time}:00`
+  }
+
   async function placeOrder() {
     if (!form.name) { setError('Please enter your name'); return }
     if (!form.phone) { setError('Please enter your phone number'); return }
@@ -116,6 +167,7 @@ export default function CheckoutPage() {
       if (form.addressMode === 'saved' && !form.savedAddressId) { setError('Please select a delivery address'); return }
       if (form.addressMode !== 'saved' && !form.addressLine1) { setError('Please enter your delivery address'); return }
     }
+    if (form.isPreOrder && !form.preOrderTime) { setError('Please select a time slot'); return }
     if (!meetsMinOrder) { setError(`Minimum order is GBP${(parseFloat(restaurant?.min_order) || 10).toFixed(2)}`); return }
     setError('')
     setLoading(true)
@@ -140,7 +192,8 @@ export default function CheckoutPage() {
         orderType: form.orderType,
         paymentMethod: form.paymentMethod,
         note: form.note,
-        contactless_delivery: form.orderType === 'delivery' ? form.contactless : false,
+        contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
+        scheduledFor: getScheduledFor(),
       })
     })
 
@@ -149,8 +202,6 @@ export default function CheckoutPage() {
 
     if (!data.success) { setError(data.error || 'Something went wrong'); return }
     localStorage.removeItem('feedme-cart')
-
-    // Always go to waiting screen  payment happens AFTER merchant accepts
     router.push(`/order/${data.orderId}/waiting`)
   }
 
@@ -164,6 +215,16 @@ export default function CheckoutPage() {
   if (!cartData || !restaurant) return (
     <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub }}>Loading...</div>
   )
+
+  // Check if pre-orders enabled
+  const preOrderEnabled = form.orderType === 'delivery'
+    ? restaurant?.preorder_delivery_enabled !== false
+    : restaurant?.preorder_pickup_enabled !== false
+
+  // Get estimated time
+  const estTime = form.orderType === 'delivery'
+    ? restaurant?.delivery_time_mins || 45
+    : restaurant?.pickup_time_mins || 30
 
   return (
     <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif' }}>
@@ -182,7 +243,7 @@ export default function CheckoutPage() {
         {/* ORDER SUMMARY */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Summary</div>
-          <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>{restaurant.name.replace(/&amp;/g, '&')}</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>{restaurant.name?.replace(/&amp;/g, '&')}</div>
           {cartData.cart.map((item: any) => (
             <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px', gap: '12px' }}>
               <div style={{ color: dark ? '#94a3b8' : '#64748b', flex: 1 }}>
@@ -198,8 +259,7 @@ export default function CheckoutPage() {
             </div>
             {form.orderType === 'delivery' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: sub, marginBottom: '6px' }}>
-                <span>Delivery to {form.addressMode === 'saved' ? (getSelectedAddress()?.parish || form.parish) : form.parish}</span>
-                <span>GBP{deliveryFee.toFixed(2)}</span>
+                <span>Delivery</span><span>GBP{deliveryFee.toFixed(2)}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${border}` }}>
@@ -211,18 +271,66 @@ export default function CheckoutPage() {
         {/* ORDER TYPE */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Type</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {restaurant.accepts_delivery && (
-              <button onClick={() => setForm({...form, orderType: 'delivery'})}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+            {restaurant.accepts_delivery !== false && restaurant.delivery_enabled !== false && (
+              <button onClick={() => setForm({...form, orderType: 'delivery', isPreOrder: false})}
                 style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'delivery' ? '#22c55e' : border}`, background: form.orderType === 'delivery' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
-                Delivery
+                🚗 Delivery<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{estTime} mins</span>
               </button>
             )}
-            {restaurant.accepts_pickup && (
-              <button onClick={() => setForm({...form, orderType: 'pickup'})}
+            {restaurant.accepts_pickup !== false && restaurant.pickup_enabled !== false && (
+              <button onClick={() => setForm({...form, orderType: 'pickup', isPreOrder: false})}
                 style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'pickup' ? '#22c55e' : border}`, background: form.orderType === 'pickup' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
-                Collection
+                🏪 Collection<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{restaurant?.pickup_time_mins || 20} mins</span>
               </button>
+            )}
+          </div>
+
+          {/* WHEN - ASAP vs PRE-ORDER */}
+          <div style={{ borderTop: `1px solid ${border}`, paddingTop: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>When would you like it?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button onClick={() => setForm({...form, isPreOrder: false})}
+                style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${!form.isPreOrder ? '#22c55e' : border}`, background: !form.isPreOrder ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                ⚡ ASAP<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>~{estTime} mins</span>
+              </button>
+              {preOrderEnabled && (
+                <button onClick={() => setForm({...form, isPreOrder: true})}
+                  style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.isPreOrder ? '#22c55e' : border}`, background: form.isPreOrder ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                  📅 Pre-Order<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>Choose a time</span>
+                </button>
+              )}
+            </div>
+
+            {/* TIME SLOT PICKER */}
+            {form.isPreOrder && (
+              <div style={{ marginTop: '14px', display: 'grid', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px' }}>Date</label>
+                  <input
+                    type="date"
+                    value={form.preOrderDate || new Date().toISOString().split('T')[0]}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={e => setForm({...form, preOrderDate: e.target.value, preOrderTime: ''})}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px' }}>Time Slot</label>
+                  {availableSlots.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                      {availableSlots.map(slot => (
+                        <button key={slot} onClick={() => setForm({...form, preOrderTime: slot})}
+                          style={{ padding: '8px 6px', background: form.preOrderTime === slot ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${form.preOrderTime === slot ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '6px', color: form.preOrderTime === slot ? '#22c55e' : text, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: form.preOrderTime === slot ? 600 : 400 }}>
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: sub }}>No slots available for this date</div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -242,7 +350,6 @@ export default function CheckoutPage() {
           <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Delivery Address</div>
 
-            {/* Address mode selector */}
             {savedAddresses.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
                 <button onClick={() => setForm({...form, addressMode: 'saved'})}
@@ -256,7 +363,6 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Saved address picker */}
             {form.addressMode === 'saved' && savedAddresses.length > 0 && (
               <div style={{ display: 'grid', gap: '8px' }}>
                 {savedAddresses.map(addr => (
@@ -272,11 +378,9 @@ export default function CheckoutPage() {
                     {addr.location_description && <div style={{ fontSize: '11px', color: sub, fontStyle: 'italic', marginTop: '3px' }}>"{addr.location_description}"</div>}
                   </div>
                 ))}
-                {!customer && <Link href="/auth/login?redirect=/checkout" style={{ fontSize: '12px', color: '#22c55e', textDecoration: 'none' }}>Sign in to use saved addresses</Link>}
               </div>
             )}
 
-            {/* New / temp address form */}
             {(form.addressMode === 'new' || form.addressMode === 'temp' || savedAddresses.length === 0) && (
               <div style={{ display: 'grid', gap: '10px' }}>
                 <input placeholder="House number and street *" value={form.addressLine1} onChange={e => setForm({...form, addressLine1: e.target.value})} style={inputStyle} />
@@ -287,29 +391,30 @@ export default function CheckoutPage() {
                   </select>
                   <input placeholder="Postcode" value={form.postcode} onChange={e => setForm({...form, postcode: e.target.value})} style={inputStyle} />
                 </div>
-                <textarea placeholder="Location description  helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
+                <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
                   style={{ ...inputStyle, resize: 'none' }} />
               </div>
             )}
+
+            {/* CONTACTLESS */}
+            <div onClick={() => setForm({...form, contactless: !form.contactless, paymentMethod: !form.contactless ? 'card' : form.paymentMethod})}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : border}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: form.contactless ? '#22c55e' : text }}>🚪 Contactless Delivery</div>
+                <div style={{ fontSize: '12px', color: sub, marginTop: '2px' }}>Driver leaves food at your door</div>
+              </div>
+              <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: form.contactless ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: '3px', left: form.contactless ? '23px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+              </div>
+            </div>
           </div>
         )}
 
         {/* SPECIAL INSTRUCTIONS */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Special Instructions</div>
-          <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2} style={{ ...inputStyle, resize: 'none' }} />
-
-          {form.orderType === 'delivery' && (
-            <div onClick={() => setForm({...form, contactless: !form.contactless, paymentMethod: !form.contactless ? 'card' : form.paymentMethod})} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: form.contactless ? '#22c55e' : '#f8fafc' }}>🚪 Contactless Delivery</div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Driver leaves food at your door</div>
-              </div>
-              <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: form.contactless ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                <div style={{ position: 'absolute', top: '3px', left: form.contactless ? '23px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-              </div>
-            </div>
-          )}
+          <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2}
+            style={{ ...inputStyle, resize: 'none' }} />
         </div>
 
         {/* PAYMENT METHOD */}
@@ -322,19 +427,15 @@ export default function CheckoutPage() {
           )}
           <div style={{ display: 'grid', gap: '10px' }}>
             <button onClick={() => setForm({...form, paymentMethod: 'card'})}
-              style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Pay by card</div>
-                <div style={{ fontSize: '11px', color: sub }}>Secure online payment via SumUp</div>
-              </div>
+              style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💳 Pay by card</div>
+              <div style={{ fontSize: '11px', color: sub }}>Secure online payment via SumUp</div>
             </button>
             {!form.contactless && (
               <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
-                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
-                  <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
-                </div>
+                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💵 Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
+                <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
               </button>
             )}
           </div>
@@ -343,7 +444,7 @@ export default function CheckoutPage() {
         {/* MIN ORDER WARNING */}
         {!meetsMinOrder && (
           <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>
-            Minimum order GBP{(parseFloat(restaurant?.min_order) || 10).toFixed(2)}  add GBP{((parseFloat(restaurant?.min_order) || 10) - cartTotal).toFixed(2)} more
+            Minimum order GBP{(parseFloat(restaurant?.min_order) || 10).toFixed(2)} — add GBP{((parseFloat(restaurant?.min_order) || 10) - cartTotal).toFixed(2)} more
           </div>
         )}
 
@@ -351,15 +452,22 @@ export default function CheckoutPage() {
           <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>{error}</div>
         )}
 
-        {/* PLACE ORDER BUTTON */}
+        {/* PLACE ORDER */}
         <button onClick={placeOrder} disabled={loading || !meetsMinOrder}
           style={{ width: '100%', padding: '16px', background: loading || !meetsMinOrder ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
-          {loading ? 'Placing order...' : 'Place Order'}
+          {loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order'}
         </button>
 
       </div>
 
-      <style>{`input::placeholder, textarea::placeholder { color: #334155; } select option { background: ${dark ? '#0d1321' : '#fff'}; }`}</style>
+      <style>{`
+        input::placeholder, textarea::placeholder { color: #334155; }
+        select option { background: ${dark ? '#0d1321' : '#fff'}; }
+        input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 30px ${dark ? '#0d1321' : '#fff'} inset !important;
+          -webkit-text-fill-color: ${dark ? '#f1f5f9' : '#0f172a'} !important;
+        }
+      `}</style>
     </div>
   )
 }
