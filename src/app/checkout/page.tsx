@@ -16,10 +16,12 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [restaurant, setRestaurant] = useState<any>(null)
+  const [restaurantHours, setRestaurantHours] = useState<any[]>([])
+  const [isOpen, setIsOpen] = useState(true)
+  const [closedMessage, setClosedMessage] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const [form, setForm] = useState({
     name: '', phone: '', email: '',
     orderType: 'delivery',
     paymentMethod: 'card',
@@ -124,6 +126,67 @@ export default function CheckoutPage() {
     setRestaurant(data)
     const { data: zones } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', id).eq('is_active', true)
     setDeliveryZones(zones || [])
+    
+    // Fetch and check opening hours
+    const { data: hours } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', id)
+    if (hours && hours.length > 0) {
+      setRestaurantHours(hours)
+      checkIfOpen(hours, data)
+    }
+  }
+
+  function checkIfOpen(hours: any[], rest: any) {
+    // Check if restaurant is marked as open
+    if (rest?.is_open === false) {
+      setIsOpen(false)
+      setClosedMessage('This restaurant is currently closed')
+      return
+    }
+
+    const now = new Date()
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    const todayName = days[now.getDay()]
+    const todayHours = hours.find(h => h.day === todayName)
+
+    if (!todayHours || todayHours.is_closed) {
+      setIsOpen(false)
+      setClosedMessage(`Closed today (${todayName})`)
+      return
+    }
+
+    // Check current time is within opening hours
+    const [openH, openM] = todayHours.open_time.split(':').map(Number)
+    const [closeH, closeM] = todayHours.close_time.split(':').map(Number)
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const openMins = openH * 60 + openM
+    const closeMins = closeH * 60 + closeM
+
+    if (nowMins < openMins) {
+      setIsOpen(false)
+      setClosedMessage(`Opens at ${todayHours.open_time}`)
+      return
+    }
+
+    if (nowMins >= closeMins) {
+      setIsOpen(false)
+      setClosedMessage(`Closed - reopens ${getNextOpenDay(hours, days, now.getDay())}`)
+      return
+    }
+
+    setIsOpen(true)
+    setClosedMessage('')
+  }
+
+  function getNextOpenDay(hours: any[], days: string[], todayIdx: number) {
+    for (let i = 1; i <= 7; i++) {
+      const nextIdx = (todayIdx + i) % 7
+      const nextDay = days[nextIdx]
+      const nextHours = hours.find(h => h.day === nextDay)
+      if (nextHours && !nextHours.is_closed) {
+        return i === 1 ? `tomorrow at ${nextHours.open_time}` : `${nextDay} at ${nextHours.open_time}`
+      }
+    }
+    return 'soon'
   }
 
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
@@ -242,6 +305,36 @@ export default function CheckoutPage() {
 
       <div style={{ maxWidth: '560px', margin: '0 auto', padding: '20px 16px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Checkout</h1>
+
+        {/* CLOSED BANNER */}
+        {!isOpen && !form.isPreOrder && (
+          <div style={{ padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', marginBottom: '14px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔴</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>Restaurant Closed</div>
+            <div style={{ fontSize: '13px', color: sub, marginBottom: '12px' }}>{closedMessage}</div>
+            {preOrderEnabled && (
+              <button onClick={() => setForm({...form, isPreOrder: true})} style={{ padding: '10px 24px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                📅 Schedule a Pre-Order instead
+              </button>
+            )}
+            {restaurantHours.length > 0 && (
+              <div style={{ marginTop: '12px', display: 'grid', gap: '4px' }}>
+                {restaurantHours.filter(h => !h.is_closed).map(h => (
+                  <div key={h.day} style={{ fontSize: '12px', color: sub, display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 600, width: '90px', textAlign: 'right' }}>{h.day}</span>
+                    <span>{h.open_time} - {h.close_time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isOpen && form.isPreOrder && (
+          <div style={{ padding: '12px 16px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', marginBottom: '14px', fontSize: '13px', color: '#22c55e' }}>
+            📅 Restaurant is closed now but you can still pre-order for a future time
+          </div>
+        )}
 
         {/* ORDER SUMMARY */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
@@ -456,9 +549,9 @@ export default function CheckoutPage() {
         )}
 
         {/* PLACE ORDER */}
-        <button onClick={placeOrder} disabled={loading || !meetsMinOrder}
-          style={{ width: '100%', padding: '16px', background: loading || !meetsMinOrder ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
-          {loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order'}
+        <button onClick={placeOrder} disabled={loading || !meetsMinOrder || (!isOpen && !form.isPreOrder)}
+          style={{ width: '100%', padding: '16px', background: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
+          {(!isOpen && !form.isPreOrder) ? 'Restaurant Closed' : loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order'}
         </button>
 
       </div>
