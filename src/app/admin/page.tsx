@@ -48,6 +48,17 @@ export default function AdminPage() {
   const [editingOptions, setEditingOptions] = useState<any>(null)
   const [optionGroups, setOptionGroups] = useState<any[]>([])
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
+  
+  // NEW: Delivery/Pickup Slots
+  const [showTimeSlotModal, setShowTimeSlotModal] = useState<'delivery' | 'pickup' | null>(null)
+  const [deliveryPreOrderEnabled, setDeliveryPreOrderEnabled] = useState(true)
+  const [pickupPreOrderEnabled, setPickupPreOrderEnabled] = useState(true)
+  const [deliveryTime, setDeliveryTime] = useState(45)
+  const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
+  const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
+  const [pickupTime, setPickupTime] = useState(30)
+  const [pickupSlotDuration, setPickupSlotDuration] = useState(30)
+  const [pickupSlotCapacity, setPickupSlotCapacity] = useState(4)
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [showAddOption, setShowAddOption] = useState<string | null>(null)
   const [newGroup, setNewGroup] = useState({ name: '', type: 'single', required: false, is_collapsible: false, max_selections: '0', sort_order: '1' })
@@ -627,6 +638,7 @@ export default function AdminPage() {
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setHoursRestaurant(r); setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: r.id }))); setShowHours(true); fetchHours(r.id) }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#EAB308', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Hours</button>
+                    <button onClick={() => setEditRestaurant({ ...r, editingCapacity: true })} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>Capacity</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
 
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
@@ -816,6 +828,35 @@ export default function AdminPage() {
 
             {selectedRestaurant && (
               <div>
+                {/* TIME SLOT CAPACITY EDITOR */}
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Time Slot Capacity</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--sub)', marginBottom: '4px', fontWeight: 600 }}>15-min slots</label>
+                      <input type="number" value={selectedRestaurant?.time_slot_capacity_15 || 10} onChange={e => setSelectedRestaurant({ ...selectedRestaurant, time_slot_capacity_15: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'var(--input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--sub)', marginBottom: '4px', fontWeight: 600 }}>30-min slots</label>
+                      <input type="number" value={selectedRestaurant?.time_slot_capacity_30 || 15} onChange={e => setSelectedRestaurant({ ...selectedRestaurant, time_slot_capacity_30: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'var(--input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: 'var(--sub)', marginBottom: '4px', fontWeight: 600 }}>60-min slots</label>
+                      <input type="number" value={selectedRestaurant?.time_slot_capacity_60 || 20} onChange={e => setSelectedRestaurant({ ...selectedRestaurant, time_slot_capacity_60: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'var(--input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                    </div>
+                  </div>
+                  <button onClick={async () => {
+                    await supabase.from('restaurants').update({
+                      time_slot_capacity_15: selectedRestaurant.time_slot_capacity_15,
+                      time_slot_capacity_30: selectedRestaurant.time_slot_capacity_30,
+                      time_slot_capacity_60: selectedRestaurant.time_slot_capacity_60
+                    }).eq('id', selectedRestaurant.id)
+                    alert('Capacity updated!')
+                  }} style={{ width: '100%', padding: '8px 12px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                    Save Capacity
+                  </button>
+                </div>
+
                 {/* Search */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                   <input value={menuSearch} onChange={e => setMenuSearch(e.target.value)} placeholder="Search menu items..." className="input" style={{ flex: 1 }} />
@@ -1333,6 +1374,41 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+      {/* TIME SLOT MODAL */}
+      {showTimeSlotModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowTimeSlotModal(null) }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '480px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, textAlign: 'center', marginBottom: '20px', color: '#f8fafc' }}>
+              {showTimeSlotModal === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} Time Slots
+            </h3>
+            <div style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
+                <input type="number" value={showTimeSlotModal === 'delivery' ? deliveryTime : pickupTime} onChange={e => showTimeSlotModal === 'delivery' ? setDeliveryTime(parseInt(e.target.value)) : setPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '8px', fontWeight: 600 }}>Slot Duration (mins)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  {[15, 20, 30, 45, 60].map(duration => (
+                    <button key={duration} onClick={() => showTimeSlotModal === 'delivery' ? setDeliverySlotDuration(duration) : setPickupSlotDuration(duration)} style={{ padding: '10px', background: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${(showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: (showTimeSlotModal === 'delivery' ? deliverySlotDuration : pickupSlotDuration) === duration ? '#22c55e' : '#94a3b8', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {duration}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
+                <input type="number" value={showTimeSlotModal === 'delivery' ? deliverySlotCapacity : pickupSlotCapacity} onChange={e => showTimeSlotModal === 'delivery' ? setDeliverySlotCapacity(parseInt(e.target.value)) : setPickupSlotCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowTimeSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={async () => { if (showTimeSlotModal === 'delivery') { await fetch('/api/admin/update-restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurantId: selectedRestaurant?.id, delivery_time_mins: deliveryTime, delivery_slot_duration: deliverySlotDuration, delivery_slot_capacity: deliverySlotCapacity, preorder_delivery_enabled: true }) }) } else { await fetch('/api/admin/update-restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurantId: selectedRestaurant?.id, pickup_time_mins: pickupTime, pickup_slot_duration: pickupSlotDuration, pickup_slot_capacity: pickupSlotCapacity, preorder_pickup_enabled: true }) }) } setShowTimeSlotModal(null) }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
