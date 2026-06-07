@@ -87,7 +87,7 @@ export default function AccountPage() {
     const { data } = await supabase
       .from('orders')
       .select('*, restaurants(name, emoji, logo_url)')
-      .eq('user_id', user.id)
+      .eq('customer_email', user.email)
       .order('created_at', { ascending: false })
       .limit(20)
     setOrders(data || [])
