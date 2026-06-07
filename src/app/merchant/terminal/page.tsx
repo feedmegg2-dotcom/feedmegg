@@ -237,12 +237,38 @@ export default function TerminalPage() {
     if (!currentOrder) return
     stopAlertRepeat()
     setAcceptOpen(false)
-    setScreen('paying')
+    
+    const isCash = currentOrder.payment_method === 'cash'
+    
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
-    setCountdown(10)
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => { if (prev <= 1) { clearInterval(countdownRef.current); return 0 } return prev - 1 })
-    }, 1000)
+    
+    if (isCash) {
+      // Cash order - skip payment screen, go straight to accepted
+      setScreen('paid')
+      playAlertSound(paymentSound)
+      triggerAutoPrint({
+        id: currentOrder.id,
+        orderNumber: currentOrder.order_number,
+        restaurantName: restaurant?.name || 'Restaurant',
+        customerName: currentOrder.customer_name,
+        deliveryAddress: currentOrder.delivery_address,
+        isCollection: currentOrder.order_type === 'collection',
+        items: currentOrder.order_items || [],
+        specialInstructions: currentOrder.special_instructions,
+        subtotal: currentOrder.subtotal,
+        deliveryFee: currentOrder.delivery_fee,
+        tip: currentOrder.tip,
+        total: currentOrder.total,
+      }, 'paid')
+      setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
+    } else {
+      // Card order - show payment waiting screen with countdown
+      setScreen('paying')
+      setCountdown(10)
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => { if (prev <= 1) { clearInterval(countdownRef.current); return 0 } return prev - 1 })
+      }, 1000)
+    }
   }
 
   async function confirmPayment() {
@@ -559,8 +585,15 @@ export default function TerminalPage() {
       {screen === 'paid' && (
         <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
           <div style={{ fontSize: 'clamp(40px,8vw,60px)', marginBottom: '16px' }}>&#9989;</div>
-          <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#22c55e', marginBottom: '6px' }}>Payment Confirmed!</div>
-          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>GBP{currentOrder?.total?.toFixed(2)} received</div>
+          <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#22c55e', marginBottom: '6px' }}>
+            {currentOrder?.payment_method === 'cash' ? 'Order Accepted!' : 'Payment Confirmed!'}
+          </div>
+          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>
+            {currentOrder?.payment_method === 'cash' 
+              ? `Cash ${currentOrder?.order_type === 'delivery' ? 'on delivery' : 'on collection'} • GBP${currentOrder?.total?.toFixed(2)}`
+              : `GBP${currentOrder?.total?.toFixed(2)} received`
+            }
+          </div>
           <div style={{ background: '#0f172a', border: '0.5px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '16px 24px', marginBottom: '20px', textAlign: 'left' }}>
             <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Printing</div>
             <PrintRow label="Kitchen ticket" delay={800} />
@@ -677,7 +710,9 @@ export default function TerminalPage() {
           </div>
           <div style={{ display: 'flex', gap: '7px' }}>
             <button onClick={() => setAcceptOpen(false)} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
-            <button onClick={acceptOrder} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer' }}>Accept & Send Payment Link</button>
+            <button onClick={acceptOrder} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer' }}>
+              {currentOrder?.payment_method === 'cash' ? 'Accept Order (Cash)' : 'Accept & Send Payment Link'}
+            </button>
           </div>
         </Modal>
       )}
