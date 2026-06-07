@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         delivery_fee: deliveryFee,
         total,
         commission,
-        special_instructions: note,
+        notes: note,
       })
       .select()
       .single()
