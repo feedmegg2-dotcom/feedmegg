@@ -55,8 +55,12 @@ export async function POST(request: NextRequest) {
     // Validate customerId exists in auth if provided
     let validUserId = null
     if (customerId) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(customerId)
-      if (authUser?.user) validUserId = customerId
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(customerId)
+        if (authUser?.user) validUserId = customerId
+      } catch (e) {
+        console.log('Could not validate user:', e)
+      }
     }
 
     // Generate order number
@@ -67,7 +71,6 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert({
         restaurant_id: restaurantId,
-        user_id: validUserId,
         customer_name: customerName,
         customer_phone: customerPhone || '',
         customer_email: customerEmail || '',
