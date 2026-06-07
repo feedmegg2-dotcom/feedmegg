@@ -69,33 +69,62 @@ export default function CheckoutPage() {
 
     const now = new Date()
     const dateStr = form.preOrderDate || now.toISOString().split('T')[0]
-    const selectedDate = new Date(dateStr + 'T00:00:00')
-    const isToday = selectedDate.toDateString() === now.toDateString()
 
-    let startHour = 10
-    let startMin = 0
+    // Compare dates properly
+    const todayStr = now.toISOString().split('T')[0]
+    const isToday = dateStr === todayStr
 
-    if (isToday) {
-      const minTime = new Date(now.getTime() + 60 * 60000) // 1 hour from now minimum
-      startHour = minTime.getHours()
-      startMin = Math.ceil(minTime.getMinutes() / slotDuration) * slotDuration
-      if (startMin >= 60) { startHour += 1; startMin = 0 }
+    // Find today's opening hours
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    const dayName = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
+    const dayHours = restaurantHours.find(h => h.day === dayName)
+
+    // Default open/close times
+    let openH = 10, openM = 0
+    let closeH = 22, closeM = 0
+
+    if (dayHours && !dayHours.is_closed) {
+      const [oh, om] = dayHours.open_time.split(':').map(Number)
+      const [ch, cm] = dayHours.close_time.split(':').map(Number)
+      openH = oh; openM = om
+      closeH = ch; closeM = cm
     }
 
-    for (let h = startHour; h < 22; h++) {
-      const mStart = h === startHour ? startMin : 0
+    let startH = openH
+    let startM = openM
+
+    if (isToday) {
+      // Start from 30 mins from now minimum
+      const minTime = new Date(now.getTime() + 30 * 60000)
+      const minH = minTime.getHours()
+      const minM = Math.ceil(minTime.getMinutes() / slotDuration) * slotDuration
+
+      if (minH > startH || (minH === startH && minM > startM)) {
+        startH = minH
+        startM = minM >= 60 ? 0 : minM
+        if (minM >= 60) startH += 1
+      }
+    }
+
+    const closeMins = closeH * 60 + closeM
+
+    for (let h = startH; h <= closeH; h++) {
+      const mStart = h === startH ? startM : 0
       for (let m = mStart; m < 60; m += slotDuration) {
-        const endTotal = h * 60 + m + slotDuration
-        const endH = Math.floor(endTotal / 60)
-        const endM = endTotal % 60
-        if (endH > 22) break
+        const slotStartMins = h * 60 + m
+        const slotEndMins = slotStartMins + slotDuration
+
+        if (slotEndMins > closeMins) break
+
+        const endH = Math.floor(slotEndMins / 60)
+        const endM = slotEndMins % 60
         const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`
         slots.push(slot)
       }
     }
 
     setAvailableSlots(slots)
-    if (slots.length > 0) setForm(f => ({...f, preOrderTime: f.preOrderTime || slots[0]}))
+    if (slots.length > 0) setForm(f => ({...f, preOrderTime: f.preOrderTime && slots.includes(f.preOrderTime) ? f.preOrderTime : slots[0]}))
   }
 
   async function fetchCustomer() {
