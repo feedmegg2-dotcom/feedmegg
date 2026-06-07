@@ -13,6 +13,7 @@ export default function CheckoutPage() {
   const [dark, setDark] = useState(true)
   const [cartData, setCartData] = useState<any>(null)
   const [customer, setCustomer] = useState<any>(null)
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [deliveryZones, setDeliveryZones] = useState<any[]>([])
   const [restaurant, setRestaurant] = useState<any>(null)
@@ -130,6 +131,7 @@ export default function CheckoutPage() {
   async function fetchCustomer() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    setAuthUserId(user.id)
     let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
     if (!cust) {
       const r2 = await supabase.from('customers').select('*').eq('id', user.id).single()
@@ -279,7 +281,7 @@ export default function CheckoutPage() {
       body: JSON.stringify({
         restaurantId: cartData.restaurantId,
         items: cartData.cart,
-        customerId: customer?.id || null,
+        customerId: authUserId || null,
         customerName: form.name,
         customerPhone: form.phone,
         customerEmail: form.email,
