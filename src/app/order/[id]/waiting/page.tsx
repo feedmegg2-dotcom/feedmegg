@@ -38,10 +38,19 @@ export default function WaitingPage() {
   }
 
   function startCountdown() {
-    countdownRef.current = setInterval(() => {
+    countdownRef.current = setInterval(async () => {
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
       const remaining = TIMEOUT_SECS - elapsed
       if (remaining <= 0) {
+        // Check order status BEFORE cancelling - it may have been accepted already
+        const { data } = await supabase.from('orders').select('status, payment_method, sumup_link').eq('id', orderId).single()
+        
+        // Don't cancel if already accepted/paid
+        if (data && ['accepted', 'waiting_payment', 'paid'].includes(data.status)) {
+          clearInterval(countdownRef.current)
+          return
+        }
+        
         setSecondsLeft(0)
         setStatus('timeout')
         clearInterval(countdownRef.current)
@@ -58,12 +67,11 @@ export default function WaitingPage() {
       const { data } = await supabase.from('orders').select('status, sumup_link, payment_method').eq('id', orderId).single()
       if (!data) return
 
-      // Cash order - accepted means confirmed, go to confirmed page
+      // Cash order - paid or accepted = confirmed
       if (data.payment_method === 'cash' && (data.status === 'paid' || data.status === 'accepted')) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('accepted')
-        router.push(`/order/${orderId}/confirmed`)
         return
       }
 
@@ -76,12 +84,12 @@ export default function WaitingPage() {
         return
       }
 
-      if (data.status === 'rejected' || data.status === 'cancelled') {
+      if (data.status === 'rejected') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('rejected')
       }
-    }, 3000)
+    }, 1500)
   }
 
   const mins = Math.floor(secondsLeft / 60)
