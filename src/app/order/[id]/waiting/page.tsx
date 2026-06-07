@@ -9,11 +9,11 @@ const TIMEOUT_SECS = 120
 
 export default function WaitingPage() {
   const params = useParams()
-  const orderId = params.id || params.orderId
+  const orderId = params.id as string
   const router = useRouter()
   const supabase = createClient()
   const [order, setOrder] = useState<any>(null)
-  const [status, setStatus] = useState<'waiting'|'accepted'|'rejected'|'timeout'>('waiting')
+  const [status, setStatus] = useState<'loading'|'waiting'|'accepted'|'rejected'|'timeout'>('loading')
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT_SECS)
   const [dark, setDark] = useState(true)
   const pollRef = useRef<any>(null)
@@ -23,51 +23,79 @@ export default function WaitingPage() {
   useEffect(() => {
     const saved = localStorage.getItem('feedme-theme')
     if (saved) setDark(saved === 'dark')
-    fetchOrder()
-    startCountdown()
-    startPolling()
+    loadOrderThenStart()
     return () => {
       clearInterval(pollRef.current)
       clearInterval(countdownRef.current)
     }
   }, [])
 
-  async function fetchOrder() {
-    const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).single()
-    if (data) setOrder(data)
+  async function loadOrderThenStart() {
+    // Load order first so we know payment method before showing anything
+    const { data } = await supabase
+      .from('orders')
+      .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)')
+      .eq('id', orderId)
+      .single()
+    
+    if (!data) {
+      setStatus('timeout')
+      return
+    }
+
+    setOrder(data)
+    setStatus('waiting')
+    startCountdown(data)
+    startPolling(data.payment_method)
   }
 
-  function startCountdown() {
+  function startCountdown(orderData: any) {
     countdownRef.current = setInterval(async () => {
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
       const remaining = TIMEOUT_SECS - elapsed
+      
       if (remaining <= 0) {
-        // Check order status BEFORE cancelling - it may have been accepted already
-        const { data } = await supabase.from('orders').select('status, payment_method, sumup_link').eq('id', orderId).single()
+        // Check ONCE MORE before cancelling - race condition protection
+        const { data } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', orderId)
+          .single()
         
-        // Don't cancel if already accepted/paid
         if (data && ['accepted', 'waiting_payment', 'paid'].includes(data.status)) {
+          // Already accepted - don't cancel
           clearInterval(countdownRef.current)
           return
         }
         
-        setSecondsLeft(0)
-        setStatus('timeout')
+        // Truly timed out
         clearInterval(countdownRef.current)
         clearInterval(pollRef.current)
-        supabase.from('orders').update({ status: 'cancelled', cancel_reason: 'timeout' }).eq('id', orderId)
+        setSecondsLeft(0)
+        setStatus('timeout')
+        await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('id', orderId)
+          .eq('status', 'pending') // Only cancel if still pending
         return
       }
+      
       setSecondsLeft(remaining)
     }, 1000)
   }
 
-  function startPolling() {
+  function startPolling(paymentMethod: string) {
     pollRef.current = setInterval(async () => {
-      const { data } = await supabase.from('orders').select('status, sumup_link, payment_method').eq('id', orderId).single()
+      const { data } = await supabase
+        .from('orders')
+        .select('status, sumup_link, payment_method')
+        .eq('id', orderId)
+        .single()
+      
       if (!data) return
 
-      // Cash order - paid or accepted = confirmed
+      // CASH ORDER - accepted or paid = confirmed
       if (data.payment_method === 'cash' && (data.status === 'paid' || data.status === 'accepted')) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
@@ -75,20 +103,38 @@ export default function WaitingPage() {
         return
       }
 
-      // Card order - wait for payment link then redirect to SumUp
-      if (data.payment_method === 'card' && (data.status === 'accepted' || data.status === 'waiting_payment') && data.sumup_link) {
+      // CARD ORDER - wait for payment link then redirect to SumUp
+      if (data.payment_method === 'card' && data.status === 'waiting_payment' && data.sumup_link) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('accepted')
-        window.location.href = data.sumup_link
+        setTimeout(() => { window.location.href = data.sumup_link }, 1500)
         return
       }
 
+      // REJECTED
       if (data.status === 'rejected') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('rejected')
+        // Refresh order to get rejection reason
+        const { data: fullOrder } = await supabase
+          .from('orders')
+          .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)')
+          .eq('id', orderId)
+          .single()
+        if (fullOrder) setOrder(fullOrder)
+        return
       }
+
+      // CANCELLED (timed out from another session)
+      if (data.status === 'cancelled') {
+        clearInterval(pollRef.current)
+        clearInterval(countdownRef.current)
+        setStatus('timeout')
+        return
+      }
+
     }, 1500)
   }
 
@@ -101,6 +147,14 @@ export default function WaitingPage() {
   const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
   const text = dark ? '#f1f5f9' : '#0f172a'
   const sub = dark ? '#64748b' : '#94a3b8'
+
+  if (status === 'loading') {
+    return (
+      <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub, fontFamily: 'system-ui,sans-serif' }}>
+        Loading your order...
+      </div>
+    )
+  }
 
   return (
     <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column' }}>
@@ -115,6 +169,7 @@ export default function WaitingPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
         <div style={{ maxWidth: '480px', width: '100%' }}>
 
+          {/* WAITING */}
           {status === 'waiting' && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ width: '140px', height: '140px', margin: '0 auto 28px', position: 'relative' }}>
@@ -134,8 +189,8 @@ export default function WaitingPage() {
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>Order sent to the restaurant!</h1>
               <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '6px', maxWidth: '380px', margin: '0 auto 6px' }}>
                 {order?.payment_method === 'cash'
-                  ? `Once accepted you'll receive confirmation. Pay cash ${order?.order_type === 'delivery' ? 'on delivery' : 'on collection'}.`
-                  : 'Once your order is accepted you will automatically be taken to the SumUp payment page to complete your order.'
+                  ? `Waiting for the restaurant to confirm. You'll pay GBP${order?.total?.toFixed(2)} cash ${order?.order_type === 'delivery' ? 'on delivery' : 'on collection'}.`
+                  : 'Once accepted you will be taken to the payment page to complete your order.'
                 }
               </p>
               <p style={{ fontSize: '13px', color: dark ? '#334155' : '#94a3b8', marginBottom: '28px' }}>This usually takes less than a minute</p>
@@ -150,35 +205,66 @@ export default function WaitingPage() {
                     </div>
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 700 }}>{order.restaurants?.name}</div>
-                      <div style={{ fontSize: '12px', color: sub }}>{order.order_type === 'delivery' ? `Delivery approx ${order.restaurants?.delivery_time_mins} mins` : `Collection approx ${order.restaurants?.pickup_time_mins} mins`}</div>
+                      <div style={{ fontSize: '12px', color: sub }}>
+                        {order.order_type === 'delivery' 
+                          ? `Delivery approx ${order.restaurants?.delivery_time_mins} mins` 
+                          : `Collection approx ${order.restaurants?.pickup_time_mins} mins`}
+                      </div>
                     </div>
                   </div>
                   <div style={{ borderTop: `1px solid ${border}`, paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                     <span style={{ color: sub }}>Order total</span>
                     <span style={{ fontWeight: 700, color: '#22c55e' }}>GBP{order.total?.toFixed(2)}</span>
                   </div>
+                  <div style={{ paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ color: sub }}>Payment</span>
+                    <span style={{ fontWeight: 600, color: order.payment_method === 'cash' ? '#f97316' : '#3b82f6' }}>
+                      {order.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
+          {/* ACCEPTED */}
           {status === 'accepted' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#22c55e' }}>✅</div>
-              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px', color: '#22c55e' }}>Order accepted!</h1>
-              <p style={{ fontSize: '15px', color: sub }}>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>✅</div>
+              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px', color: '#22c55e' }}>Order confirmed!</h1>
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '20px' }}>
                 {order?.payment_method === 'cash'
-                  ? `Pay GBP${order?.total?.toFixed(2)} cash ${order?.order_type === 'delivery' ? 'when your order arrives' : 'when you collect'}.`
+                  ? `Your order is confirmed. Please have GBP${order?.total?.toFixed(2)} cash ready ${order?.order_type === 'delivery' ? 'when your order arrives' : 'when you collect'}.`
                   : 'Taking you to payment now...'
                 }
               </p>
+              {order && (
+                <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '16px', textAlign: 'left', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '13px', color: sub, marginBottom: '8px' }}>{order.restaurants?.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700 }}>
+                    <span>Total</span>
+                    <span style={{ color: '#22c55e' }}>GBP{order.total?.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              {order?.payment_method === 'cash' && (
+                <Link href="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
+                  Done
+                </Link>
+              )}
             </div>
           )}
 
+          {/* REJECTED */}
           {status === 'rejected' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(239,68,68,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#ef4444' }}></div>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(239,68,68,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>❌</div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Order not accepted</h1>
+              {order?.rejection_reason && (
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '14px', color: '#ef4444' }}>
+                  {order.rejection_reason}
+                </div>
+              )}
               <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
                 Sorry, the restaurant couldn't take your order right now.
               </p>
@@ -191,9 +277,10 @@ export default function WaitingPage() {
             </div>
           )}
 
+          {/* TIMEOUT */}
           {status === 'timeout' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(249,115,22,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}></div>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(249,115,22,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>⏱️</div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Restaurant didn't respond</h1>
               <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
                 The restaurant didn't confirm your order in time. Your order has been automatically cancelled.
