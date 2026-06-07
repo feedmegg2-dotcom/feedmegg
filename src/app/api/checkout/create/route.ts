@@ -5,9 +5,23 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    const { restaurantId, items, customerName, customerPhone, customerEmail, address, parish, orderType, note } = await request.json()
+    const { 
+      restaurantId, 
+      items, 
+      customerName, 
+      customerPhone, 
+      customerEmail, 
+      address, 
+      parish,
+      locationDescription,
+      orderType, 
+      paymentMethod,
+      note,
+      contactlessDelivery,
+      scheduledFor,
+    } = await request.json()
 
-    // Get restaurant with SumUp key
+    // Get restaurant
     const { data: restaurant } = await supabase
       .from('restaurants')
       .select('*')
@@ -19,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Calculate totals
     const subtotal = items.reduce((s: number, i: any) => s + (i.price * i.qty), 0)
     
-    // Get delivery fee from delivery_zones if delivery order
+    // Get delivery fee
     let deliveryFee = 0
     if (orderType === 'delivery') {
       const { data: zone } = await supabase
@@ -32,9 +46,9 @@ export async function POST(request: NextRequest) {
     }
 
     const total = subtotal + deliveryFee
-    const commission = items[0]?.paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
+    const commission = paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
 
-    // Create order in database
+    // ALL orders start as 'pending' - merchant must accept first
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -43,67 +57,52 @@ export async function POST(request: NextRequest) {
         customer_phone: customerPhone,
         customer_email: customerEmail,
         delivery_address: address,
+        delivery_notes: locationDescription,
         parish,
         order_type: orderType,
-        payment_method: items[0]?.paymentMethod || 'card',
-        status: items[0]?.paymentMethod === 'cash' ? 'pending_cash' : 'pending',
+        payment_method: paymentMethod || 'card',
+        contactless_delivery: contactlessDelivery || false,
+        scheduled_for: scheduledFor || null,
+        status: 'pending',
         subtotal,
         delivery_fee: deliveryFee,
         total,
         commission,
-        notes: note,
-        items: JSON.stringify(items),
+        special_instructions: note,
       })
       .select()
       .single()
 
-    if (orderError || !order) return NextResponse.json({ error: 'Failed to create order: ' + orderError?.message }, { status: 500 })
-
-    // Cash order - no payment needed
-    if (items[0]?.paymentMethod === 'cash') {
-      return NextResponse.json({ success: true, orderId: order.id, paymentMethod: 'cash' })
+    if (orderError || !order) {
+      console.error('Order creation error:', orderError)
+      return NextResponse.json({ error: 'Failed to create order: ' + orderError?.message }, { status: 500 })
     }
 
-    // Card order - create SumUp checkout
-    if (!restaurant.sumup_api_key) {
-      return NextResponse.json({ error: 'Restaurant payment not configured' }, { status: 400 })
+    // Create order_items entries
+    if (items && items.length > 0) {
+      const orderItems = items.map((item: any) => ({
+        order_id: order.id,
+        menu_item_id: item.id,
+        name: item.name,
+        quantity: item.qty,
+        price: item.price,
+        subtotal: item.price * item.qty,
+        special_instructions: item.note || item.special_instructions || '',
+      }))
+
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
+      if (itemsError) console.error('Order items error:', itemsError)
     }
 
-    const checkoutRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${restaurant.sumup_api_key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        checkout_reference: order.id,
-        amount: total,
-        currency: 'GBP',
-        merchant_code: restaurant.sumup_merchant_code,
-        description: `Order from ${restaurant.name}`,
-        hosted_checkout: { enabled: true },
-        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL}/order/${order.id}/confirmed`,
-      })
-    })
-
-    const checkoutData = await checkoutRes.json()
-
-    if (!checkoutData.id || !checkoutData.hosted_checkout_url) {
-      return NextResponse.json({ error: 'SumUp error: ' + JSON.stringify(checkoutData) }, { status: 500 })
-    }
-
-    // Save SumUp checkout ID to order
-    await supabase.from('orders').update({ sumup_checkout_id: checkoutData.id }).eq('id', order.id)
-
-    return NextResponse.json({
-      success: true,
+    // Return success - payment handled AFTER merchant accepts
+    return NextResponse.json({ 
+      success: true, 
       orderId: order.id,
-      paymentUrl: checkoutData.hosted_checkout_url,
-      checkoutId: checkoutData.id,
-      paymentMethod: 'card',
+      paymentMethod: paymentMethod || 'card',
     })
 
   } catch (error: any) {
+    console.error('Checkout error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
