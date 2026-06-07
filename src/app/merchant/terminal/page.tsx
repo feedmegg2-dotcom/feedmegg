@@ -11,7 +11,7 @@ export default function TerminalPage() {
   const supabase = createClient()
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
-  const [tab, setTab] = useState<'incoming' | 'accepted'>('incoming')
+  const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders'>('incoming')
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [screen, setScreen] = useState<'main' | 'neworder' | 'detail' | 'paying' | 'paid' | 'items' | 'printer' | 'eod' | 'history'>('main')
   const [cogOpen, setCogOpen] = useState(false)
