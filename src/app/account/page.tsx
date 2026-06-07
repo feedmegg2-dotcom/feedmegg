@@ -82,7 +82,14 @@ export default function AccountPage() {
   }
 
   async function fetchOrders(customerId: string) {
-    const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url)').eq('customer_id', customerId).order('created_at', { ascending: false }).limit(20)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('orders')
+      .select('*, restaurants(name, emoji, logo_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
     setOrders(data || [])
   }
 
