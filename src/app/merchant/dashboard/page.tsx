@@ -22,6 +22,13 @@ export default function MerchantDashboard() {
 
   // Settings modal
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null)
+  const [showSlotModal, setShowSlotModal] = useState<any>(null)
+  const [slotDeliveryTime, setSlotDeliveryTime] = useState(45)
+  const [slotDeliveryDuration, setSlotDeliveryDuration] = useState(30)
+  const [slotDeliveryCapacity, setSlotDeliveryCapacity] = useState(4)
+  const [slotPickupTime, setSlotPickupTime] = useState(30)
+  const [slotPickupDuration, setSlotPickupDuration] = useState(30)
+  const [slotPickupCapacity, setSlotPickupCapacity] = useState(4)
   const [savingSettings, setSavingSettings] = useState(false)
   const [showZones, setShowZones] = useState<string|null>(null)
   const [showHours, setShowHours] = useState<string|null>(null)
@@ -225,71 +232,6 @@ export default function MerchantDashboard() {
               </div>
             </div>
 
-            {/* TIME SLOT CAPACITY */}
-            {restaurants.length > 0 && (
-              <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>Today's Time Slot Availability</div>
-                  <button onClick={() => setEditingRestaurant(restaurants[0])} style={{ padding: '6px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
-                    Edit
-                  </button>
-                </div>
-                {editingRestaurant ? (
-                  <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>15-min slots</label>
-                        <input type="number" value={editingRestaurant?.time_slot_capacity_15 || 10} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_15: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>30-min slots</label>
-                        <input type="number" value={editingRestaurant?.time_slot_capacity_30 || 15} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_30: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>60-min slots</label>
-                        <input type="number" value={editingRestaurant?.time_slot_capacity_60 || 20} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_60: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
-                      </div>
-                    </div>
-                    <button onClick={async () => {
-                      await supabase.from('restaurants').update({
-                        time_slot_capacity_15: editingRestaurant.time_slot_capacity_15,
-                        time_slot_capacity_30: editingRestaurant.time_slot_capacity_30,
-                        time_slot_capacity_60: editingRestaurant.time_slot_capacity_60
-                      }).eq('id', editingRestaurant.id)
-                      setEditingRestaurant(null)
-                      alert('Capacity updated!')
-                    }} style={{ width: '100%', padding: '8px 12px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                      Save Changes
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>15-min slots</div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
-                        {Math.max(0, (restaurants[0]?.time_slot_capacity_15 || 10) - Math.floor(Math.random() * 3))}/{restaurants[0]?.time_slot_capacity_15 || 10}
-                      </div>
-                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>30-min slots</div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
-                        {Math.max(0, (restaurants[0]?.time_slot_capacity_30 || 15) - Math.floor(Math.random() * 5))}/{restaurants[0]?.time_slot_capacity_30 || 15}
-                      </div>
-                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>60-min slots</div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
-                        {Math.max(0, (restaurants[0]?.time_slot_capacity_60 || 20) - Math.floor(Math.random() * 7))}/{restaurants[0]?.time_slot_capacity_60 || 20}
-                      </div>
-                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Date picker */}
             <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -377,8 +319,8 @@ export default function MerchantDashboard() {
                       <button onClick={() => setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() })} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Settings</button>
                       {/* Hours */}
                       <button onClick={() => { setShowHours(r.id); fetchHours(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
-                      {/* Capacity */}
-                      <button onClick={() => setEditingRestaurant(r)} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Capacity</button>
+                      {/* Slots */}
+                      <button onClick={() => { setSlotDeliveryTime(r.delivery_time_mins || 45); setSlotDeliveryDuration(r.delivery_slot_duration || 30); setSlotDeliveryCapacity(r.delivery_slot_capacity || 4); setSlotPickupTime(r.pickup_time_mins || 30); setSlotPickupDuration(r.pickup_slot_duration || 30); setSlotPickupCapacity(r.pickup_slot_capacity || 4); setShowSlotModal(r) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Slots</button>
                       {/* Zones */}
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
@@ -413,25 +355,6 @@ export default function MerchantDashboard() {
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Fee GBP</label><input type="number" step="0.01" value={editingRestaurant.delivery_fee} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_fee: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Mins</label><input type="number" value={editingRestaurant.delivery_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_time_mins: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Mins</label><input type="number" value={editingRestaurant.pickup_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_time_mins: e.target.value})} style={inputStyle} /></div>
-
-              {/* TIME SLOT CAPACITY */}
-              <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', marginTop: '12px' }}>
-                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Time Slot Capacity</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>15-min orders</label>
-                    <input type="number" value={editingRestaurant.time_slot_capacity_15 || 10} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_15: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>30-min orders</label>
-                    <input type="number" value={editingRestaurant.time_slot_capacity_30 || 15} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_30: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>60-min orders</label>
-                    <input type="number" value={editingRestaurant.time_slot_capacity_60 || 20} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_60: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
-                  </div>
-                </div>
-              </div>
 
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Custom Message to Customers</label><input value={editingRestaurant.custom_message || ''} onChange={e => setEditingRestaurant({...editingRestaurant, custom_message: e.target.value})} style={inputStyle} /></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -531,6 +454,86 @@ export default function MerchantDashboard() {
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Confirm Password</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} /></div>
               {pwMsg && <div style={{ padding: '10px 12px', background: pwMsg.includes('updated') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.08)', border: `1px solid ${pwMsg.includes('updated') ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px', fontSize: '13px', color: pwMsg.includes('updated') ? '#22c55e' : '#fca5a5', fontWeight: 600 }}>{pwMsg}</div>}
               <button onClick={changePassword} style={{ padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Update Password</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SLOT SETTINGS MODAL */}
+      {showSlotModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowSlotModal(null) }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, textAlign: 'center', marginBottom: '20px', color: '#f8fafc' }}>
+              Time Slot Settings — {showSlotModal.name}
+            </h3>
+
+            {/* DELIVERY */}
+            <div style={{ background: '#060b18', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f8fafc' }}>🚗 Delivery</div>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
+                  <input type="number" value={slotDeliveryTime} onChange={e => setSlotDeliveryTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
+                    {[20,30,45,60,90].map(t => (
+                      <button key={t} onClick={() => setSlotDeliveryTime(t)} style={{ padding: '6px', background: slotDeliveryTime === t ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotDeliveryTime === t ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotDeliveryTime === t ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
+                      {[15,20,30,45,60].map(d => (
+                        <button key={d} onClick={() => setSlotDeliveryDuration(d)} style={{ padding: '6px', background: slotDeliveryDuration === d ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotDeliveryDuration === d ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotDeliveryDuration === d ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
+                    <input type="number" value={slotDeliveryCapacity} onChange={e => setSlotDeliveryCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PICKUP */}
+            <div style={{ background: '#060b18', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f8fafc' }}>🏪 Pickup</div>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
+                  <input type="number" value={slotPickupTime} onChange={e => setSlotPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
+                    {[10,15,20,30,45].map(t => (
+                      <button key={t} onClick={() => setSlotPickupTime(t)} style={{ padding: '6px', background: slotPickupTime === t ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotPickupTime === t ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotPickupTime === t ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
+                      {[15,20,30,45,60].map(d => (
+                        <button key={d} onClick={() => setSlotPickupDuration(d)} style={{ padding: '6px', background: slotPickupDuration === d ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotPickupDuration === d ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotPickupDuration === d ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
+                    <input type="number" value={slotPickupCapacity} onChange={e => setSlotPickupCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>Cancel</button>
+              <button onClick={async () => {
+                await supabase.from('restaurants').update({ delivery_time_mins: slotDeliveryTime, delivery_slot_duration: slotDeliveryDuration, delivery_slot_capacity: slotDeliveryCapacity, pickup_time_mins: slotPickupTime, pickup_slot_duration: slotPickupDuration, pickup_slot_capacity: slotPickupCapacity }).eq('id', showSlotModal.id)
+                init()
+                setShowSlotModal(null)
+              }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
           </div>
         </div>
