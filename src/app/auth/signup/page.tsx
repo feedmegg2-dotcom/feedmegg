@@ -118,7 +118,18 @@ export default function SignupPage() {
           By creating an account you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
-      <style>{`input::placeholder, textarea::placeholder { color: #334155; } option { background: #0d1321; color: #f1f5f9; }`}</style>
+      <style>{`
+        input::placeholder, textarea::placeholder { color: #334155; }
+        option { background: #0d1321; color: #f1f5f9; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #0d1321 inset !important;
+          -webkit-text-fill-color: #f1f5f9 !important;
+          caret-color: #f1f5f9 !important;
+        }
+      `}</style>
     </div>
   )
 }
