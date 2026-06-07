@@ -10,11 +10,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name, email, password and phone are required' }, { status: 400 })
     }
 
-    // Create Supabase auth user - send verification email
+    // Create Supabase auth user - auto confirm until email is configured
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // Require email verification
+      email_confirm: true,
       user_metadata: { name },
     })
 
