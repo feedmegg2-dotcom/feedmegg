@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { TicketEditor } from '@/components/TicketEditor'
 
 export default function MerchantDashboard() {
   const router = useRouter()
@@ -22,6 +23,7 @@ export default function MerchantDashboard() {
 
   // Settings modal
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null)
+  const [ticketEditorRestaurant, setTicketEditorRestaurant] = useState<any>(null)
   const [showSlotModal, setShowSlotModal] = useState<any>(null)
   const [slotDeliveryTime, setSlotDeliveryTime] = useState(45)
   const [slotDeliveryDuration, setSlotDeliveryDuration] = useState(30)
@@ -325,6 +327,8 @@ export default function MerchantDashboard() {
                       <button onClick={() => { setShowHours(r.id); fetchHours(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
                       {/* Slots */}
                       <button onClick={() => { setSlotDeliveryTime(r.delivery_time_mins || 45); setSlotDeliveryDuration(r.delivery_slot_duration || 30); setSlotDeliveryCapacity(r.delivery_slot_capacity || 4); setSlotPickupTime(r.pickup_time_mins || 30); setSlotPickupDuration(r.pickup_slot_duration || 30); setSlotPickupCapacity(r.pickup_slot_capacity || 4); setShowSlotModal(r) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Slots</button>
+                      {/* Tickets */}
+                      <button onClick={() => setTicketEditorRestaurant(r)} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(168,85,247,0.1)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>🎫 Tickets</button>
                       {/* Zones */}
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
@@ -557,6 +561,15 @@ export default function MerchantDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TICKET EDITOR */}
+      {ticketEditorRestaurant && (
+        <TicketEditor
+          restaurantId={ticketEditorRestaurant.id}
+          restaurantName={ticketEditorRestaurant.name}
+          onClose={() => setTicketEditorRestaurant(null)}
+        />
       )}
 
     </div>
