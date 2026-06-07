@@ -114,7 +114,9 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     small: Math.round(10 * scale) + 'px',
     medium: Math.round(12 * scale) + 'px',
     large: Math.round(15 * scale) + 'px',
-    xl: Math.round(18 * scale) + 'px'
+    xl: Math.round(18 * scale) + 'px',
+    xxl: Math.round(24 * scale) + 'px',
+    xxxl: Math.round(32 * scale) + 'px',
   }
   const fontSize = sizeMap[el.size] || sizeMap.medium
   const style: any = {
@@ -430,8 +432,8 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                 <>
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Size</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '4px' }}>
-                      {['small','medium','large','xl'].map(s => (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
+                      {['small','medium','large','xl','xxl','xxxl'].map(s => (
                         <button key={s} onClick={() => updateElement(selectedElement.id, { size: s })} style={{ padding: '6px 2px', background: selectedElement.size === s ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.size === s ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.size === s ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>{s}</button>
                       ))}
                     </div>
