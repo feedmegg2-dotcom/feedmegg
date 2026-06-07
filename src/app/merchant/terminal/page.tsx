@@ -560,7 +560,9 @@ export default function TerminalPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(11px,2vw,13px)', color: '#64748b', marginBottom: '8px' }}><span>Delivery</span><span>{currentOrder.order_type === 'delivery' ? `GBP${currentOrder.delivery_fee?.toFixed(2)}` : 'Free'}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'clamp(16px,3vw,20px)', fontWeight: 700, color: '#f8fafc', marginBottom: '12px' }}><span>Total</span><span style={{ color: '#22c55e' }}>GBP{currentOrder.total?.toFixed(2)}</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
-              <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>Accept Order</button>
+              <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>
+                {currentOrder.payment_method === 'cash' ? '✓ Accept (Cash)' : '✓ Accept & Send Payment Link'}
+              </button>
               <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer' }}>Reject</button>
             </div>
           </div>
@@ -719,16 +721,16 @@ export default function TerminalPage() {
 
       {rejectOpen && (
         <Modal onClose={() => setRejectOpen(false)}>
-          <h3 style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 700, textAlign: 'center', marginBottom: '14px' }}>Reason for rejection</h3>
-          {['Out of stock','Too busy right now','Outside delivery zone','Closing soon'].map(r => (
-            <button key={r} onClick={() => setSelectedReason(r)} style={{ width: '100%', background: '#0f172a', border: `0.5px solid ${selectedReason === r ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: 'clamp(8px,1.5vw,11px) 12px', fontSize: 'clamp(11px,2vw,13px)', color: selectedReason === r ? '#ef4444' : '#94a3b8', textAlign: 'left', cursor: 'pointer', marginBottom: '5px' }}>
-              {r}
+          <h3 style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 700, textAlign: 'center', marginBottom: '14px' }}>Why are you rejecting?</h3>
+          {['Items out of stock','Too busy right now','Restaurant closing early','Outside delivery zone','Technical issues','Customer requested cancel'].map(r => (
+            <button key={r} onClick={() => setSelectedReason(r)} style={{ width: '100%', background: selectedReason === r ? 'rgba(239,68,68,0.1)' : '#0f172a', border: `0.5px solid ${selectedReason === r ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: 'clamp(8px,1.5vw,11px) 12px', fontSize: 'clamp(11px,2vw,13px)', color: selectedReason === r ? '#ef4444' : '#94a3b8', textAlign: 'left', cursor: 'pointer', marginBottom: '5px' }}>
+              {selectedReason === r ? '✓ ' : ''}{r}
             </button>
           ))}
-          <textarea value={customReason} onChange={e => setCustomReason(e.target.value)} placeholder="Or type a custom reason..." style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 11px', fontSize: 'clamp(11px,2vw,13px)', color: '#f8fafc', marginBottom: '10px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} rows={2} />
+          <textarea value={customReason} onChange={e => { setCustomReason(e.target.value); setSelectedReason('') }} placeholder="Or type a custom reason..." style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 11px', fontSize: 'clamp(11px,2vw,13px)', color: '#f8fafc', marginBottom: '10px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} rows={2} />
           <div style={{ display: 'flex', gap: '7px' }}>
-            <button onClick={() => setRejectOpen(false)} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
-            <button onClick={rejectOrder} style={{ flex: 2, background: '#ef4444', color: 'white', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer' }}>Confirm Rejection</button>
+            <button onClick={() => { setRejectOpen(false); setSelectedReason(''); setCustomReason('') }} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
+            <button onClick={rejectOrder} disabled={!selectedReason && !customReason} style={{ flex: 2, background: selectedReason || customReason ? '#ef4444' : '#334155', color: 'white', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: selectedReason || customReason ? 'pointer' : 'not-allowed' }}>Confirm Rejection</button>
           </div>
         </Modal>
       )}
