@@ -51,7 +51,7 @@ export default function AccountPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
     setUser(user)
-    // Try auth_id first, then id, then email
+    // Try auth_id first, then id (both should work now), then email
     let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
     if (!cust) {
       const res2 = await supabase.from('customers').select('*').eq('id', user.id).single()
@@ -60,8 +60,10 @@ export default function AccountPage() {
     if (!cust && user.email) {
       const res3 = await supabase.from('customers').select('*').ilike('email', user.email).single()
       cust = res3.data
-      // Link auth_id so future lookups work
-      if (cust) await supabase.from('customers').update({ auth_id: user.id }).eq('id', cust.id)
+      if (cust) {
+        // Fix both id and auth_id for future lookups
+        await supabase.from('customers').update({ auth_id: user.id }).eq('id', cust.id)
+      }
     }
     if (cust) {
       setCustomer(cust)
