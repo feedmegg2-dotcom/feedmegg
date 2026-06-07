@@ -40,8 +40,13 @@ export default function SignupPage() {
 
     if (!data.success) { setError(data.error || 'Something went wrong'); return }
 
-    // Show verification message instead of auto-login
-    setSuccess(true)
+    // Auto login
+    const supabase = createClient()
+    const { error: loginError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
+    if (loginError) { router.push('/auth/login'); return }
+
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+    router.push(redirect)
   }
 
   const inputStyle = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: dark ? '#f1f5f9' : '#0f172a', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
