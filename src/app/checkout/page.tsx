@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     name: '', phone: '', email: '',
     orderType: 'delivery',
+    contactless: false,
     paymentMethod: 'card',
     addressMode: 'new', // 'saved' | 'new' | 'temp'
     savedAddressId: '',
@@ -139,6 +140,7 @@ export default function CheckoutPage() {
         orderType: form.orderType,
         paymentMethod: form.paymentMethod,
         note: form.note,
+        contactless_delivery: form.orderType === 'delivery' ? form.contactless : false,
       })
     })
 
@@ -295,8 +297,19 @@ export default function CheckoutPage() {
         {/* SPECIAL INSTRUCTIONS */}
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Special Instructions</div>
-          <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2}
-            style={{ ...inputStyle, resize: 'none' }} />
+          <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2} style={{ ...inputStyle, resize: 'none' }} />
+
+          {form.orderType === 'delivery' && (
+            <div onClick={() => setForm({...form, contactless: !form.contactless})} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: form.contactless ? '#22c55e' : '#f8fafc' }}>🚪 Contactless Delivery</div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Driver leaves food at your door</div>
+              </div>
+              <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: form.contactless ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: '3px', left: form.contactless ? '23px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* PAYMENT METHOD */}
