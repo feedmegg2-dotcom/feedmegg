@@ -229,7 +229,8 @@ export default function TerminalPage() {
   }
 
   const currentOrder = orders.find(o => o.id === currentOrderId)
-  const pendingOrders = orders.filter(o => o.status === 'pending')
+  const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
+  const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
   const acceptedOrders = orders.filter(o => ['accepted','waiting_payment','paid'].includes(o.status))
 
   async function acceptOrder() {
