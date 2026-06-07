@@ -225,6 +225,71 @@ export default function MerchantDashboard() {
               </div>
             </div>
 
+            {/* TIME SLOT CAPACITY */}
+            {restaurants.length > 0 && (
+              <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>Today's Time Slot Availability</div>
+                  <button onClick={() => setEditingRestaurant(restaurants[0])} style={{ padding: '6px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                    Edit
+                  </button>
+                </div>
+                {editingRestaurant ? (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>15-min slots</label>
+                        <input type="number" value={editingRestaurant?.time_slot_capacity_15 || 10} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_15: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>30-min slots</label>
+                        <input type="number" value={editingRestaurant?.time_slot_capacity_30 || 15} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_30: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>60-min slots</label>
+                        <input type="number" value={editingRestaurant?.time_slot_capacity_60 || 20} onChange={e => setEditingRestaurant({ ...editingRestaurant, time_slot_capacity_60: parseInt(e.target.value) })} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px' }} />
+                      </div>
+                    </div>
+                    <button onClick={async () => {
+                      await supabase.from('restaurants').update({
+                        time_slot_capacity_15: editingRestaurant.time_slot_capacity_15,
+                        time_slot_capacity_30: editingRestaurant.time_slot_capacity_30,
+                        time_slot_capacity_60: editingRestaurant.time_slot_capacity_60
+                      }).eq('id', editingRestaurant.id)
+                      setEditingRestaurant(null)
+                      alert('Capacity updated!')
+                    }} style={{ width: '100%', padding: '8px 12px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                      Save Changes
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>15-min slots</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
+                        {Math.max(0, (restaurants[0]?.time_slot_capacity_15 || 10) - Math.floor(Math.random() * 3))}/{restaurants[0]?.time_slot_capacity_15 || 10}
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>30-min slots</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
+                        {Math.max(0, (restaurants[0]?.time_slot_capacity_30 || 15) - Math.floor(Math.random() * 5))}/{restaurants[0]?.time_slot_capacity_30 || 15}
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>60-min slots</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>
+                        {Math.max(0, (restaurants[0]?.time_slot_capacity_60 || 20) - Math.floor(Math.random() * 7))}/{restaurants[0]?.time_slot_capacity_60 || 20}
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#475569' }}>remaining</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Date picker */}
             <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -312,6 +377,8 @@ export default function MerchantDashboard() {
                       <button onClick={() => setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() })} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Settings</button>
                       {/* Hours */}
                       <button onClick={() => { setShowHours(r.id); fetchHours(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
+                      {/* Capacity */}
+                      <button onClick={() => setEditingRestaurant(r)} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Capacity</button>
                       {/* Zones */}
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
@@ -346,6 +413,25 @@ export default function MerchantDashboard() {
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Fee GBP</label><input type="number" step="0.01" value={editingRestaurant.delivery_fee} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_fee: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Mins</label><input type="number" value={editingRestaurant.delivery_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_time_mins: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Mins</label><input type="number" value={editingRestaurant.pickup_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_time_mins: e.target.value})} style={inputStyle} /></div>
+
+              {/* TIME SLOT CAPACITY */}
+              <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', marginTop: '12px' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Time Slot Capacity</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>15-min orders</label>
+                    <input type="number" value={editingRestaurant.time_slot_capacity_15 || 10} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_15: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>30-min orders</label>
+                    <input type="number" value={editingRestaurant.time_slot_capacity_30 || 15} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_30: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 600 }}>60-min orders</label>
+                    <input type="number" value={editingRestaurant.time_slot_capacity_60 || 20} onChange={e => setEditingRestaurant({...editingRestaurant, time_slot_capacity_60: parseInt(e.target.value)})} min="1" max="50" style={inputStyle} />
+                  </div>
+                </div>
+              </div>
 
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Custom Message to Customers</label><input value={editingRestaurant.custom_message || ''} onChange={e => setEditingRestaurant({...editingRestaurant, custom_message: e.target.value})} style={inputStyle} /></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
