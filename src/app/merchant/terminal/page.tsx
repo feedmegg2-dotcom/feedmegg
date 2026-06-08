@@ -529,7 +529,6 @@ export default function TerminalPage() {
           <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,240px)' }}>
             {[
               { icon: '&#9776;', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
-              { icon: '&#128438;', label: 'Order History', sub: 'Past orders and reports', screen: 'history' },
               { icon: '&#128203;', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
               { icon: '&#128337;', label: 'Order History', sub: 'Search past orders', screen: 'history' },
             ].map(btn => (
