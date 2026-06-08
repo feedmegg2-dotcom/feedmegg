@@ -32,9 +32,9 @@ export default function SetupPage() {
     ]},
     { num: 5, title: 'Install Node.js', commands: [{ label: 'Run in Termux:', text: 'pkg install nodejs -y' }] },
     { num: 6, title: 'Download print server', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/printserver && curl -o ~/printserver/server.js https://feedme.gg/server.js' }] },
-    { num: 7, title: 'Auto-start on boot', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "node ~/printserver/server.js &" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' }] },
+    { num: 7, title: 'Auto-start on boot', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "curl -o ~/printserver/server.js https://feedme.gg/server.js && node ~/printserver/server.js" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' }] },
     { num: 8, title: 'Test print server', commands: [
-      { label: 'Start the server:', text: 'node ~/printserver/server.js' },
+      { label: 'Start the server:', text: 'pkill node; curl -o ~/printserver/server.js https://feedme.gg/server.js && node ~/printserver/server.js' },
       { label: 'Open in Firefox to test:', text: 'http://localhost:3001/status' },
     ]},
   ]
