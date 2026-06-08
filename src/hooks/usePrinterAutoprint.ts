@@ -121,7 +121,7 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   async function doPrint(order: OrderForPrint) {
     if (printerIp) {
       try {
-        const res = await fetch('http://localhost:3001/print', {
+        const res = await fetch('http://127.0.0.1:3001/print', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ order, printerIp, printerWidth: printerWidth || 80 })
