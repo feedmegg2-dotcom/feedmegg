@@ -58,6 +58,7 @@ export default function TerminalPage() {
   const [showTimeSlotModal, setShowTimeSlotModal] = useState<'delivery' | 'pickup' | null>(null)
   const [deliveryTime, setDeliveryTime] = useState(45)
   const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
+  const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
   const [pickupTime, setPickupTime] = useState(30)
@@ -163,6 +164,20 @@ export default function TerminalPage() {
     if (!restId) return
     pollOrders(restId)
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
+    checkPrinterStatus()
+    setInterval(() => checkPrinterStatus(), 30000)
+  }
+
+  async function checkPrinterStatus() {
+    try {
+      await fetch('http://localhost:8080', { 
+        method: 'GET',
+        signal: AbortSignal.timeout(2000)
+      })
+      setPrinterOnline(true)
+    } catch (e) {
+      setPrinterOnline(false)
+    }
   }
 
   async function aiTagMenu() {
@@ -477,6 +492,13 @@ export default function TerminalPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'clamp(9px,1.4vw,11px)', color: '#22c55e', flexShrink: 0 }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />Live
         </div>
+
+        {/* PRINTER STATUS */}
+        <button onClick={() => { checkPrinterStatus(); if (!printerOnline) window.location.href = 'rawbt:' }}
+          title={printerOnline ? 'Printer online - tap to refresh' : 'Printer offline - tap to open RawBT'}
+          style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', background: printerOnline === null ? 'rgba(255,255,255,0.04)' : printerOnline ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `0.5px solid ${printerOnline === null ? 'rgba(255,255,255,0.1)' : printerOnline ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '6px', cursor: 'pointer', fontSize: 'clamp(9px,1.4vw,11px)', fontWeight: 600, color: printerOnline === null ? '#64748b' : printerOnline ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          🖨️ {printerOnline === null ? '...' : printerOnline ? 'Online' : 'Offline'}
+        </button>
 
         <button onClick={() => setCogOpen(!cogOpen)} style={{ background: cogOpen ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.06)', border: `0.5px solid ${cogOpen ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: cogOpen ? '#22c55e' : '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}>&#9881;</button>
 
