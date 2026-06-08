@@ -89,7 +89,7 @@ export default function WaitingPage() {
     pollRef.current = setInterval(async () => {
       const { data } = await supabase
         .from('orders')
-        .select('status, sumup_link, payment_method')
+        .select('status, sumup_link, payment_method, rejection_reason, restaurant_id, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
         .eq('id', orderId)
         .single()
       
@@ -118,19 +118,8 @@ export default function WaitingPage() {
       if (data.status === 'rejected') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
-        // Fetch full order with rejection reason BEFORE showing rejected screen
-        const { data: fullOrder } = await supabase
-          .from('orders')
-          .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
-          .eq('id', orderId)
-          .single()
-        if (fullOrder) {
-          setOrder(fullOrder)
-          // Small delay to ensure state updates before screen changes
-          setTimeout(() => setStatus('rejected'), 100)
-        } else {
-          setStatus('rejected')
-        }
+        setOrder((prev: any) => ({ ...prev, ...data, rejection_reason: data.rejection_reason }))
+        setStatus('rejected')
         return
       }
 
