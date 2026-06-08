@@ -118,14 +118,19 @@ export default function WaitingPage() {
       if (data.status === 'rejected') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
-        setStatus('rejected')
-        // Refresh order to get rejection reason
+        // Fetch full order with rejection reason BEFORE showing rejected screen
         const { data: fullOrder } = await supabase
           .from('orders')
           .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
           .eq('id', orderId)
           .single()
-        if (fullOrder) setOrder(fullOrder)
+        if (fullOrder) {
+          setOrder(fullOrder)
+          // Small delay to ensure state updates before screen changes
+          setTimeout(() => setStatus('rejected'), 100)
+        } else {
+          setStatus('rejected')
+        }
         return
       }
 
