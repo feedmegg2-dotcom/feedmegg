@@ -359,26 +359,17 @@ export default function MerchantDashboard() {
               {/* PRINTER SETTINGS */}
               <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', marginTop: '4px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>🖨️ Printer Settings</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'end' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Printer IP Address</label>
-                    <input 
-                      value={editingRestaurant.printer_ip || ''} 
-                      onChange={e => setEditingRestaurant({...editingRestaurant, printer_ip: e.target.value})} 
-                      placeholder="e.g. 192.168.1.100"
-                      style={inputStyle} 
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Paper Width</label>
-                    <select value={editingRestaurant.printer_width || 80} onChange={e => setEditingRestaurant({...editingRestaurant, printer_width: parseInt(e.target.value)})} style={{ ...inputStyle, appearance: 'none' }}>
-                      <option value={58}>58mm</option>
-                      <option value={80}>80mm</option>
-                    </select>
-                  </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Printer IP Address</label>
+                  <input 
+                    value={editingRestaurant.printer_ip || ''} 
+                    onChange={e => setEditingRestaurant({...editingRestaurant, printer_ip: e.target.value})} 
+                    placeholder="e.g. 192.168.1.100"
+                    style={inputStyle} 
+                  />
                 </div>
                 <div style={{ fontSize: '11px', color: '#475569', marginTop: '6px' }}>
-                  Connect your thermal printer to the same WiFi network. Use Advanced IP Scanner or Fing app to find the printer IP.
+                  Connect your thermal printer to the restaurant WiFi. Use Fing app to find the printer IP address.
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
