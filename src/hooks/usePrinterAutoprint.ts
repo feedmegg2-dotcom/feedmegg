@@ -119,8 +119,25 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
   async function doPrint(order: OrderForPrint) {
-    // Always use browser print for now - local network printing via API not supported on Vercel
-    printViaBrowser(order)
+    if (printerIp) {
+      try {
+        const res = await fetch('http://localhost:3001/print', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order, printerIp, printerWidth: printerWidth || 80 })
+        })
+        const data = await res.json()
+        if (!data.success) {
+          console.warn('Local print server error:', data.error)
+          printViaBrowser(order)
+        }
+      } catch (e) {
+        console.warn('Local print server not running, using browser:', e)
+        printViaBrowser(order)
+      }
+    } else {
+      printViaBrowser(order)
+    }
   }
 
   const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string) => {
