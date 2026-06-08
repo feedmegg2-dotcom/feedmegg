@@ -119,26 +119,8 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
   async function doPrint(order: OrderForPrint) {
-    if (printerIp) {
-      const res = await fetch('/api/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order, printerIp, printerWidth: printerWidth || 80 })
-      })
-      const data = await res.json()
-      if (!data.success) {
-        console.warn('Network print failed, falling back to browser:', data.error)
-        printViaBrowser(order)
-      }
-    } else if (restaurantId) {
-      const result = await printViaNetwork(order, restaurantId)
-      if (!result.success) {
-        console.warn('Network print failed, falling back to browser:', result.error)
-        printViaBrowser(order)
-      }
-    } else {
-      printViaBrowser(order)
-    }
+    // Always use browser print for now - local network printing via API not supported on Vercel
+    printViaBrowser(order)
   }
 
   const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string) => {
