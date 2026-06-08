@@ -1,7 +1,7 @@
 'use client'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import TicketEditor from '@/components/TicketEditor'
+import { TicketEditor } from '@/components/TicketEditor'
 
 export default function TicketsPage() {
   const params = useParams()
