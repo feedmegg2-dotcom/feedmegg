@@ -1,0 +1,156 @@
+import { NextRequest, NextResponse } from 'next/server'
+import * as net from 'net'
+
+// ESC/POS commands
+const ESC = '\x1B'
+const GS = '\x1D'
+const INIT = ESC + '@'
+const BOLD_ON = ESC + 'E\x01'
+const BOLD_OFF = ESC + 'E\x00'
+const ALIGN_LEFT = ESC + 'a\x00'
+const ALIGN_CENTER = ESC + 'a\x01'
+const ALIGN_RIGHT = ESC + 'a\x02'
+const SIZE_NORMAL = GS + '!\x00'
+const SIZE_DOUBLE_HEIGHT = GS + '!\x01'
+const SIZE_DOUBLE_WIDTH = GS + '!\x10'
+const SIZE_DOUBLE = GS + '!\x11'
+const CUT = GS + 'V\x41\x03'
+const LF = '\n'
+
+function repeat(char: string, n: number) {
+  return char.repeat(Math.max(0, n))
+}
+
+function leftRight(left: string, right: string, width: number = 42) {
+  const space = width - left.length - right.length
+  if (space <= 0) return left + ' ' + right
+  return left + repeat(' ', space) + right
+}
+
+function generateTicket(order: any, width: number = 80): string {
+  const cols = width === 58 ? 32 : 42
+  let t = INIT
+
+  // PRE-ORDER badge
+  if (order.scheduled_for) {
+    t += ALIGN_CENTER + SIZE_DOUBLE + BOLD_ON
+    t += '*** PRE-ORDER ***' + LF
+    t += SIZE_NORMAL + 'For: ' + new Date(order.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + LF
+    t += BOLD_OFF
+  }
+
+  // Contactless badge
+  if (order.contactless_delivery) {
+    t += ALIGN_CENTER + SIZE_DOUBLE + BOLD_ON
+    t += 'CONTACTLESS' + LF
+    t += BOLD_OFF + SIZE_NORMAL
+  }
+
+  t += ALIGN_CENTER + repeat('-', cols) + LF
+
+  // Order number BIG
+  t += SIZE_DOUBLE + BOLD_ON + ALIGN_CENTER
+  t += 'ORDER #' + String(order.order_number || order.id).slice(-6).toUpperCase() + LF
+  t += BOLD_OFF + SIZE_NORMAL
+
+  // Customer + type
+  t += ALIGN_LEFT + SIZE_DOUBLE_HEIGHT + BOLD_ON
+  t += order.customer_name + LF
+  t += BOLD_OFF + SIZE_NORMAL
+  t += (order.order_type === 'collection' ? 'COLLECTION' : 'DELIVERY') + LF
+
+  // Phone
+  if (order.customer_phone) t += order.customer_phone + LF
+
+  // Address
+  if (order.order_type === 'delivery' && order.delivery_address) {
+    t += order.delivery_address + LF
+  }
+
+  t += repeat('-', cols) + LF
+
+  // Items - KITCHEN TICKET
+  t += BOLD_ON + 'ITEMS:' + LF + BOLD_OFF
+  for (const item of (order.order_items || [])) {
+    t += SIZE_DOUBLE_HEIGHT + BOLD_ON
+    t += `${item.quantity}x ${item.name}` + LF
+    t += BOLD_OFF + SIZE_NORMAL
+    if (item.special_instructions) {
+      t += '  -> ' + item.special_instructions + LF
+    }
+  }
+
+  t += repeat('-', cols) + LF
+
+  // Notes
+  if (order.notes) {
+    t += BOLD_ON + '** NOTES **' + LF + BOLD_OFF
+    t += order.notes + LF
+    t += repeat('-', cols) + LF
+  }
+
+  // Totals
+  if (order.delivery_fee > 0) {
+    t += ALIGN_LEFT + leftRight('Subtotal:', `GBP${parseFloat(order.subtotal).toFixed(2)}`, cols) + LF
+    t += leftRight('Delivery:', `GBP${parseFloat(order.delivery_fee).toFixed(2)}`, cols) + LF
+  }
+  if (order.tip > 0) {
+    t += leftRight('Tip:', `GBP${parseFloat(order.tip).toFixed(2)}`, cols) + LF
+  }
+
+  t += BOLD_ON + SIZE_DOUBLE_HEIGHT
+  t += leftRight('TOTAL:', `GBP${parseFloat(order.total).toFixed(2)}`, cols) + LF
+  t += BOLD_OFF + SIZE_NORMAL
+
+  // Payment method
+  t += ALIGN_CENTER + (order.payment_method === 'cash' ? 'CASH' : 'CARD') + LF
+
+  t += repeat('-', cols) + LF
+  t += ALIGN_RIGHT + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + LF
+
+  t += LF + LF + LF
+  t += CUT
+
+  return t
+}
+
+async function sendToPrinter(ip: string, data: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const client = new net.Socket()
+    const timeout = setTimeout(() => {
+      client.destroy()
+      reject(new Error('Connection timeout'))
+    }, 5000)
+
+    client.connect(9100, ip, () => {
+      client.write(Buffer.from(data, 'binary'), () => {
+        clearTimeout(timeout)
+        client.destroy()
+        resolve()
+      })
+    })
+
+    client.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(err)
+    })
+  })
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { order, printerIp, printerWidth } = await request.json()
+
+    if (!printerIp) {
+      return NextResponse.json({ error: 'No printer IP provided' }, { status: 400 })
+    }
+
+    const ticket = generateTicket(order, printerWidth || 80)
+    await sendToPrinter(printerIp, ticket)
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('Print error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
