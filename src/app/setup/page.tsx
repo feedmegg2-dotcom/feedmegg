@@ -38,7 +38,7 @@ export default function SetupPage() {
       title: 'Install Termux:Boot',
       commands: [],
       apk: { 
-        url: 'https://github.com/termux/termux-boot/releases/download/v0.8.1/termux-boot_v0.8.1+github-debug.apk', 
+        url: '/termux-boot.apk', 
         label: '⬇️ Download & Install Termux:Boot', 
         note: 'This makes the print server start automatically when the tablet boots.' 
       }
