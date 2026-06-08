@@ -12,7 +12,8 @@ export default function TerminalPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
   const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders' | 'missed'>('incoming')
-  const [dismissedMissedIds, setDismissedMissedIds] = useState<Set<string>>(new Set())
+  const dismissedMissedIds = useRef<Set<string>>(new Set())
+  const [dismissedVersion, setDismissedVersion] = useState(0) // force re-render when dismissed changes
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [screen, setScreen] = useState<'main' | 'neworder' | 'detail' | 'paying' | 'paid' | 'items' | 'printer' | 'eod' | 'history'>('main')
   const [cogOpen, setCogOpen] = useState(false)
@@ -296,7 +297,7 @@ export default function TerminalPage() {
   const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
   const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
-  const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.has(o.id))
+  const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.current.has(o.id))
 
   async function acceptOrder() {
     if (!currentOrder) return
@@ -645,7 +646,7 @@ export default function TerminalPage() {
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                <button onClick={() => setDismissedMissedIds(new Set(missedOrders.map(o => o.id)))} style={{ padding: '6px 14px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={() => { missedOrders.forEach(o => dismissedMissedIds.current.add(o.id)); setDismissedVersion(v => v + 1) }} style={{ padding: '6px 14px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                   Clear All
                 </button>
               </div>
@@ -659,7 +660,7 @@ export default function TerminalPage() {
                       <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'rejected' ? '#ef4444' : '#f97316' }}>
                         {o.status === 'rejected' ? '❌ Rejected' : '⏱️ Missed'}
                       </span>
-                      <button onClick={() => setDismissedMissedIds(prev => new Set([...prev, o.id]))} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                      <button onClick={() => { dismissedMissedIds.current.add(o.id); setDismissedVersion(v => v + 1) }} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
                     </div>
                   </div>
                   <div onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ cursor: 'pointer' }}>
@@ -937,7 +938,7 @@ export default function TerminalPage() {
             
             setArchivedOrders(prev => [...prev, ...ordersToArchive])
             setOrders(prev => prev.filter(o => o.status === 'pending'))
-            setDismissedMissedIds(new Set())
+            dismissedMissedIds.current = new Set()
             setTab('incoming')
             setScreen('main') 
           }} />
