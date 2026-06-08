@@ -46,7 +46,10 @@ export default function SetupPage() {
     {
       num: 3,
       title: 'Update Termux packages',
-      commands: [{ label: 'Open Termux and run:', text: 'pkg update -y && pkg upgrade -y' }]
+      commands: [
+        { label: 'Step 1 - Fix repositories first (select default mirror):', text: 'termux-change-repo' },
+        { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' }
+      ]
     },
     {
       num: 4,
