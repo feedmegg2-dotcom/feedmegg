@@ -118,7 +118,13 @@ export default function WaitingPage() {
       if (data.status === 'rejected') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
-        setOrder((prev: any) => ({ ...prev, ...data, rejection_reason: data.rejection_reason }))
+        // Fresh fetch to get all data including rejection_reason
+        const { data: fresh } = await supabase
+          .from('orders')
+          .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
+          .eq('id', orderId)
+          .single()
+        if (fresh) setOrder(fresh)
         setStatus('rejected')
         return
       }
@@ -253,8 +259,12 @@ export default function WaitingPage() {
 
           {/* REJECTED */}
           {status === 'rejected' && (() => {
-            const reason = order?.rejection_reason?.toLowerCase() || ''
-            const isOutOfStock = reason.includes('stock') || reason.includes('item')
+            const rawReason = order?.rejection_reason || ''
+            const reason = rawReason.toLowerCase().trim()
+            
+            console.log('Rejection reason:', rawReason, '| Lowered:', reason)
+            
+            const isOutOfStock = reason.includes('stock') || reason.includes('out of')
             const isTooBusy = reason.includes('busy')
             const isClosing = reason.includes('clos') || reason.includes('early')
             const isZone = reason.includes('zone') || reason.includes('area') || reason.includes('deliver')
