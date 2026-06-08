@@ -38,6 +38,7 @@ export default function TerminalPage() {
   const [toggles, setToggles] = useState({ preorders: true, delivery: true, pickups: true, delivery_enabled: true, pickup_enabled: true })
   const [showTimeSlotModal, setShowTimeSlotModal] = useState<'delivery' | 'pickup' | null>(null)
   const [deliveryTime, setDeliveryTime] = useState(45)
+  const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
   const [pickupTime, setPickupTime] = useState(30)
@@ -116,6 +117,7 @@ export default function TerminalPage() {
     setDelivTime(rest.delivery_time_mins || 25)
     setPickTime(rest.pickup_time_mins || 15)
     setDeliveryTime(rest.delivery_time_mins || 45)
+    setPreOrderLeadTime(rest.preorder_lead_time_mins || 30)
     setDeliverySlotDuration(rest.delivery_slot_duration || 30)
     setDeliverySlotCapacity(rest.delivery_slot_capacity || 4)
     setPickupTime(rest.pickup_time_mins || 30)
@@ -226,10 +228,42 @@ export default function TerminalPage() {
   async function pollOrders(restId: string) {
     const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete']).order('created_at', { ascending: false }).limit(50)
     if (!data) return
+
+    // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
+    const now = new Date()
+    const leadTimeMins = restaurant?.preorder_lead_time_mins || preOrderLeadTime || 30
+    const preOrdersDue = data.filter(o => {
+      if (o.status !== 'pending' || !o.scheduled_for) return false
+      const scheduledTime = new Date(o.scheduled_for)
+      const minsUntilOrder = (scheduledTime.getTime() - now.getTime()) / 60000
+      return minsUntilOrder <= leadTimeMins
+    })
+
+    // Move due pre-orders to incoming (clear scheduled_for so they appear in INCOMING tab)
+    for (const o of preOrdersDue) {
+      await supabase.from('orders').update({ 
+        scheduled_for: null,
+        notes: (o.notes ? o.notes + ' | ' : '') + `PRE-ORDER (was ${new Date(o.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})`
+      }).eq('id', o.id)
+    }
+
     const prevPendingIds = orders.filter(o => o.status === 'pending').map((o: any) => o.id)
-    const newPending = data.filter(o => o.status === 'pending' && !prevPendingIds.includes(o.id))
+    const newPending = data.filter(o => o.status === 'pending' && !o.scheduled_for && !prevPendingIds.includes(o.id))
+    
+    // Also alert for newly moved pre-orders - use payment sound
+    const newFromPreOrder = preOrdersDue.filter(o => !prevPendingIds.includes(o.id))
+    
     setOrders(data)
-    if (newPending.length > 0) {
+    
+    if (newFromPreOrder.length > 0) {
+      // Pre-order moved to incoming - use payment sound
+      const firstNew = newFromPreOrder[0]
+      setCurrentOrderId(firstNew.id)
+      setScreen('neworder')
+      playAlertSound(paymentSound)
+      alertRef.current = setInterval(() => playAlertSound(paymentSound), 2000)
+    } else if (newPending.length > 0) {
+      // Regular new order - use alert sound
       setCurrentOrderId(newPending[0].id)
       setScreen('neworder')
       startAlertRepeat()
@@ -459,6 +493,19 @@ export default function TerminalPage() {
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-Order Lead Time</div>
+                <select value={preOrderLeadTime} onChange={async e => {
+                  const val = parseInt(e.target.value)
+                  setPreOrderLeadTime(val)
+                  if (restaurant) await supabase.from('restaurants').update({ preorder_lead_time_mins: val }).eq('id', restaurant.id)
+                }} style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none', marginBottom: '4px' }}>
+                  {[10, 15, 20, 30, 45, 60].map(t => (
+                    <option key={t} value={t} style={{ background: '#0f172a' }}>{t} mins before</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '10px', color: '#475569' }}>Order moves to Incoming {preOrderLeadTime} mins before scheduled time</div>
+              </div>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Theme</div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={() => setTheme('light')} style={{ flex: 1, padding: '6px 10px', background: theme === 'light' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${theme === 'light' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: theme === 'light' ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>Light</button>
@@ -576,15 +623,22 @@ export default function TerminalPage() {
 
       {/* NEW ORDER SCREEN */}
       {screen === 'neworder' && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
-          <div style={{ width: 'clamp(80px,15vw,120px)', height: 'clamp(80px,15vw,120px)', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(32px,7vw,52px)', marginBottom: '20px' }}>&#128276;</div>
-          <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(24px,5vw,36px)', fontWeight: 700, color: '#22c55e', marginBottom: '8px' }}>NEW ORDER!</div>
-          <div style={{ fontSize: 'clamp(12px,2.5vw,16px)', color: '#64748b', marginBottom: '28px' }}>
-            {currentOrder ? `${currentOrder.customer_name} - GBP${currentOrder.total?.toFixed(2)}` : 'Tap to view'}
+        <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+          {/* BACK BUTTON */}
+          <div style={{ padding: 'clamp(8px,2vw,14px)', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => { stopAlertRepeat(); setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
           </div>
-          <button onClick={() => setScreen('detail')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,18px) clamp(28px,6vw,48px)', borderRadius: '14px', fontSize: 'clamp(14px,3vw,20px)', fontWeight: 700, cursor: 'pointer' }}>
-            View Order
-          </button>
+          {/* CONTENT */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
+            <div style={{ width: 'clamp(80px,15vw,120px)', height: 'clamp(80px,15vw,120px)', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid #22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(32px,7vw,52px)', marginBottom: '20px' }}>&#128276;</div>
+            <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(24px,5vw,36px)', fontWeight: 700, color: '#22c55e', marginBottom: '8px' }}>NEW ORDER!</div>
+            <div style={{ fontSize: 'clamp(12px,2.5vw,16px)', color: '#64748b', marginBottom: '28px' }}>
+              {currentOrder ? `${currentOrder.customer_name} - GBP${currentOrder.total?.toFixed(2)}` : 'Tap to view'}
+            </div>
+            <button onClick={() => setScreen('detail')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,18px) clamp(28px,6vw,48px)', borderRadius: '14px', fontSize: 'clamp(14px,3vw,20px)', fontWeight: 700, cursor: 'pointer' }}>
+              View Order
+            </button>
+          </div>
         </div>
       )}
 
@@ -592,7 +646,14 @@ export default function TerminalPage() {
         <div style={{ position: 'fixed', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', zIndex: 200 }}>
           {/* HEADER */}
           <div style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: 'clamp(8px,2vw,14px)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
+            <button onClick={() => { 
+              if (currentOrder?.status === 'pending') {
+                setScreen('neworder')
+              } else {
+                setScreen('main')
+                setCurrentOrderId(null)
+              }
+            }} style={{ background: 'none', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(5px,1vw,8px) clamp(8px,1.5vw,12px)', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer' }}>← Back</button>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, color: '#f8fafc' }}>Order #{currentOrder.order_number || String(currentOrder.id).slice(-6).toUpperCase()}</div>
               <div style={{ fontSize: 'clamp(9px,1.5vw,11px)', color: '#64748b' }}>
