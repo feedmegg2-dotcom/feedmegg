@@ -12,6 +12,7 @@ export default function TerminalPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
   const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders' | 'missed'>('incoming')
+  const [dismissedMissedIds, setDismissedMissedIds] = useState<Set<string>>(new Set())
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [screen, setScreen] = useState<'main' | 'neworder' | 'detail' | 'paying' | 'paid' | 'items' | 'printer' | 'eod' | 'history'>('main')
   const [cogOpen, setCogOpen] = useState(false)
@@ -227,7 +228,7 @@ export default function TerminalPage() {
   }
 
   async function pollOrders(restId: string) {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete', 'cancelled']).order('created_at', { ascending: false }).limit(50)
+    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete', 'cancelled', 'rejected']).order('created_at', { ascending: false }).limit(50)
     if (!data) return
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
@@ -294,7 +295,7 @@ export default function TerminalPage() {
   const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
   const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
-  const missedOrders = orders.filter(o => o.status === 'cancelled')
+  const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.has(o.id))
 
   async function acceptOrder() {
     if (!currentOrder) return
@@ -530,7 +531,7 @@ export default function TerminalPage() {
       <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
         {(['incoming', 'preorders', 'accepted', 'missed'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : colors.textTertiary, border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer' }}>
-            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : t === 'accepted' ? 'Accepted' : 'Missed'}
+            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : t === 'accepted' ? 'Accepted' : 'Missed/Rejected'}
             {t === 'incoming' && pendingOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
                 {pendingOrders.length}
@@ -638,24 +639,45 @@ export default function TerminalPage() {
           missedOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
               <div style={{ fontSize: '32px', marginBottom: '12px' }}>✅</div>
-              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No missed orders today</div>
+              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No missed orders</div>
             </div>
           ) : (
-            missedOrders.map(o => (
-              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid rgba(249,115,22,0.2)`, borderLeft: `3px solid #f97316`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer', opacity: 0.8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
-                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>⏱️ Missed</span>
-                </div>
-                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>
-                  {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#f97316' }}>GBP{o.total?.toFixed(2)}</div>
-                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>{new Date(o.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-                </div>
+            <>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                <button onClick={() => setDismissedMissedIds(new Set(missedOrders.map(o => o.id)))} style={{ padding: '6px 14px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                  Clear All
+                </button>
               </div>
-            ))
+              {missedOrders.map(o => (
+                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid rgba(249,115,22,0.2)`, borderLeft: `3px solid #f97316`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', opacity: 0.8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <div onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ flex: 1, cursor: 'pointer' }}>
+                      <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'rejected' ? '#ef4444' : '#f97316' }}>
+                        {o.status === 'rejected' ? '❌ Rejected' : '⏱️ Missed'}
+                      </span>
+                      <button onClick={() => setDismissedMissedIds(prev => new Set([...prev, o.id]))} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                    </div>
+                  </div>
+                  <div onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ cursor: 'pointer' }}>
+                    <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>
+                      {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                    </div>
+                    {o.rejection_reason && (
+                      <div style={{ fontSize: 'clamp(10px,1.6vw,11px)', color: '#ef4444', marginBottom: '4px', fontStyle: 'italic' }}>
+                        "{o.rejection_reason}"
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: o.status === 'rejected' ? '#ef4444' : '#f97316' }}>GBP{o.total?.toFixed(2)}</div>
+                      <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>{new Date(o.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
           )
         )}
 
