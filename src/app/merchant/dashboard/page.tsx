@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { TicketEditor } from '@/components/TicketEditor'
 
 export default function MerchantDashboard() {
   const router = useRouter()
@@ -23,14 +22,6 @@ export default function MerchantDashboard() {
 
   // Settings modal
   const [editingRestaurant, setEditingRestaurant] = useState<any>(null)
-  const [ticketEditorRestaurant, setTicketEditorRestaurant] = useState<any>(null)
-  const [showSlotModal, setShowSlotModal] = useState<any>(null)
-  const [slotDeliveryTime, setSlotDeliveryTime] = useState(45)
-  const [slotDeliveryDuration, setSlotDeliveryDuration] = useState(30)
-  const [slotDeliveryCapacity, setSlotDeliveryCapacity] = useState(4)
-  const [slotPickupTime, setSlotPickupTime] = useState(30)
-  const [slotPickupDuration, setSlotPickupDuration] = useState(30)
-  const [slotPickupCapacity, setSlotPickupCapacity] = useState(4)
   const [savingSettings, setSavingSettings] = useState(false)
   const [showZones, setShowZones] = useState<string|null>(null)
   const [showHours, setShowHours] = useState<string|null>(null)
@@ -163,11 +154,9 @@ export default function MerchantDashboard() {
       closing_time: editingRestaurant.closing_time || null,
       accepts_delivery: editingRestaurant.accepts_delivery,
       accepts_pickup: editingRestaurant.accepts_pickup,
-      delivery_enabled: editingRestaurant.delivery_enabled ?? true,
-      pickup_enabled: editingRestaurant.pickup_enabled ?? true,
-      preorder_delivery_enabled: editingRestaurant.preorder_delivery_enabled ?? true,
-      preorder_pickup_enabled: editingRestaurant.preorder_pickup_enabled ?? true,
       custom_message: editingRestaurant.custom_message,
+      printer_ip: editingRestaurant.printer_ip || null,
+      printer_width: editingRestaurant.printer_width || 80,
     }).eq('id', editingRestaurant.id)
     setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { ...r, ...editingRestaurant } : r))
     setEditingRestaurant(null)
@@ -325,10 +314,6 @@ export default function MerchantDashboard() {
                       <button onClick={() => setEditingRestaurant({ ...r, min_order: r.min_order?.toString(), delivery_fee: r.delivery_fee?.toString(), delivery_time_mins: r.delivery_time_mins?.toString(), pickup_time_mins: r.pickup_time_mins?.toString() })} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Settings</button>
                       {/* Hours */}
                       <button onClick={() => { setShowHours(r.id); fetchHours(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Hours</button>
-                      {/* Slots */}
-                      <button onClick={() => { setSlotDeliveryTime(r.delivery_time_mins || 45); setSlotDeliveryDuration(r.delivery_slot_duration || 30); setSlotDeliveryCapacity(r.delivery_slot_capacity || 4); setSlotPickupTime(r.pickup_time_mins || 30); setSlotPickupDuration(r.pickup_slot_duration || 30); setSlotPickupCapacity(r.pickup_slot_capacity || 4); setShowSlotModal(r) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Slots</button>
-                      {/* Tickets */}
-                      <button onClick={() => setTicketEditorRestaurant(r)} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(168,85,247,0.1)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>🎫 Tickets</button>
                       {/* Zones */}
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
@@ -365,6 +350,32 @@ export default function MerchantDashboard() {
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Mins</label><input type="number" value={editingRestaurant.pickup_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_time_mins: e.target.value})} style={inputStyle} /></div>
 
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Custom Message to Customers</label><input value={editingRestaurant.custom_message || ''} onChange={e => setEditingRestaurant({...editingRestaurant, custom_message: e.target.value})} style={inputStyle} /></div>
+
+              {/* PRINTER SETTINGS */}
+              <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', marginTop: '4px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>🖨️ Printer Settings</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'end' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Printer IP Address</label>
+                    <input 
+                      value={editingRestaurant.printer_ip || ''} 
+                      onChange={e => setEditingRestaurant({...editingRestaurant, printer_ip: e.target.value})} 
+                      placeholder="e.g. 192.168.1.100"
+                      style={inputStyle} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Paper Width</label>
+                    <select value={editingRestaurant.printer_width || 80} onChange={e => setEditingRestaurant({...editingRestaurant, printer_width: parseInt(e.target.value)})} style={{ ...inputStyle, appearance: 'none' }}>
+                      <option value={58}>58mm</option>
+                      <option value={80}>80mm</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#475569', marginTop: '6px' }}>
+                  Connect your thermal printer to the same WiFi network. Use Advanced IP Scanner or Fing app to find the printer IP.
+                </div>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input type="checkbox" id="del" checked={editingRestaurant.accepts_delivery} onChange={e => setEditingRestaurant({...editingRestaurant, accepts_delivery: e.target.checked})} />
                 <label htmlFor="del" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Delivery</label>
@@ -372,22 +383,6 @@ export default function MerchantDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input type="checkbox" id="pick" checked={editingRestaurant.accepts_pickup} onChange={e => setEditingRestaurant({...editingRestaurant, accepts_pickup: e.target.checked})} />
                 <label htmlFor="pick" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Pickup</label>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="checkbox" id="del_open" checked={editingRestaurant.delivery_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_enabled: e.target.checked})} />
-                <label htmlFor="del_open" style={{ fontSize: '13px', cursor: 'pointer' }}>🚗 Delivery Open Now</label>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="checkbox" id="pick_open" checked={editingRestaurant.pickup_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_enabled: e.target.checked})} />
-                <label htmlFor="pick_open" style={{ fontSize: '13px', cursor: 'pointer' }}>🏪 Pickup Open Now</label>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="checkbox" id="pre_del" checked={editingRestaurant.preorder_delivery_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, preorder_delivery_enabled: e.target.checked})} />
-                <label htmlFor="pre_del" style={{ fontSize: '13px', cursor: 'pointer' }}>📅 Pre-Order Delivery</label>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="checkbox" id="pre_pick" checked={editingRestaurant.preorder_pickup_enabled ?? true} onChange={e => setEditingRestaurant({...editingRestaurant, preorder_pickup_enabled: e.target.checked})} />
-                <label htmlFor="pre_pick" style={{ fontSize: '13px', cursor: 'pointer' }}>📅 Pre-Order Pickup</label>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
@@ -481,95 +476,6 @@ export default function MerchantDashboard() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* SLOT SETTINGS MODAL */}
-      {showSlotModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowSlotModal(null) }}>
-          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, textAlign: 'center', marginBottom: '20px', color: '#f8fafc' }}>
-              Time Slot Settings — {showSlotModal.name}
-            </h3>
-
-            {/* DELIVERY */}
-            <div style={{ background: '#060b18', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f8fafc' }}>🚗 Delivery</div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
-                  <input type="number" value={slotDeliveryTime} onChange={e => setSlotDeliveryTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
-                    {[20,30,45,60,90].map(t => (
-                      <button key={t} onClick={() => setSlotDeliveryTime(t)} style={{ padding: '6px', background: slotDeliveryTime === t ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotDeliveryTime === t ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotDeliveryTime === t ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                      {[15,20,30,45,60].map(d => (
-                        <button key={d} onClick={() => setSlotDeliveryDuration(d)} style={{ padding: '6px', background: slotDeliveryDuration === d ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotDeliveryDuration === d ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotDeliveryDuration === d ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
-                    <input type="number" value={slotDeliveryCapacity} onChange={e => setSlotDeliveryCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* PICKUP */}
-            <div style={{ background: '#060b18', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f8fafc' }}>🏪 Pickup</div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
-                  <input type="number" value={slotPickupTime} onChange={e => setSlotPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
-                    {[10,15,20,30,45].map(t => (
-                      <button key={t} onClick={() => setSlotPickupTime(t)} style={{ padding: '6px', background: slotPickupTime === t ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotPickupTime === t ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotPickupTime === t ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                      {[15,20,30,45,60].map(d => (
-                        <button key={d} onClick={() => setSlotPickupDuration(d)} style={{ padding: '6px', background: slotPickupDuration === d ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${slotPickupDuration === d ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: slotPickupDuration === d ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
-                    <input type="number" value={slotPickupCapacity} onChange={e => setSlotPickupCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>Cancel</button>
-              <button onClick={async () => {
-                await supabase.from('restaurants').update({ delivery_time_mins: slotDeliveryTime, delivery_slot_duration: slotDeliveryDuration, delivery_slot_capacity: slotDeliveryCapacity, pickup_time_mins: slotPickupTime, pickup_slot_duration: slotPickupDuration, pickup_slot_capacity: slotPickupCapacity }).eq('id', showSlotModal.id)
-                init()
-                setShowSlotModal(null)
-              }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TICKET EDITOR */}
-      {ticketEditorRestaurant && (
-        <TicketEditor
-          restaurantId={ticketEditorRestaurant.id}
-          restaurantName={ticketEditorRestaurant.name}
-          onClose={() => setTicketEditorRestaurant(null)}
-        />
       )}
 
     </div>
