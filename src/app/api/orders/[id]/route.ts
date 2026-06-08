@@ -113,7 +113,7 @@ export async function PATCH(
     await supabase
       .from('orders')
       .update({
-        status: 'cancelled',
+        status: 'rejected',
         rejection_reason: rejectionReason,
         cancelled_at: new Date().toISOString(),
       })
