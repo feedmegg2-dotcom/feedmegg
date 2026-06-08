@@ -11,7 +11,7 @@ export default function TerminalPage() {
   const supabase = createClient()
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
-  const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders'>('incoming')
+  const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders' | 'missed'>('incoming')
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
   const [screen, setScreen] = useState<'main' | 'neworder' | 'detail' | 'paying' | 'paid' | 'items' | 'printer' | 'eod' | 'history'>('main')
   const [cogOpen, setCogOpen] = useState(false)
@@ -227,7 +227,7 @@ export default function TerminalPage() {
   }
 
   async function pollOrders(restId: string) {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete']).order('created_at', { ascending: false }).limit(50)
+    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete', 'cancelled']).order('created_at', { ascending: false }).limit(50)
     if (!data) return
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
@@ -294,6 +294,7 @@ export default function TerminalPage() {
   const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
   const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
+  const missedOrders = orders.filter(o => o.status === 'cancelled')
 
   async function acceptOrder() {
     if (!currentOrder) return
@@ -527,9 +528,9 @@ export default function TerminalPage() {
 
       {/* TABS */}
       <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
-        {(['incoming', 'preorders', 'accepted'] as const).map(t => (
+        {(['incoming', 'preorders', 'accepted', 'missed'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: 'clamp(8px,1.5vw,12px)', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 500, color: tab === t ? '#22c55e' : colors.textTertiary, border: 'none', background: 'none', borderBottom: `2px solid ${tab === t ? '#22c55e' : 'transparent'}`, cursor: 'pointer' }}>
-            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : 'Accepted'}
+            {t === 'incoming' ? 'Incoming' : t === 'preorders' ? 'Pre-Orders' : t === 'accepted' ? 'Accepted' : 'Missed'}
             {t === 'incoming' && pendingOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ef4444', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
                 {pendingOrders.length}
@@ -538,6 +539,11 @@ export default function TerminalPage() {
             {t === 'preorders' && preOrders.length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
                 {preOrders.length}
+              </span>
+            )}
+            {t === 'missed' && missedOrders.length > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#f97316', color: 'white', fontSize: '9px', fontWeight: 600, width: '16px', height: '16px', borderRadius: '50%', marginLeft: '5px', verticalAlign: 'middle' }}>
+                {missedOrders.length}
               </span>
             )}
           </button>
@@ -621,6 +627,32 @@ export default function TerminalPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
                   <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: '#475569' }}>Tap to view</div>
+                </div>
+              </div>
+            ))
+          )
+        )}
+
+        {/* MISSED TAB */}
+        {tab === 'missed' && (
+          missedOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: colors.textTertiary }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>✅</div>
+              <div style={{ fontSize: 'clamp(11px,2vw,14px)' }}>No missed orders today</div>
+            </div>
+          ) : (
+            missedOrders.map(o => (
+              <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid rgba(249,115,22,0.2)`, borderLeft: `3px solid #f97316`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer', opacity: 0.8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
+                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>⏱️ Missed</span>
+                </div>
+                <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: colors.textSecondary, marginBottom: '4px' }}>
+                  {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: '#f97316' }}>GBP{o.total?.toFixed(2)}</div>
+                  <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>{new Date(o.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               </div>
             ))
@@ -1072,7 +1104,7 @@ function FullScreen({ title, onBack, children }: { title: string; onBack: () => 
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 20 }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 500 }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: '#1e293b', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: 'clamp(16px,3vw,24px)', width: '100%', maxWidth: 'clamp(280px,50vw,360px)' }}>
         {children}
       </div>
