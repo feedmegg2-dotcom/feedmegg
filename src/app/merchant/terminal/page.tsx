@@ -72,7 +72,7 @@ export default function TerminalPage() {
   const wakeLockRef = useRef<any>(null)
 
   // Printer hook
-  const { triggerAutoPrint, manualReprint } = usePrinterAutoprint()
+  const { triggerAutoPrint, manualReprint } = usePrinterAutoprint(restaurant?.id)
 
   useEffect(() => {
     checkAuth()
