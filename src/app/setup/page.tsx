@@ -47,7 +47,7 @@ export default function SetupPage() {
       num: 3,
       title: 'Fix Termux repositories',
       commands: [
-        { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > $PREFIX/etc/apt/sources.list' },
+        { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > /data/data/com.termux/files/usr/etc/apt/sources.list' },
         { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' },
       ]
     },
