@@ -24,60 +24,20 @@ export default function SetupPage() {
 
   const steps = [
     {
-      num: 1,
-      title: 'Install Termux',
-      commands: [],
-      apk: { 
-        url: 'https://github.com/termux/termux-app/releases/download/v0.118.3/termux-app_v0.118.3+github-debug_arm64-v8a.apk', 
-        label: '⬇️ Download & Install Termux', 
-        note: 'After downloading tap the file to install. Allow "Install from unknown sources" if prompted.' 
-      }
-    },
-    {
-      num: 2,
-      title: 'Install Termux:Boot',
-      commands: [],
-      apk: { 
-        url: '/termux-boot.apk', 
-        label: '⬇️ Download & Install Termux:Boot', 
-        note: 'This makes the print server start automatically when the tablet boots.' 
-      }
-    },
-    {
-      num: 3,
-      title: 'Fix Termux repositories',
-      commands: [
-        { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > /data/data/com.termux/files/usr/etc/apt/sources.list' },
-        { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' },
-      ]
-    },
-    {
-      num: 4,
-      title: 'Install Node.js',
-      commands: [{ label: 'Run in Termux:', text: 'pkg install nodejs -y' }]
-    },
-    {
-      num: 5,
-      title: 'Create print server',
-      commands: [
-        { label: 'Download print server from feedme.gg:', text: 'mkdir -p ~/printserver && curl -o ~/printserver/server.js https://feedme.gg/server.js' },
-      ]
-    },
-    {
-      num: 6,
-      title: 'Auto-start on boot',
-      commands: [
-        { label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "node ~/printserver/server.js &" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' },
-      ]
-    },
-    {
-      num: 7,
-      title: 'Test print server',
-      commands: [
-        { label: 'Start the server:', text: 'node ~/printserver/server.js' },
-        { label: 'Test it is running (open new tab in Chrome):', text: 'http://localhost:3001/status' },
-      ]
-    }
+    { num: 1, title: 'Install Firefox', commands: [], apk: { url: 'https://download.mozilla.org/?product=fennec-latest&os=android&lang=en-US', label: '⬇️ Download & Install Firefox', note: 'Firefox is needed to allow printing. After installing use Firefox (not Chrome) to access the terminal.' } },
+    { num: 2, title: 'Install Termux', commands: [], apk: { url: 'https://github.com/termux/termux-app/releases/download/v0.118.3/termux-app_v0.118.3+github-debug_arm64-v8a.apk', label: '⬇️ Download & Install Termux', note: 'After downloading tap the file to install. Allow "Install from unknown sources" if prompted.' } },
+    { num: 3, title: 'Install Termux:Boot', commands: [], apk: { url: '/termux-boot.apk', label: '⬇️ Download & Install Termux:Boot', note: 'This makes the print server start automatically when the tablet boots.' } },
+    { num: 4, title: 'Fix Termux repositories', commands: [
+      { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > /data/data/com.termux/files/usr/etc/apt/sources.list' },
+      { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' },
+    ]},
+    { num: 5, title: 'Install Node.js', commands: [{ label: 'Run in Termux:', text: 'pkg install nodejs -y' }] },
+    { num: 6, title: 'Download print server', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/printserver && curl -o ~/printserver/server.js https://feedme.gg/server.js' }] },
+    { num: 7, title: 'Auto-start on boot', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "node ~/printserver/server.js &" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' }] },
+    { num: 8, title: 'Test print server', commands: [
+      { label: 'Start the server:', text: 'node ~/printserver/server.js' },
+      { label: 'Open in Firefox to test:', text: 'http://localhost:3001/status' },
+    ]},
   ]
 
   return (
