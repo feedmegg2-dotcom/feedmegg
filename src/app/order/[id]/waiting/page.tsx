@@ -99,6 +99,7 @@ export default function WaitingPage() {
       if (data.payment_method === 'cash' && (data.status === 'paid' || data.status === 'accepted')) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
+        localStorage.removeItem('feedme-cart')
         setStatus('accepted')
         return
       }
@@ -107,6 +108,7 @@ export default function WaitingPage() {
       if (data.payment_method === 'card' && data.status === 'waiting_payment' && data.sumup_link) {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
+        localStorage.removeItem('feedme-cart')
         setStatus('accepted')
         setTimeout(() => { window.location.href = data.sumup_link }, 1500)
         return
