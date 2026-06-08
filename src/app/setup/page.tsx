@@ -25,16 +25,36 @@ export default function SetupPage() {
   const steps = [
     {
       num: 1,
-      title: 'Update Termux packages',
-      commands: [{ label: 'Run in Termux', text: 'pkg update -y && pkg upgrade -y' }]
+      title: 'Install Termux',
+      commands: [],
+      apk: { 
+        url: 'https://github.com/termux/termux-app/releases/download/v0.118.3/termux-app_v0.118.3+github-debug_arm64-v8a.apk', 
+        label: '⬇️ Download & Install Termux', 
+        note: 'After downloading tap the file to install. Allow "Install from unknown sources" if prompted.' 
+      }
     },
     {
       num: 2,
-      title: 'Install Node.js',
-      commands: [{ label: 'Run in Termux', text: 'pkg install nodejs -y' }]
+      title: 'Install Termux:Boot',
+      commands: [],
+      apk: { 
+        url: 'https://github.com/termux/termux-boot/releases/download/v0.8.2/termux-boot_v0.8.2+github-debug.apk', 
+        label: '⬇️ Download & Install Termux:Boot', 
+        note: 'This makes the print server start automatically when the tablet boots.' 
+      }
     },
     {
       num: 3,
+      title: 'Update Termux packages',
+      commands: [{ label: 'Open Termux and run:', text: 'pkg update -y && pkg upgrade -y' }]
+    },
+    {
+      num: 4,
+      title: 'Install Node.js',
+      commands: [{ label: 'Run in Termux:', text: 'pkg install nodejs -y' }]
+    },
+    {
+      num: 5,
       title: 'Create print server',
       commands: [
         { label: 'Step 1 - Create folder', text: 'mkdir ~/printserver && cd ~/printserver' },
@@ -42,17 +62,18 @@ export default function SetupPage() {
       ]
     },
     {
-      num: 4,
-      title: 'Start print server',
-      commands: [{ label: 'Run in Termux', text: 'node ~/printserver/server.js' }]
-    },
-    {
-      num: 5,
+      num: 6,
       title: 'Auto-start on boot',
       commands: [
-        { label: 'Install boot service', text: 'pkg install termux-services -y' },
-        { label: 'Create startup script', text: 'mkdir -p ~/.termux/boot && echo "node ~/printserver/server.js &" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' },
-        { label: 'Install Termux:Boot from F-Droid', text: 'Open F-Droid → search "Termux:Boot" → install' },
+        { label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "node ~/printserver/server.js &" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' },
+      ]
+    },
+    {
+      num: 7,
+      title: 'Test print server',
+      commands: [
+        { label: 'Start the server:', text: 'node ~/printserver/server.js' },
+        { label: 'Test it is running (open new tab in Chrome):', text: 'http://localhost:3001/status' },
       ]
     }
   ]
@@ -89,6 +110,15 @@ export default function SetupPage() {
 
             {step === s.num && (
               <>
+                {s.apk && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <a href={s.apk.url} download
+                      style={{ display: 'block', padding: '14px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', color: '#22c55e', textDecoration: 'none', fontWeight: 700, fontSize: '15px', textAlign: 'center', marginBottom: '8px' }}>
+                      {s.apk.label}
+                    </a>
+                    <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>{s.apk.note}</div>
+                  </div>
+                )}
                 {s.commands.map((cmd, i) => (
                   <CopyButton key={i} text={cmd.text} label={cmd.label} />
                 ))}
