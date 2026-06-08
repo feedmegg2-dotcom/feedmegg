@@ -58,6 +58,8 @@ export default function TerminalPage() {
   const [showTimeSlotModal, setShowTimeSlotModal] = useState<'delivery' | 'pickup' | null>(null)
   const [deliveryTime, setDeliveryTime] = useState(45)
   const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
+  const [printerIp, setPrinterIp] = useState('')
+  const [printerWidth, setPrinterWidth] = useState(80)
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
@@ -72,7 +74,7 @@ export default function TerminalPage() {
   const wakeLockRef = useRef<any>(null)
 
   // Printer hook
-  const { triggerAutoPrint, manualReprint } = usePrinterAutoprint(restaurant?.id)
+  const { triggerAutoPrint, manualReprint } = usePrinterAutoprint(restaurant?.id, printerIp, printerWidth)
 
   useEffect(() => {
     checkAuth()
@@ -138,6 +140,8 @@ export default function TerminalPage() {
     setPickTime(rest.pickup_time_mins || 15)
     setDeliveryTime(rest.delivery_time_mins || 45)
     setPreOrderLeadTime(rest.preorder_lead_time_mins || 30)
+    setPrinterIp(rest.printer_ip || '')
+    setPrinterWidth(rest.printer_width || 80)
     setDeliverySlotDuration(rest.delivery_slot_duration || 30)
     setDeliverySlotCapacity(rest.delivery_slot_capacity || 4)
     setPickupTime(rest.pickup_time_mins || 30)
@@ -561,6 +565,28 @@ export default function TerminalPage() {
                 </select>
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🖨️ Printer</div>
+                <input 
+                  value={printerIp} 
+                  onChange={e => setPrinterIp(e.target.value)}
+                  placeholder="Printer IP e.g. 192.168.1.100"
+                  style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' as const }}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '4px' }}>
+                  {[58, 80].map(w => (
+                    <button key={w} onClick={() => setPrinterWidth(w)} style={{ padding: '5px', background: printerWidth === w ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${printerWidth === w ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: printerWidth === w ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>{w}mm</button>
+                  ))}
+                </div>
+                <button onClick={async () => {
+                  if (restaurant) {
+                    await supabase.from('restaurants').update({ printer_ip: printerIp, printer_width: printerWidth }).eq('id', restaurant.id)
+                  }
+                }} style={{ width: '100%', padding: '6px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
+                  Save Printer Settings
+                </button>
+              </div>
+
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-Order Lead Time</div>
                 <select value={preOrderLeadTime} onChange={async e => {
