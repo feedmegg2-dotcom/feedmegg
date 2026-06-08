@@ -60,7 +60,7 @@ var srv=http.createServer(function(req,res){
         send(ticket(d.order,cols),d.printerIp).then(function(){
           res.writeHead(200,{'Content-Type':'application/json'});
           res.end(JSON.stringify({success:true}));
-          console.log('Printed order');
+          console.log('Printing order:', d.order?.order_number, 'Items:', d.order?.order_items?.length, 'IP:', d.printerIp);
         }).catch(function(e){
           res.writeHead(500,{'Content-Type':'application/json'});
           res.end(JSON.stringify({success:false,error:e.message}));
