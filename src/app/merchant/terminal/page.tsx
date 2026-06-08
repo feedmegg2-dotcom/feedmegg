@@ -209,23 +209,3 @@ function printTicket(order: OrderForPrint) {
   }, 500)
 }
 
-export function usePrinterAutoprint() {
-  const printedOrdersRef = useRef<Set<string>>(new Set())
-
-  const triggerAutoPrint = useCallback((order: OrderForPrint, status: string) => {
-    if (!['paid', 'accepted'].includes(status)) return
-    if (printedOrdersRef.current.has(order.id)) return
-    printTicket(order)
-    printedOrdersRef.current.add(order.id)
-  }, [])
-
-  const manualReprint = useCallback((order: OrderForPrint) => {
-    printTicket(order)
-  }, [])
-
-  const clearPrintHistory = useCallback(() => {
-    printedOrdersRef.current.clear()
-  }, [])
-
-  return { triggerAutoPrint, manualReprint, clearPrintHistory }
-}
