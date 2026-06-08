@@ -651,7 +651,7 @@ export default function TerminalPage() {
                 </button>
               </div>
               {missedOrders.map(o => (
-                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid rgba(249,115,22,0.2)`, borderLeft: `3px solid #f97316`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', opacity: 0.8 }}>
+                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid ${o.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(249,115,22,0.2)'}`, borderLeft: `3px solid ${o.status === 'rejected' ? '#ef4444' : '#f97316'}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', opacity: 0.9 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
                     <div onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ flex: 1, cursor: 'pointer' }}>
                       <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
