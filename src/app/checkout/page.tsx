@@ -55,6 +55,11 @@ export default function CheckoutPage() {
     setCartData(data)
     fetchRestaurant(data.restaurantId)
     fetchCustomer()
+    // Auto-select pre-order if coming from timeout/rejected page
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('preorder') === 'true') {
+      setForm(f => ({...f, isPreOrder: true}))
+    }
   }, [])
 
   useEffect(() => {
