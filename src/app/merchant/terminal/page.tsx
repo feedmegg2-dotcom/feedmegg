@@ -26,6 +26,7 @@ export default function TerminalPage() {
   const [selectedSound, setSelectedSound] = useState('chime')
   const [paymentSound, setPaymentSound] = useState('bell')
   const alertRef = useRef<any>(null)
+  const alertedOrderIds = useRef<Set<string>>(new Set())
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState('')
   const [historySearch, setHistorySearch] = useState('')
@@ -248,23 +249,28 @@ export default function TerminalPage() {
     }
 
     const prevPendingIds = orders.filter(o => o.status === 'pending').map((o: any) => o.id)
-    const newPending = data.filter(o => o.status === 'pending' && !o.scheduled_for && !prevPendingIds.includes(o.id))
+    const newPending = data.filter(o => 
+      o.status === 'pending' && 
+      !o.scheduled_for && 
+      !alertedOrderIds.current.has(o.id)
+    )
     
-    // Also alert for newly moved pre-orders - use payment sound
-    const newFromPreOrder = preOrdersDue.filter(o => !prevPendingIds.includes(o.id))
+    // Also alert for newly moved pre-orders
+    const newFromPreOrder = preOrdersDue.filter(o => !alertedOrderIds.current.has(o.id))
     
     setOrders(data)
     
     if (newFromPreOrder.length > 0) {
-      // Pre-order moved to incoming - use payment sound
       const firstNew = newFromPreOrder[0]
+      alertedOrderIds.current.add(firstNew.id)
       setCurrentOrderId(firstNew.id)
       setScreen('neworder')
       playAlertSound(paymentSound)
       alertRef.current = setInterval(() => playAlertSound(paymentSound), 2000)
     } else if (newPending.length > 0) {
-      // Regular new order - use alert sound
-      setCurrentOrderId(newPending[0].id)
+      const firstNew = newPending[0]
+      alertedOrderIds.current.add(firstNew.id)
+      setCurrentOrderId(firstNew.id)
       setScreen('neworder')
       startAlertRepeat()
     }
@@ -293,6 +299,7 @@ export default function TerminalPage() {
     if (!currentOrder) return
     stopAlertRepeat()
     setAcceptOpen(false)
+    alertedOrderIds.current.delete(currentOrder.id)
     
     const isCash = currentOrder.payment_method === 'cash'
     
@@ -360,6 +367,7 @@ export default function TerminalPage() {
     if (!currentOrder) return
     stopAlertRepeat()
     setRejectOpen(false)
+    alertedOrderIds.current.delete(currentOrder.id)
     const reason = selectedReason || customReason || 'No reason given'
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejectionReason: reason }) })
     playSound('reject')
