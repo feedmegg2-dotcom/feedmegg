@@ -258,67 +258,128 @@ export default function WaitingPage() {
           )}
 
           {/* REJECTED */}
-          {status === 'rejected' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(239,68,68,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>❌</div>
-              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Order not accepted</h1>
-              {order?.rejection_reason && (
-                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '14px', color: '#ef4444' }}>
-                  {order.rejection_reason}
-                </div>
-              )}
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '6px' }}>
-                Sorry, the restaurant couldn't take your order right now.
-              </p>
-              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '24px' }}>
-                You have not been charged.
-              </p>
+          {status === 'rejected' && (() => {
+            const reason = order?.rejection_reason?.toLowerCase() || ''
+            const isOutOfStock = reason.includes('stock') || reason.includes('item')
+            const isTooBusy = reason.includes('busy')
+            const isClosing = reason.includes('clos') || reason.includes('early')
+            const isZone = reason.includes('zone') || reason.includes('area') || reason.includes('deliver')
+            const isTechnical = reason.includes('technical') || reason.includes('issue')
+            const isCustomerCancel = reason.includes('customer') || reason.includes('cancel')
 
-              {/* Smart options based on rejection reason */}
-              {(() => {
-                const reason = order?.rejection_reason?.toLowerCase() || ''
-                const isOutOfStock = reason.includes('stock') || reason.includes('item')
-                const isTooFull = reason.includes('busy') || reason.includes('full')
-                const isClosing = reason.includes('clos') || reason.includes('early')
-                const isZone = reason.includes('zone') || reason.includes('area')
+            let emoji = '❌'
+            let headline = 'Order not accepted'
+            let message = 'Sorry, the restaurant couldn\'t take your order right now.'
 
-                return (
-                  <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                    {/* Only offer pre-order if not out of stock or closing */}
-                    {!isOutOfStock && !isClosing && !isZone && order?.restaurant_id && (
-                      <Link href={`/checkout?preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ fontSize: '28px' }}>📅</div>
-                          <div>
-                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
-                            <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
-                          </div>
-                        </div>
-                      </Link>
-                    )}
+            if (isOutOfStock) {
+              emoji = '🛒'
+              headline = 'Items unavailable'
+              message = 'Sorry, one or more items you ordered aren\'t available today. Try browsing the menu to see what\'s on offer.'
+            } else if (isTooBusy) {
+              emoji = '🍳'
+              headline = 'Restaurant is really busy!'
+              message = 'The restaurant is really busy right now but you can schedule a pre-order for later!'
+            } else if (isClosing) {
+              emoji = '🔒'
+              headline = 'Restaurant closing early'
+              message = 'The restaurant is closing early today. Why not pre-order for tomorrow?'
+            } else if (isZone) {
+              emoji = '📍'
+              headline = 'Outside delivery area'
+              message = 'Sorry, your address is outside this restaurant\'s delivery area. Try collection or browse nearby restaurants.'
+            } else if (isTechnical) {
+              emoji = '⚙️'
+              headline = 'Technical difficulties'
+              message = 'The restaurant is having technical difficulties. Please try again shortly.'
+            } else if (isCustomerCancel) {
+              emoji = '✅'
+              headline = 'Order cancelled'
+              message = 'Your order has been cancelled. We hope to see you again soon!'
+            }
 
-                    {/* Out of stock - suggest browsing other restaurants */}
-                    {isOutOfStock && (
-                      <div style={{ padding: '14px 16px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '14px', fontSize: '14px', color: '#f97316', textAlign: 'left' }}>
-                        💡 Some items may be unavailable today. Try browsing the menu for alternatives.
-                      </div>
-                    )}
+            return (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '60px', marginBottom: '16px' }}>{emoji}</div>
+                <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>{headline}</h1>
+                <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '6px', maxWidth: '360px', margin: '0 auto 20px' }}>
+                  {message}
+                </p>
+                <p style={{ fontSize: '14px', color: '#22c55e', fontWeight: 700, marginBottom: '24px' }}>
+                  You have not been charged.
+                </p>
 
-                    {/* Browse other restaurants */}
-                    <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+                  {/* Out of stock - browse menu */}
+                  {isOutOfStock && order?.restaurants?.slug && (
+                    <Link href={`/restaurant/${order.restaurants.slug}`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ fontSize: '28px' }}>🏠</div>
+                        <div style={{ fontSize: '28px' }}>🍽️</div>
                         <div>
-                          <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
-                          <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Browse the menu</div>
+                          <div style={{ fontSize: '12px', color: sub }}>See what's available today</div>
                         </div>
                       </div>
                     </Link>
-                  </div>
-                )
-              })()}
-            </div>
-          )}
+                  )}
+
+                  {/* Too busy or technical - pre-order + try again */}
+                  {(isTooBusy || isTechnical) && (
+                    <Link href="/checkout?preorder=true" style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontSize: '28px' }}>📅</div>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
+                          <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Closing - pre-order tomorrow */}
+                  {isClosing && (
+                    <Link href="/checkout?preorder=true" style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontSize: '28px' }}>📅</div>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Pre-Order for tomorrow</div>
+                          <div style={{ fontSize: '12px', color: sub }}>Schedule for when they reopen</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Zone - switch to collection */}
+                  {isZone && order?.restaurants?.slug && (
+                    <Link href={`/restaurant/${order.restaurants.slug}?type=pickup`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontSize: '28px' }}>🏪</div>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: '#3b82f6', marginBottom: '3px' }}>Switch to collection</div>
+                          <div style={{ fontSize: '12px', color: sub }}>Pick up your order instead</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Try again - busy or technical */}
+                  {(isTooBusy || isTechnical) && (
+                    <TryAgainButton restaurantSlug={order?.restaurants?.slug} dark={dark} sub={sub} card={card} border={border} />
+                  )}
+
+                  {/* Browse other restaurants - always show */}
+                  <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ fontSize: '28px' }}>🏠</div>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
+                        <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* TIMEOUT */}
           {status === 'timeout' && (
