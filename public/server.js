@@ -10,22 +10,24 @@ function ticket(o,cols){
   var t=INIT;
   if(o.scheduled_for){t+=AC+SD+BON+'PRE-ORDER'+LF+SN+BOFF}
   if(o.contactless_delivery){t+=AC+SD+BON+'CONTACTLESS'+LF+BOFF+SN}
-  t+=AC+rep('-',cols)+LF+SD+BON+'ORDER '+String(o.order_number||o.id).slice(-6).toUpperCase()+LF+BOFF+SN;
-  t+=AL+SDH+BON+(o.customer_name||'')+LF+BOFF+SN;
-  t+=(o.order_type==='collection'?'COLLECTION':'DELIVERY')+LF;
-  if(o.customer_phone)t+=o.customer_phone+LF;
-  if(o.order_type==='delivery'&&o.delivery_address)t+=o.delivery_address+LF;
+  t+=AC+rep('-',cols)+LF+SD+BON+'ORDER '+String(o.orderNumber||o.order_number||o.id).slice(-6).toUpperCase()+LF+BOFF+SN;
+  t+=AL+SDH+BON+(o.customerName||o.customer_name||'')+LF+BOFF+SN;
+  t+=(o.isCollection||o.order_type==='collection'?'COLLECTION':'DELIVERY')+LF;
+  if(o.customerPhone||o.customer_phone)t+=(o.customerPhone||o.customer_phone)+LF;
+  if(!(o.isCollection||o.order_type==='collection')&&(o.deliveryAddress||o.delivery_address))t+=(o.deliveryAddress||o.delivery_address)+LF;
   t+=rep('-',cols)+LF+BON+'ITEMS:'+LF+BOFF;
-  (o.order_items||[]).forEach(function(i){
+  (o.items||o.order_items||[]).forEach(function(i){
     t+=SDH+BON+i.quantity+'x '+i.name+LF+BOFF+SN;
     if(i.special_instructions)t+='  > '+i.special_instructions+LF;
   });
   t+=rep('-',cols)+LF;
-  if(o.notes){t+=BON+'NOTES: '+BOFF+o.notes+LF+rep('-',cols)+LF}
-  if(o.delivery_fee>0){t+=lr('Subtotal:','GBP'+parseFloat(o.subtotal).toFixed(2),cols)+LF}
-  if(o.delivery_fee>0){t+=lr('Delivery:','GBP'+parseFloat(o.delivery_fee).toFixed(2),cols)+LF}
+  var notes=o.specialInstructions||o.notes||o.special_instructions;
+  if(notes){t+=BON+'NOTES: '+BOFF+notes+LF+rep('-',cols)+LF}
+  if((o.deliveryFee||o.delivery_fee)>0){t+=lr('Subtotal:','GBP'+parseFloat(o.subtotal).toFixed(2),cols)+LF}
+  if((o.deliveryFee||o.delivery_fee)>0){t+=lr('Delivery:','GBP'+parseFloat(o.deliveryFee||o.delivery_fee).toFixed(2),cols)+LF}
+  if((o.tip||0)>0){t+=lr('Tip:','GBP'+parseFloat(o.tip).toFixed(2),cols)+LF}
   t+=BON+SDH+lr('TOTAL:','GBP'+parseFloat(o.total).toFixed(2),cols)+LF+BOFF+SN;
-  t+=AC+(o.payment_method==='cash'?'CASH':'CARD')+LF;
+  t+=AC+(o.paymentMethod==='cash'||o.payment_method==='cash'?'CASH':'CARD')+LF;
   t+=rep('-',cols)+LF+AR+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+LF;
   t+=LF+LF+LF+CUT;
   return t;
