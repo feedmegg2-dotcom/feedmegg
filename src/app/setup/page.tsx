@@ -45,10 +45,10 @@ export default function SetupPage() {
     },
     {
       num: 3,
-      title: 'Update Termux packages',
+      title: 'Fix Termux repositories',
       commands: [
-        { label: 'Step 1 - Fix repositories first (select default mirror):', text: 'termux-change-repo' },
-        { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' }
+        { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > $PREFIX/etc/apt/sources.list' },
+        { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' },
       ]
     },
     {
