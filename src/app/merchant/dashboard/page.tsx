@@ -318,6 +318,10 @@ export default function MerchantDashboard() {
                       <button onClick={() => { setShowZones(r.id); fetchZones(r.id) }} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>Zones</button>
                       {/* Menu */}
                       <Link href={`/merchant/dashboard/menu/${r.id}`} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>Menu</Link>
+                      {/* Tickets */}
+                      <Link href={`/merchant/dashboard/tickets/${r.id}`} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', textDecoration: 'none' }}>Tickets</Link>
+                      {/* Slots */}
+                      <Link href={`/merchant/dashboard/slots/${r.id}`} style={{ fontSize: '12px', padding: '4px 12px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', textDecoration: 'none' }}>Slots</Link>
                     </div>
                   </div>
                 </div>
@@ -330,11 +334,12 @@ export default function MerchantDashboard() {
       {/* SETTINGS MODAL */}
       {editingRestaurant && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditingRestaurant(null) }}>
-          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '560px', height: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexShrink: 0 }}>
               <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Restaurant Settings</h3>
               <button onClick={() => setEditingRestaurant(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f1f5f9', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}>x</button>
             </div>
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Restaurant Name</label><input value={editingRestaurant.name} onChange={e => setEditingRestaurant({...editingRestaurant, name: e.target.value})} style={inputStyle} /></div>
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Description</label><textarea value={editingRestaurant.description || ''} onChange={e => setEditingRestaurant({...editingRestaurant, description: e.target.value})} rows={2} style={{ ...inputStyle, resize: 'none' }} /></div>
@@ -385,7 +390,8 @@ export default function MerchantDashboard() {
                 <label htmlFor="pick" style={{ fontSize: '13px', cursor: 'pointer' }}>Accepts Pickup</label>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexShrink: 0 }}>
               <button onClick={saveSettings} disabled={savingSettings} style={{ flex: 1, padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {savingSettings ? 'Saving...' : 'Save Settings'}
               </button>
