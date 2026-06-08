@@ -13,7 +13,7 @@ export default function TerminalPage() {
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
   const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders' | 'missed'>('incoming')
   const dismissedMissedIds = useRef<Set<string>>(new Set(
-    JSON.parse(localStorage.getItem('feedme-dismissed-orders') || '[]')
+    typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('feedme-dismissed-orders') || '[]') : []
   ))
   const [dismissedVersion, setDismissedVersion] = useState(0)
 
