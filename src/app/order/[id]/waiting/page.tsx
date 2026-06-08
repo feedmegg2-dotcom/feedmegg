@@ -34,7 +34,7 @@ export default function WaitingPage() {
     // Load order first so we know payment method before showing anything
     const { data } = await supabase
       .from('orders')
-      .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)')
+      .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
       .eq('id', orderId)
       .single()
     
@@ -120,7 +120,7 @@ export default function WaitingPage() {
         // Refresh order to get rejection reason
         const { data: fullOrder } = await supabase
           .from('orders')
-          .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)')
+          .select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins, slug)')
           .eq('id', orderId)
           .single()
         if (fullOrder) setOrder(fullOrder)
@@ -265,15 +265,34 @@ export default function WaitingPage() {
                   {order.rejection_reason}
                 </div>
               )}
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '6px' }}>
                 Sorry, the restaurant couldn't take your order right now.
               </p>
-              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>
+              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '24px' }}>
                 You have not been charged.
               </p>
-              <Link href="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
-                Back to restaurants
-              </Link>
+              <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+                {order?.restaurant_id && (
+                  <Link href={`/checkout?restaurantId=${order.restaurant_id}&preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ fontSize: '28px' }}>📅</div>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
+                        <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
+                      </div>
+                    </div>
+                  </Link>
+                )}
+                <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontSize: '28px' }}>🏠</div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
+                      <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
             </div>
           )}
 
@@ -291,8 +310,8 @@ export default function WaitingPage() {
 
               <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
                 {/* PRE-ORDER OPTION */}
-                {order?.restaurants && (
-                  <Link href={`/${order.restaurants.slug || ''}/checkout?preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                {order?.restaurant_id && (
+                  <Link href={`/checkout?restaurantId=${order.restaurant_id}&preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ fontSize: '28px' }}>📅</div>
                       <div>
@@ -304,7 +323,7 @@ export default function WaitingPage() {
                 )}
 
                 {/* TRY AGAIN OPTION */}
-                <TryAgainButton orderId={orderId} cartData={order?.items} restaurantSlug={order?.restaurants?.slug} dark={dark} sub={sub} card={card} border={border} />
+                <TryAgainButton orderId={orderId} cartData={order?.items} restaurantId={order?.restaurant_id} restaurantSlug={order?.restaurants?.slug} dark={dark} sub={sub} card={card} border={border} />
 
                 {/* BROWSE OPTION */}
                 <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
@@ -326,8 +345,8 @@ export default function WaitingPage() {
   )
 }
 
-function TryAgainButton({ orderId, cartData, restaurantSlug, dark, sub, card, border }: any) {
-  const [countdown, setCountdown] = useState(600) // 10 mins
+function TryAgainButton({ orderId, cartData, restaurantId, restaurantSlug, dark, sub, card, border }: any) {
+  const [countdown, setCountdown] = useState(600)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -342,9 +361,10 @@ function TryAgainButton({ orderId, cartData, restaurantSlug, dark, sub, card, bo
 
   const mins = Math.floor(countdown / 60)
   const secs = countdown % 60
+  const href = restaurantSlug ? `/restaurant/${restaurantSlug}` : '/'
 
   return (
-    <div onClick={ready ? () => { window.location.href = restaurantSlug ? `/${restaurantSlug}` : '/' } : undefined} 
+    <div onClick={ready ? () => { window.location.href = href } : undefined} 
       style={{ padding: '16px 20px', background: ready ? 'rgba(59,130,246,0.08)' : card, border: `1px solid ${ready ? 'rgba(59,130,246,0.2)' : border}`, borderRadius: '14px', textAlign: 'left', cursor: ready ? 'pointer' : 'default' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{ fontSize: '28px' }}>{ready ? '🔄' : '⏱️'}</div>
