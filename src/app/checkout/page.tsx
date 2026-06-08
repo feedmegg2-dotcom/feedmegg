@@ -305,7 +305,9 @@ export default function CheckoutPage() {
     setLoading(false)
 
     if (!data.success) { setError(data.error || 'Something went wrong'); return }
-    localStorage.removeItem('feedme-cart')
+    // Don't clear cart yet - keep it in case order is rejected/times out
+    // Cart will be cleared when order is confirmed
+    // localStorage.removeItem('feedme-cart')
     router.push(`/order/${data.orderId}/waiting`)
   }
 
