@@ -60,8 +60,7 @@ export default function SetupPage() {
       num: 5,
       title: 'Create print server',
       commands: [
-        { label: 'Step 1 - Create folder', text: 'mkdir ~/printserver && cd ~/printserver' },
-        { label: 'Step 2 - Create server file', text: `echo '${serverScript}' > ~/printserver/server.js` },
+        { label: 'Download print server from feedme.gg:', text: 'mkdir -p ~/printserver && curl -o ~/printserver/server.js https://feedme.gg/server.js' },
       ]
     },
     {
