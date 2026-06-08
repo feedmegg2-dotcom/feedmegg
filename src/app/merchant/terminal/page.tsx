@@ -353,14 +353,20 @@ export default function TerminalPage() {
         orderNumber: currentOrder.order_number,
         restaurantName: restaurant?.name || 'Restaurant',
         customerName: currentOrder.customer_name,
+        customerPhone: currentOrder.customer_phone,
         deliveryAddress: currentOrder.delivery_address,
         isCollection: currentOrder.order_type === 'collection',
+        contactlessDelivery: currentOrder.contactless_delivery,
+        isPreOrder: !!currentOrder.scheduled_for,
+        preOrderTime: currentOrder.scheduled_for ? new Date(currentOrder.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : undefined,
         items: currentOrder.order_items || [],
-        specialInstructions: currentOrder.special_instructions,
+        specialInstructions: currentOrder.special_instructions || currentOrder.notes,
         subtotal: currentOrder.subtotal,
         deliveryFee: currentOrder.delivery_fee,
         tip: currentOrder.tip,
         total: currentOrder.total,
+        paymentMethod: currentOrder.payment_method,
+        orderType: currentOrder.order_type,
       }, 'paid')
       setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
     } else {
@@ -386,14 +392,19 @@ export default function TerminalPage() {
       orderNumber: currentOrder.order_number,
       restaurantName: restaurant?.name || 'Restaurant',
       customerName: currentOrder.customer_name,
+      customerPhone: currentOrder.customer_phone,
       deliveryAddress: currentOrder.delivery_address,
       isCollection: currentOrder.order_type === 'collection',
+      contactlessDelivery: currentOrder.contactless_delivery,
+      isPreOrder: !!currentOrder.scheduled_for,
       items: currentOrder.order_items || [],
-      specialInstructions: currentOrder.special_instructions,
+      specialInstructions: currentOrder.special_instructions || currentOrder.notes,
       subtotal: currentOrder.subtotal,
       deliveryFee: currentOrder.delivery_fee,
       tip: currentOrder.tip,
       total: currentOrder.total,
+      paymentMethod: currentOrder.payment_method,
+      orderType: currentOrder.order_type,
     }, 'paid')
 
     setTimeout(() => {
