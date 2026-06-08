@@ -271,28 +271,50 @@ export default function WaitingPage() {
               <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '24px' }}>
                 You have not been charged.
               </p>
-              <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                {order?.restaurant_id && (
-                  <Link href={`/checkout?restaurantId=${order.restaurant_id}&preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ fontSize: '28px' }}>📅</div>
-                      <div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
-                        <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
+
+              {/* Smart options based on rejection reason */}
+              {(() => {
+                const reason = order?.rejection_reason?.toLowerCase() || ''
+                const isOutOfStock = reason.includes('stock') || reason.includes('item')
+                const isTooFull = reason.includes('busy') || reason.includes('full')
+                const isClosing = reason.includes('clos') || reason.includes('early')
+                const isZone = reason.includes('zone') || reason.includes('area')
+
+                return (
+                  <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+                    {/* Only offer pre-order if not out of stock or closing */}
+                    {!isOutOfStock && !isClosing && !isZone && order?.restaurant_id && (
+                      <Link href={`/checkout?preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ fontSize: '28px' }}>📅</div>
+                          <div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
+                            <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+
+                    {/* Out of stock - suggest browsing other restaurants */}
+                    {isOutOfStock && (
+                      <div style={{ padding: '14px 16px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '14px', fontSize: '14px', color: '#f97316', textAlign: 'left' }}>
+                        💡 Some items may be unavailable today. Try browsing the menu for alternatives.
                       </div>
-                    </div>
-                  </Link>
-                )}
-                <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '28px' }}>🏠</div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
-                      <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
-                    </div>
+                    )}
+
+                    {/* Browse other restaurants */}
+                    <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontSize: '28px' }}>🏠</div>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
+                          <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                </Link>
-              </div>
+                )
+              })()}
             </div>
           )}
 
@@ -311,7 +333,7 @@ export default function WaitingPage() {
               <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
                 {/* PRE-ORDER OPTION */}
                 {order?.restaurant_id && (
-                  <Link href={`/checkout?restaurantId=${order.restaurant_id}&preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                  <Link href={`/checkout?preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ fontSize: '28px' }}>📅</div>
                       <div>
