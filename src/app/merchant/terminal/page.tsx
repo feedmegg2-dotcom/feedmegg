@@ -922,7 +922,14 @@ export default function TerminalPage() {
 
       {screen === 'eod' && (
         <FullScreen title="End of Day Report" onBack={() => setScreen('main')}>
-          <EODReport orders={orders} onClear={() => { setArchivedOrders(prev => [...prev, ...orders.filter(o => ['paid','cancelled','accepted','waiting_payment'].includes(o.status))]); setOrders(prev => prev.filter(o => o.status === 'pending')); setTab('incoming'); setScreen('main') }} />
+          <EODReport orders={orders} onClear={() => { 
+            const completedStatuses = ['paid', 'cancelled', 'accepted', 'waiting_payment', 'complete', 'rejected']
+            setArchivedOrders(prev => [...prev, ...orders.filter(o => completedStatuses.includes(o.status))])
+            setOrders(prev => prev.filter(o => o.status === 'pending'))
+            setDismissedMissedIds(new Set())
+            setTab('incoming')
+            setScreen('main') 
+          }} />
         </FullScreen>
       )}
 
