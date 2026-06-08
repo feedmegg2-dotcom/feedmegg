@@ -228,7 +228,8 @@ export default function TerminalPage() {
   }
 
   async function pollOrders(restId: string) {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'complete', 'cancelled', 'rejected']).order('created_at', { ascending: false }).limit(50)
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
     if (!data) return
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
@@ -922,9 +923,19 @@ export default function TerminalPage() {
 
       {screen === 'eod' && (
         <FullScreen title="End of Day Report" onBack={() => setScreen('main')}>
-          <EODReport orders={orders} onClear={() => { 
+          <EODReport orders={orders} onClear={async () => { 
             const completedStatuses = ['paid', 'cancelled', 'accepted', 'waiting_payment', 'complete', 'rejected']
-            setArchivedOrders(prev => [...prev, ...orders.filter(o => completedStatuses.includes(o.status))])
+            const ordersToArchive = orders.filter(o => completedStatuses.includes(o.status))
+            
+            // Mark all non-pending orders as complete in database so they don't come back
+            if (ordersToArchive.length > 0 && restaurant) {
+              await supabase.from('orders')
+                .update({ status: 'complete' })
+                .in('id', ordersToArchive.map(o => o.id))
+                .eq('restaurant_id', restaurant.id)
+            }
+            
+            setArchivedOrders(prev => [...prev, ...ordersToArchive])
             setOrders(prev => prev.filter(o => o.status === 'pending'))
             setDismissedMissedIds(new Set())
             setTab('incoming')
