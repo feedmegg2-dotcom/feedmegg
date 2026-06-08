@@ -60,6 +60,7 @@ export default function TerminalPage() {
   const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
   const [printerIp, setPrinterIp] = useState('')
   const [printerWidth, setPrinterWidth] = useState(80)
+  const [autoPrint, setAutoPrint] = useState(true)
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
@@ -345,10 +346,9 @@ export default function TerminalPage() {
     await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
     
     if (isCash) {
-      // Cash order - skip payment screen, go straight to accepted
       setScreen('paid')
       playAlertSound(paymentSound)
-      triggerAutoPrint({
+      if (autoPrint) triggerAutoPrint({
         id: currentOrder.id,
         orderNumber: currentOrder.order_number,
         restaurantName: restaurant?.name || 'Restaurant',
@@ -564,25 +564,18 @@ export default function TerminalPage() {
                 <button onClick={() => playAlertSound(paymentSound)} style={{ padding: '6px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>Test</button>
               </div>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🖨️ Printer</div>
-                <input 
-                  value={printerIp} 
-                  onChange={e => setPrinterIp(e.target.value)}
-                  placeholder="Printer IP e.g. 192.168.1.100"
-                  style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' as const }}
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '4px' }}>
-                  {[58, 80].map(w => (
-                    <button key={w} onClick={() => setPrinterWidth(w)} style={{ padding: '5px', background: printerWidth === w ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${printerWidth === w ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: printerWidth === w ? '#22c55e' : '#94a3b8', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>{w}mm</button>
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🖨️ Auto Print</div>
+                  <div onClick={() => setAutoPrint(!autoPrint)} style={{ width: '36px', height: '20px', borderRadius: '10px', background: autoPrint ? '#22c55e' : '#334155', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', top: '2px', left: autoPrint ? '18px' : '2px', width: '16px', height: '16px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
+                  </div>
                 </div>
-                <button onClick={async () => {
-                  if (restaurant) {
-                    await supabase.from('restaurants').update({ printer_ip: printerIp, printer_width: printerWidth }).eq('id', restaurant.id)
-                  }
-                }} style={{ width: '100%', padding: '6px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
-                  Save Printer Settings
-                </button>
+                <div style={{ fontSize: '10px', color: '#475569' }}>{autoPrint ? 'Tickets print automatically' : 'Auto print disabled'}</div>
+                {printerIp ? (
+                  <div style={{ fontSize: '10px', color: '#22c55e', marginTop: '4px' }}>🖨️ {printerIp}</div>
+                ) : (
+                  <div style={{ fontSize: '10px', color: '#ef4444', marginTop: '4px' }}>No printer configured - set in dashboard</div>
+                )}
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
