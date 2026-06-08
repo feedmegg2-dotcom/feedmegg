@@ -115,36 +115,42 @@ function printViaBrowser(order: OrderForPrint) {
   }, 500)
 }
 
-export function usePrinterAutoprint(restaurantId?: string) {
+export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, printerWidth?: number) {
   const printedOrdersRef = useRef<Set<string>>(new Set())
+
+  async function doPrint(order: OrderForPrint) {
+    if (printerIp) {
+      const res = await fetch('/api/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order, printerIp, printerWidth: printerWidth || 80 })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        console.warn('Network print failed, falling back to browser:', data.error)
+        printViaBrowser(order)
+      }
+    } else if (restaurantId) {
+      const result = await printViaNetwork(order, restaurantId)
+      if (!result.success) {
+        console.warn('Network print failed, falling back to browser:', result.error)
+        printViaBrowser(order)
+      }
+    } else {
+      printViaBrowser(order)
+    }
+  }
 
   const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string) => {
     if (!['paid', 'accepted'].includes(status)) return
     if (printedOrdersRef.current.has(order.id)) return
     printedOrdersRef.current.add(order.id)
-
-    if (restaurantId) {
-      const result = await printViaNetwork(order, restaurantId)
-      if (!result.success) {
-        console.warn('Network print failed, falling back to browser:', result.error)
-        printViaBrowser(order)
-      }
-    } else {
-      printViaBrowser(order)
-    }
-  }, [restaurantId])
+    await doPrint(order)
+  }, [printerIp, printerWidth, restaurantId])
 
   const manualReprint = useCallback(async (order: OrderForPrint) => {
-    if (restaurantId) {
-      const result = await printViaNetwork(order, restaurantId)
-      if (!result.success) {
-        console.warn('Network print failed, falling back to browser:', result.error)
-        printViaBrowser(order)
-      }
-    } else {
-      printViaBrowser(order)
-    }
-  }, [restaurantId])
+    await doPrint(order)
+  }, [printerIp, printerWidth, restaurantId])
 
   const clearPrintHistory = useCallback(() => {
     printedOrdersRef.current.clear()
