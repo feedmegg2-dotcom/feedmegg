@@ -280,21 +280,83 @@ export default function WaitingPage() {
           {/* TIMEOUT */}
           {status === 'timeout' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(249,115,22,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>⏱️</div>
-              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Restaurant didn't respond</h1>
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
-                The restaurant didn't confirm your order in time. Your order has been automatically cancelled.
+              <div style={{ fontSize: '60px', marginBottom: '16px' }}>🍳</div>
+              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Restaurant is busy right now!</h1>
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '6px', maxWidth: '360px', margin: '0 auto 6px' }}>
+                They're likely preparing other orders right now.
               </p>
-              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>
+              <p style={{ fontSize: '13px', color: sub, marginBottom: '28px' }}>
                 You have not been charged.
               </p>
-              <Link href="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
-                Back to restaurants
-              </Link>
+
+              <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+                {/* PRE-ORDER OPTION */}
+                {order?.restaurants && (
+                  <Link href={`/${order.restaurants.slug || ''}/checkout?preorder=true`} style={{ display: 'block', padding: '16px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ fontSize: '28px' }}>📅</div>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginBottom: '3px' }}>Schedule a Pre-Order</div>
+                        <div style={{ fontSize: '12px', color: sub }}>Pick a time slot that works for you</div>
+                      </div>
+                    </div>
+                  </Link>
+                )}
+
+                {/* TRY AGAIN OPTION */}
+                <TryAgainButton orderId={orderId} cartData={order?.items} restaurantSlug={order?.restaurants?.slug} dark={dark} sub={sub} card={card} border={border} />
+
+                {/* BROWSE OPTION */}
+                <Link href="/" style={{ display: 'block', padding: '16px 20px', background: card, border: `1px solid ${border}`, borderRadius: '14px', textDecoration: 'none', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontSize: '28px' }}>🏠</div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: text, marginBottom: '3px' }}>Browse other restaurants</div>
+                      <div style={{ fontSize: '12px', color: sub }}>Find somewhere else to order from</div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
             </div>
           )}
 
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TryAgainButton({ orderId, cartData, restaurantSlug, dark, sub, card, border }: any) {
+  const [countdown, setCountdown] = useState(600) // 10 mins
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); setReady(true); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const mins = Math.floor(countdown / 60)
+  const secs = countdown % 60
+
+  return (
+    <div onClick={ready ? () => { window.location.href = restaurantSlug ? `/${restaurantSlug}` : '/' } : undefined} 
+      style={{ padding: '16px 20px', background: ready ? 'rgba(59,130,246,0.08)' : card, border: `1px solid ${ready ? 'rgba(59,130,246,0.2)' : border}`, borderRadius: '14px', textAlign: 'left', cursor: ready ? 'pointer' : 'default' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ fontSize: '28px' }}>{ready ? '🔄' : '⏱️'}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: ready ? '#3b82f6' : sub, marginBottom: '3px' }}>
+            {ready ? 'Try ordering again' : 'Try again soon'}
+          </div>
+          <div style={{ fontSize: '12px', color: sub }}>
+            {ready ? 'Restaurant may be less busy now' : `Available in ${mins}:${String(secs).padStart(2,'0')}`}
+          </div>
+        </div>
+        {ready && <div style={{ fontSize: '18px', color: '#3b82f6' }}>→</div>}
       </div>
     </div>
   )
