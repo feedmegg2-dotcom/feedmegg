@@ -267,6 +267,20 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
     }
   }
 
+  // Try embedded local print server (runs inside the Android app)
+  try {
+    const res = await fetch('http://127.0.0.1:3001/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hexData, printerIp, port: 9100 })
+    })
+    const data = await res.json()
+    if (data.success) return
+    throw new Error(data.error)
+  } catch (e) {
+    console.warn('Local print server failed:', e)
+  }
+
   // Try local print server
   try {
     const res = await fetch('http://127.0.0.1:3001/print-raw', {
