@@ -243,24 +243,27 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
 
   // Try native Android print
   const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
-  const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
 
-  if (hasAndroidPrint || hasNativePrint) {
+  if (hasAndroidPrint) {
     try {
-      let result
-      if (hasNativePrint) {
-        alert('Calling nativePrint with ip: ' + printerIp + ' hexLen: ' + hexData.length)
-        result = await (window as any).nativePrint(hexData, printerIp, 9100)
-        alert('nativePrint result: ' + JSON.stringify(result))
-      } else {
-        const r = (window as any).AndroidPrint.print(JSON.stringify({ rawHex: hexData, ip: printerIp, port: 9100 }))
-        result = JSON.parse(r)
-      }
+      const r = (window as any).AndroidPrint.print(JSON.stringify({ rawHex: hexData, ip: printerIp, port: 9100 }))
+      const result = JSON.parse(r)
       if (result?.success === false) throw new Error(result.error)
       return
     } catch (e) {
-      alert('Native print error: ' + e)
       console.warn('Native print failed:', e)
+    }
+  }
+
+  // Try nativePrint as fallback
+  const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
+  if (hasNativePrint) {
+    try {
+      const result = await (window as any).nativePrint(hexData, printerIp, 9100)
+      if (result?.success === false) throw new Error(result.error)
+      return
+    } catch (e) {
+      console.warn('nativePrint failed:', e)
     }
   }
 
