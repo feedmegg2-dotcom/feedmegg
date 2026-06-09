@@ -365,8 +365,6 @@ export default function TerminalPage() {
         deliveryFee: currentOrder.delivery_fee,
         tip: currentOrder.tip,
         total: currentOrder.total,
-        paymentMethod: currentOrder.payment_method,
-        orderType: currentOrder.order_type,
       }, 'paid')
       setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
     } else {
@@ -403,8 +401,6 @@ export default function TerminalPage() {
       deliveryFee: currentOrder.delivery_fee,
       tip: currentOrder.tip,
       total: currentOrder.total,
-      paymentMethod: currentOrder.payment_method,
-      orderType: currentOrder.order_type,
     }, 'paid')
 
     setTimeout(() => {
