@@ -20,6 +20,8 @@ interface OrderForPrint {
   deliveryFee?: number
   tip?: number
   total: number
+  paymentMethod?: string
+  orderType?: string
 }
 
 async function printViaNetwork(order: any, restaurantId: string): Promise<{ success: boolean; error?: string }> {
