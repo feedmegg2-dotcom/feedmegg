@@ -121,7 +121,23 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
   async function doPrint(order: OrderForPrint) {
-    if (printerIp) {
+    // Check if running in Capacitor native app
+    const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNative
+
+    if (isNative && (window as any).nativePrint && printerIp) {
+      // Use native TCP printing
+      try {
+        const result = await (window as any).nativePrint(order, printerIp, printerWidth || 80)
+        if (!result.success) {
+          console.warn('Native print failed:', result.error)
+          printViaBrowser(order)
+        }
+      } catch (e) {
+        console.warn('Native print error:', e)
+        printViaBrowser(order)
+      }
+    } else if (printerIp) {
+      // Use local print server (Firefox/browser)
       try {
         const res = await fetch('http://127.0.0.1:3001/print', {
           method: 'POST',
