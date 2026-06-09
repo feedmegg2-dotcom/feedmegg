@@ -24,145 +24,276 @@ interface OrderForPrint {
   orderType?: string
 }
 
-async function printViaNetwork(order: any, restaurantId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const supabase = createClient()
-    
-    // Get printer IP from restaurant settings
-    const { data: restaurant } = await supabase
-      .from('restaurants')
-      .select('printer_ip, printer_width')
-      .eq('id', restaurantId)
-      .single()
+// ESC/POS helpers
+const ESC = '\x1B', GS = '\x1D'
+const INIT = ESC + '@'
+const BOLD_ON = ESC + 'E\x01', BOLD_OFF = ESC + 'E\x00'
+const ALIGN_LEFT = ESC + 'a\x00', ALIGN_CENTER = ESC + 'a\x01', ALIGN_RIGHT = ESC + 'a\x02'
+const SIZE_NORMAL = GS + '!\x00', SIZE_DOUBLE_HEIGHT = GS + '!\x01', SIZE_DOUBLE = GS + '!\x11'
+const CUT = GS + 'V\x41\x03', LF = '\n'
 
-    if (!restaurant?.printer_ip) {
-      return { success: false, error: 'No printer IP configured. Please set printer IP in dashboard settings.' }
-    }
+function rep(c: string, n: number) { return c.repeat(Math.max(0, n)) }
+function lr(l: string, r: string, w = 42) { const s = w - l.length - r.length; return s <= 0 ? l + ' ' + r : l + rep(' ', s) + r }
 
-    const res = await fetch('/api/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order,
-        printerIp: restaurant.printer_ip,
-        printerWidth: restaurant.printer_width || 80,
-      })
-    })
-
-    const data = await res.json()
-    if (!data.success) return { success: false, error: data.error }
-    return { success: true }
-
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
+function sizeCmd(size: string) {
+  if (size === 'xl' || size === 'xxl' || size === 'xxxl') return SIZE_DOUBLE
+  if (size === 'large') return SIZE_DOUBLE_HEIGHT
+  return SIZE_NORMAL
 }
 
-// Fallback Chrome print dialog
+function alignCmd(align: string) {
+  if (align === 'center') return ALIGN_CENTER
+  if (align === 'right') return ALIGN_RIGHT
+  return ALIGN_LEFT
+}
+
+function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): string {
+  let t = ''
+  const bold = el.bold ? BOLD_ON : ''
+  const boldOff = el.bold ? BOLD_OFF : ''
+  const size = sizeCmd(el.size || 'medium')
+  const align = alignCmd(el.align || 'left')
+  const divider = rep('-', cols)
+
+  switch (el.type) {
+    case 'order_number':
+      t += align + size + bold
+      t += 'ORDER #' + String(order.orderNumber).slice(-6).toUpperCase() + LF
+      t += boldOff + SIZE_NORMAL
+      break
+    case 'customer_name':
+      t += align + size + bold + order.customerName + boldOff + SIZE_NORMAL + LF
+      break
+    case 'restaurant_name':
+      t += align + size + bold + order.restaurantName + boldOff + SIZE_NORMAL + LF
+      break
+    case 'phone':
+      if (order.customerPhone) t += align + size + bold + order.customerPhone + boldOff + SIZE_NORMAL + LF
+      break
+    case 'delivery_address':
+      if (!order.isCollection && order.deliveryAddress) t += align + size + bold + order.deliveryAddress + boldOff + SIZE_NORMAL + LF
+      break
+    case 'order_type':
+      t += align + size + bold + (order.isCollection ? 'COLLECTION' : 'DELIVERY') + boldOff + SIZE_NORMAL + LF
+      break
+    case 'items_list':
+      order.items.forEach(item => {
+        t += align + size + bold + item.quantity + 'x ' + item.name + boldOff + SIZE_NORMAL + LF
+        if (item.special_instructions) t += ALIGN_LEFT + '  -> ' + item.special_instructions + LF
+      })
+      break
+    case 'total':
+      t += align + size + bold + lr('TOTAL:', 'GBP' + order.total.toFixed(2), cols) + boldOff + SIZE_NORMAL + LF
+      break
+    case 'subtotal':
+      if (order.deliveryFee && order.deliveryFee > 0) {
+        t += ALIGN_LEFT + lr('Subtotal:', 'GBP' + order.subtotal.toFixed(2), cols) + LF
+        t += lr('Delivery:', 'GBP' + order.deliveryFee.toFixed(2), cols) + LF
+      }
+      if (order.tip && order.tip > 0) t += lr('Tip:', 'GBP' + order.tip.toFixed(2), cols) + LF
+      break
+    case 'special_instructions':
+      if (order.specialInstructions) t += ALIGN_LEFT + BOLD_ON + '** NOTES **' + BOLD_OFF + LF + order.specialInstructions + LF
+      break
+    case 'datetime':
+      t += align + new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + LF
+      break
+    case 'preorder_badge':
+      if (order.isPreOrder) t += align + size + bold + '*** PRE-ORDER ***' + boldOff + SIZE_NORMAL + LF
+      break
+    case 'preorder_time':
+      if (order.isPreOrder && order.preOrderTime) t += align + size + bold + 'For: ' + order.preOrderTime + boldOff + SIZE_NORMAL + LF
+      break
+    case 'contactless':
+      if (order.contactlessDelivery) t += align + size + bold + 'CONTACTLESS DELIVERY' + boldOff + SIZE_NORMAL + LF
+      break
+    case 'divider':
+      t += ALIGN_LEFT + divider + LF
+      break
+    case 'spacer':
+      t += LF
+      break
+    case 'custom_text':
+      if (el.text) t += align + size + bold + el.text + boldOff + SIZE_NORMAL + LF
+      break
+  }
+  return t
+}
+
+function renderTemplate(template: any, order: OrderForPrint, cols: number): string {
+  let ticket = INIT
+  for (const el of (template.elements || [])) {
+    ticket += renderElementESCPOS(el, order, cols)
+  }
+  ticket += LF + LF + LF + CUT
+  return ticket
+}
+
+function strToHex(str: string): string {
+  let result = ''
+  for (let i = 0; i < str.length; i++) {
+    result += ('0' + str.charCodeAt(i).toString(16)).slice(-2)
+  }
+  return result
+}
+
 function printViaBrowser(order: OrderForPrint) {
   const printWindow = window.open('', '_blank', 'width=300,height=600')
-  if (!printWindow) {
-    alert('Please allow popups for printing')
-    return
-  }
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  @page { size: 80mm auto; margin: 2mm; }
-  @media print { body { width: 80mm; } .page-break { page-break-after: always; } }
-  body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; color: #000; padding: 2mm; }
-  .center { text-align: center; } .right { text-align: right; }
-  .bold { font-weight: bold; } .xl { font-size: 20px; } .lg { font-size: 16px; }
-  .divider { border-top: 1px dashed #000; margin: 4px 0; }
-  .row { display: flex; justify-content: space-between; }
-  .badge { background: #000; color: #fff; text-align: center; padding: 3px; font-weight: bold; font-size: 14px; margin: 3px 0; }
-</style>
-</head>
-<body>
-  ${order.isPreOrder ? `<div class="badge">*** PRE-ORDER *** ${order.preOrderTime || ''}</div>` : ''}
-  ${order.contactlessDelivery ? `<div class="badge">CONTACTLESS DELIVERY</div>` : ''}
-  <div class="divider"></div>
-  <div class="center xl bold">ORDER #${String(order.orderNumber).slice(-6).toUpperCase()}</div>
-  <div class="lg bold">${order.customerName}</div>
-  ${order.customerPhone ? `<div>${order.customerPhone}</div>` : ''}
-  <div>${order.isCollection ? 'COLLECTION' : 'DELIVERY'}</div>
-  ${!order.isCollection && order.deliveryAddress ? `<div class="bold">${order.deliveryAddress}</div>` : ''}
-  <div class="divider"></div>
-  <div class="bold">ITEMS:</div>
-  ${order.items.map(i => `
-    <div class="bold">${i.quantity}x ${i.name}</div>
-    ${i.special_instructions ? `<div style="padding-left:8px;font-style:italic">-> ${i.special_instructions}</div>` : ''}
-  `).join('')}
-  <div class="divider"></div>
-  ${order.specialInstructions ? `<div class="bold">** NOTES **</div><div>${order.specialInstructions}</div><div class="divider"></div>` : ''}
-  ${order.deliveryFee && order.deliveryFee > 0 ? `<div class="row"><span>Subtotal:</span><span>GBP${order.subtotal.toFixed(2)}</span></div>` : ''}
-  ${order.deliveryFee && order.deliveryFee > 0 ? `<div class="row"><span>Delivery:</span><span>GBP${order.deliveryFee.toFixed(2)}</span></div>` : ''}
-  ${order.tip && order.tip > 0 ? `<div class="row"><span>Tip:</span><span>GBP${order.tip.toFixed(2)}</span></div>` : ''}
-  <div class="row xl bold"><span>TOTAL:</span><span>GBP${order.total.toFixed(2)}</span></div>
-  <div class="divider"></div>
-  <div class="right">${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-</body>
-</html>`
-
+  if (!printWindow) { alert('Please allow popups for printing'); return }
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: 80mm auto; margin: 2mm; }
+    @media print { body { width: 80mm; } }
+    body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; color: #000; padding: 2mm; }
+    .center { text-align: center; } .right { text-align: right; }
+    .bold { font-weight: bold; } .xl { font-size: 20px; } .lg { font-size: 16px; }
+    .divider { border-top: 1px dashed #000; margin: 4px 0; }
+    .row { display: flex; justify-content: space-between; }
+  </style></head><body>
+    <div class="divider"></div>
+    <div class="center xl bold">ORDER #${String(order.orderNumber).slice(-6).toUpperCase()}</div>
+    <div class="lg bold">${order.customerName}</div>
+    <div>${order.isCollection ? 'COLLECTION' : 'DELIVERY'}</div>
+    <div class="divider"></div>
+    ${order.items.map(i => `<div class="bold">${i.quantity}x ${i.name}</div>${i.special_instructions ? `<div style="padding-left:8px;font-style:italic">-> ${i.special_instructions}</div>` : ''}`).join('')}
+    <div class="divider"></div>
+    <div class="row xl bold"><span>TOTAL:</span><span>GBP${order.total.toFixed(2)}</span></div>
+  </body></html>`
   printWindow.document.write(html)
   printWindow.document.close()
   printWindow.focus()
-  setTimeout(() => {
-    printWindow.print()
-    setTimeout(() => printWindow.close(), 1000)
-  }, 500)
+  setTimeout(() => { printWindow.print(); setTimeout(() => printWindow.close(), 1000) }, 500)
+}
+
+async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWidth: number, templates?: any[]) {
+  const cols = printerWidth === 58 ? 32 : 42
+
+  // Use saved templates or fall back to defaults
+  const defaultTemplates = [
+    {
+      template_type: 'kitchen', copies: 1,
+      elements: [
+        { type: 'preorder_badge', size: 'xl', bold: true, align: 'center' },
+        { type: 'preorder_time', size: 'large', bold: true, align: 'center' },
+        { type: 'contactless', size: 'xl', bold: true, align: 'center' },
+        { type: 'divider' },
+        { type: 'order_number', size: 'xl', bold: true, align: 'center' },
+        { type: 'customer_name', size: 'large', bold: true, align: 'left' },
+        { type: 'order_type', size: 'medium', bold: false, align: 'left' },
+        { type: 'divider' },
+        { type: 'items_list', size: 'large', bold: true, align: 'left' },
+        { type: 'divider' },
+        { type: 'special_instructions', size: 'medium', bold: false, align: 'left' },
+        { type: 'datetime', size: 'small', bold: false, align: 'right' },
+      ]
+    },
+    {
+      template_type: 'customer', copies: 1,
+      elements: [
+        { type: 'restaurant_name', size: 'xl', bold: true, align: 'center' },
+        { type: 'divider' },
+        { type: 'preorder_badge', size: 'large', bold: true, align: 'center' },
+        { type: 'preorder_time', size: 'medium', bold: false, align: 'center' },
+        { type: 'order_number', size: 'large', bold: true, align: 'center' },
+        { type: 'customer_name', size: 'medium', bold: false, align: 'left' },
+        { type: 'datetime', size: 'small', bold: false, align: 'left' },
+        { type: 'divider' },
+        { type: 'items_list', size: 'medium', bold: false, align: 'left' },
+        { type: 'divider' },
+        { type: 'subtotal', size: 'medium', bold: false, align: 'right' },
+        { type: 'total', size: 'large', bold: true, align: 'right' },
+        { type: 'divider' },
+        { type: 'custom_text', size: 'small', bold: false, align: 'center', text: 'Thank you for your order!' },
+        { type: 'custom_text', size: 'small', bold: false, align: 'center', text: 'feedme.gg' },
+      ]
+    },
+    {
+      template_type: 'delivery', copies: 1,
+      elements: [
+        { type: 'contactless', size: 'xl', bold: true, align: 'center' },
+        { type: 'preorder_badge', size: 'large', bold: true, align: 'center' },
+        { type: 'preorder_time', size: 'medium', bold: true, align: 'center' },
+        { type: 'divider' },
+        { type: 'order_number', size: 'xl', bold: true, align: 'center' },
+        { type: 'customer_name', size: 'large', bold: true, align: 'left' },
+        { type: 'phone', size: 'medium', bold: false, align: 'left' },
+        { type: 'divider' },
+        { type: 'delivery_address', size: 'large', bold: true, align: 'left' },
+        { type: 'divider' },
+        { type: 'total', size: 'large', bold: true, align: 'right' },
+        { type: 'datetime', size: 'small', bold: false, align: 'right' },
+      ]
+    }
+  ]
+
+  const tmplsToUse = templates && templates.length > 0 ? templates : defaultTemplates
+
+  // Build all tickets
+  let allTickets = ''
+  for (const tmpl of tmplsToUse) {
+    // Skip delivery label for collections
+    if (tmpl.template_type === 'delivery' && order.isCollection) continue
+    const copies = tmpl.copies || 1
+    for (let i = 0; i < copies; i++) {
+      allTickets += renderTemplate(tmpl, order, cols)
+    }
+  }
+
+  const hexData = strToHex(allTickets)
+
+  // Try native Android print
+  const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
+  const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
+
+  if (hasAndroidPrint || hasNativePrint) {
+    try {
+      let result
+      if (hasNativePrint) {
+        result = await (window as any).nativePrint({ rawHex: hexData, ip: printerIp, port: 9100 }, printerIp, printerWidth)
+      } else {
+        const r = (window as any).AndroidPrint.print(JSON.stringify({ rawHex: hexData, ip: printerIp, port: 9100 }))
+        result = JSON.parse(r)
+      }
+      if (result?.success === false) throw new Error(result.error)
+      return
+    } catch (e) {
+      console.warn('Native print failed:', e)
+    }
+  }
+
+  // Try local print server
+  try {
+    const res = await fetch('http://127.0.0.1:3001/print-raw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hexData, printerIp, port: 9100 })
+    })
+    const data = await res.json()
+    if (data.success) return
+  } catch (e) {}
+
+  // Fallback to browser
+  printViaBrowser(order)
 }
 
 export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, printerWidth?: number) {
+  const supabase = createClient()
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
-  async function doPrint(order: OrderForPrint) {
-    // Check if running in native Android app (AndroidPrint interface injected by MainActivity)
-    const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
-    const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
-
-    if ((hasAndroidPrint || hasNativePrint) && printerIp) {
-      // Use native TCP printing
-      try {
-        let result
-        if (hasNativePrint) {
-          result = await (window as any).nativePrint(order, printerIp, printerWidth || 80)
-        } else {
-          const r = (window as any).AndroidPrint.print(JSON.stringify({ order, ip: printerIp, port: 9100, width: printerWidth || 80 }))
-          result = JSON.parse(r)
-        }
-        if (!result.success) {
-          console.warn('Native print failed:', result.error)
-          printViaBrowser(order)
-        }
-      } catch (e) {
-        console.warn('Native print error:', e)
-        printViaBrowser(order)
-      }
-    } else if (printerIp) {
-      // Use local print server (Firefox/browser)
-      try {
-        const res = await fetch('http://127.0.0.1:3001/print', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order, printerIp, printerWidth: printerWidth || 80 })
-        })
-        const data = await res.json()
-        if (!data.success) {
-          console.warn('Local print server error:', data.error)
-          printViaBrowser(order)
-        }
-      } catch (e) {
-        console.warn('Local print server not running, using browser:', e)
-        printViaBrowser(order)
-      }
-    } else {
-      printViaBrowser(order)
+  async function getTemplates() {
+    if (!restaurantId) return null
+    try {
+      const { data } = await supabase.from('ticket_templates').select('*').eq('restaurant_id', restaurantId).order('created_at')
+      return data && data.length > 0 ? data : null
+    } catch (e) {
+      return null
     }
+  }
+
+  async function doPrint(order: OrderForPrint) {
+    if (!printerIp) { printViaBrowser(order); return }
+    const templates = await getTemplates()
+    await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
   }
 
   const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string) => {
