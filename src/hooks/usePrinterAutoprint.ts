@@ -288,7 +288,7 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
 
   // Try local print server
   try {
-    const res = await fetch('http://127.0.0.1:3001/print-raw', {
+    const res = await fetch('http://127.0.0.1:8080/print', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hexData, printerIp, port: 9100 })
