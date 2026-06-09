@@ -249,7 +249,9 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
     try {
       let result
       if (hasNativePrint) {
-        result = await (window as any).nativePrint({ rawHex: hexData, ip: printerIp, port: 9100 }, printerIp, printerWidth)
+        alert('Calling nativePrint with ip: ' + printerIp + ' hexLen: ' + hexData.length)
+        result = await (window as any).nativePrint(hexData, printerIp, 9100)
+        alert('nativePrint result: ' + JSON.stringify(result))
       } else {
         const r = (window as any).AndroidPrint.print(JSON.stringify({ rawHex: hexData, ip: printerIp, port: 9100 }))
         result = JSON.parse(r)
@@ -257,6 +259,7 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
       if (result?.success === false) throw new Error(result.error)
       return
     } catch (e) {
+      alert('Native print error: ' + e)
       console.warn('Native print failed:', e)
     }
   }
