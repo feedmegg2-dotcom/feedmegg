@@ -505,25 +505,11 @@ export default function TerminalPage() {
         </div>
 
         {/* TEST PRINT BUTTON */}
-        <button onClick={() => manualReprint({
-          id: 'test',
-          orderNumber: 'TEST',
-          restaurantName: restaurant?.name || 'Restaurant',
-          customerName: 'Test Customer',
-          customerPhone: '07700 900000',
-          deliveryAddress: '12 Test Street, St Peter Port',
-          isCollection: false,
-          contactlessDelivery: false,
-          isPreOrder: false,
-          items: [
-            { name: 'Test Burger', quantity: 2, price: 5.00, subtotal: 10.00, special_instructions: 'No onions' },
-            { name: 'Test Fries', quantity: 1, price: 3.50, subtotal: 3.50 },
-          ],
-          specialInstructions: 'Test order',
-          subtotal: 13.50,
-          deliveryFee: 2.50,
-          total: 16.00,
-        })}
+        <button onClick={() => {
+          const hasAndroid = typeof (window as any).AndroidPrint !== 'undefined'
+          const hasNative = typeof (window as any).nativePrint !== 'undefined'
+          alert('AndroidPrint: ' + hasAndroid + '\nnativePrint: ' + hasNative + '\nCapacitor: ' + typeof (window as any).Capacitor)
+        }}
           style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', background: 'rgba(59,130,246,0.1)', border: '0.5px solid rgba(59,130,246,0.3)', borderRadius: '6px', cursor: 'pointer', fontSize: 'clamp(9px,1.4vw,11px)', fontWeight: 600, color: '#3b82f6', whiteSpace: 'nowrap', flexShrink: 0 }}>
           🖨️ Test
         </button>
