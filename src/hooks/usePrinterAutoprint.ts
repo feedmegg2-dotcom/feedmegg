@@ -242,43 +242,48 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
   const hexData = strToHex(allTickets)
 
   // Try native Android print
-  const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
-
-  if (hasAndroidPrint) {
+  // Try nativePrint - injected by MainActivity.onPageFinished
+  const hasNativePrint = typeof (window as any).nativePrint === 'function'
+  if (hasNativePrint && printerIp) {
     try {
-      const r = (window as any).AndroidPrint.print(JSON.stringify({ rawHex: hexData, ip: printerIp, port: 9100 }))
-      const result = JSON.parse(r)
-      if (result?.success === false) throw new Error(result.error)
-      return
-    } catch (e) {
-      console.warn('Native print failed:', e)
-    }
-  }
-
-  // Try nativePrint as fallback
-  const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
-  if (hasNativePrint) {
-    try {
-      const result = await (window as any).nativePrint(hexData, printerIp, 9100)
-      if (result?.success === false) throw new Error(result.error)
+      const result = await (window as any).nativePrint(order, printerIp, printerWidth || 80)
+      if (result && result.success === false) throw new Error(result.error)
       return
     } catch (e) {
       console.warn('nativePrint failed:', e)
     }
   }
 
-  // Try embedded local print server (runs inside the Android app)
-  try {
-    const res = await fetch('http://127.0.0.1:3001/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hexData, printerIp, port: 9100 })
-    })
-    const data = await res.json()
-    if (data.success) return
-    throw new Error(data.error)
-  } catch (e) {
-    console.warn('Local print server failed:', e)
+  const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
+
+  if (hasAndroidPrint) {
+    try {
+      const orderData = {
+        ip: printerIp,
+        port: 9100,
+        width: printerWidth || 80,
+        order: {
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          customerPhone: order.customerPhone,
+          deliveryAddress: order.deliveryAddress,
+          isCollection: order.isCollection,
+          items: order.items,
+          specialInstructions: order.specialInstructions,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          tip: order.tip,
+          total: order.total,
+          paymentMethod: order.paymentMethod,
+        }
+      }
+      const r = (window as any).AndroidPrint.print(JSON.stringify(orderData))
+      const result = JSON.parse(r)
+      if (result?.success === false) throw new Error(result.error)
+      return
+    } catch (e) {
+      console.warn('Native print failed:', e)
+    }
   }
 
   // Try local print server
