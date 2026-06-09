@@ -121,13 +121,20 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
   async function doPrint(order: OrderForPrint) {
-    // Check if running in Capacitor native app
-    const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNative
+    // Check if running in native Android app (AndroidPrint interface injected by MainActivity)
+    const hasAndroidPrint = typeof (window as any).AndroidPrint !== 'undefined'
+    const hasNativePrint = typeof (window as any).nativePrint !== 'undefined'
 
-    if (isNative && (window as any).nativePrint && printerIp) {
+    if ((hasAndroidPrint || hasNativePrint) && printerIp) {
       // Use native TCP printing
       try {
-        const result = await (window as any).nativePrint(order, printerIp, printerWidth || 80)
+        let result
+        if (hasNativePrint) {
+          result = await (window as any).nativePrint(order, printerIp, printerWidth || 80)
+        } else {
+          const r = (window as any).AndroidPrint.print(JSON.stringify({ order, ip: printerIp, port: 9100, width: printerWidth || 80 }))
+          result = JSON.parse(r)
+        }
         if (!result.success) {
           console.warn('Native print failed:', result.error)
           printViaBrowser(order)
