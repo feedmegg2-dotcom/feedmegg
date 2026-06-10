@@ -282,7 +282,7 @@ export default function AdminPage() {
         // Merge DB zones with all parishes so all 10 always show
         const merged = PARISHES.map(p => {
           const saved = data.find((z: any) => z.name === p || z.parish === p)
-          return saved ? { ...saved, parish: saved.name || saved.parish, enabled: true } : { parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId }
+          return saved ? { ...saved, parish: saved.name || saved.parish, enabled: saved.is_active !== false } : { parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId }
         })
         setDeliveryZones(merged)
       } else {
@@ -299,9 +299,10 @@ export default function AdminPage() {
     // Include ALL zones unless explicitly unticked
     const toInsert = deliveryZones.map(z => ({
       restaurant_id: zonesRestaurant.id,
-      name: z.parish,
+      name: z.parish || z.name,
       fee: parseFloat(z.fee) || 0,
       min_order: parseFloat(z.min_order) || 10,
+      is_active: z.enabled !== false,
     }))
     if (toInsert.length > 0) {
       const { error } = await supabase.from('delivery_zones').insert(toInsert)
