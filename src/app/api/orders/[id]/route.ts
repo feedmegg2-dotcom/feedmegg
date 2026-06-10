@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { generatePaymentLink } from '@/lib/sumup'
+import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
 import { sendOrderConfirmation } from '@/lib/email'
 
 // PATCH /api/orders/[id]/accept
@@ -73,13 +73,25 @@ export async function PATCH(
             customerEmail: order.customer_email,
             restaurantName: restaurant.name,
           })
-
           paymentLink = linkData.paymentUrl
           paymentLinkExpiresAt = linkData.expiresAt
           sumupCheckoutId = linkData.checkoutId
           console.log('SumUp link generated:', paymentLink)
-        } catch (error) {
+        } catch (error: any) {
           console.error('SumUp link generation failed:', error)
+          // If duplicate, fetch the existing checkout
+          if (error.message?.includes('DUPLICATED_CHECKOUT')) {
+            try {
+              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, restaurant.sumup_api_key)
+              if (existing) {
+                paymentLink = existing.paymentUrl
+                sumupCheckoutId = existing.checkoutId
+                console.log('Using existing SumUp checkout:', paymentLink)
+              }
+            } catch (e2) {
+              console.error('Failed to fetch existing checkout:', e2)
+            }
+          }
         }
       } else {
         console.error('SumUp credentials missing - apiKey:', !!restaurant?.sumup_api_key, 'merchantCode:', !!restaurant?.sumup_merchant_code)
@@ -149,4 +161,3 @@ export async function PATCH(
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 }
- 
