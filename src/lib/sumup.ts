@@ -35,6 +35,10 @@ export async function generatePaymentLink(params: {
       merchant_code: params.merchantCode,
       description: `Order ${params.orderNumber} from ${params.restaurantName}`,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
+      hosted_checkout: {
+        enabled: true,
+        redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
+      },
     }),
   })
 
@@ -47,7 +51,7 @@ export async function generatePaymentLink(params: {
 
   return {
     checkoutId: checkout.id,
-    paymentUrl: `https://pay.sumup.com/b2c/checkout/${checkout.id}`,
+    paymentUrl: checkout.hosted_checkout_url || `https://pay.sumup.com/b2c/checkout/${checkout.id}`,
     expiresAt: expiresAt.toISOString(),
   }
 }
