@@ -169,7 +169,8 @@ export default function TerminalPage() {
 
   function startPolling(restId: string) {
     if (!restId) return
-    pollOrders(restId)
+    // First poll - pre-populate paid orders so we don't re-alert them
+    pollOrders(restId, true)
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
     checkPrinterStatus()
     setInterval(() => checkPrinterStatus(), 30000)
@@ -266,7 +267,7 @@ export default function TerminalPage() {
     if (alertRef.current) { clearInterval(alertRef.current); alertRef.current = null }
   }
 
-  async function pollOrders(restId: string) {
+  async function pollOrders(restId: string, isFirstLoad = false) {
     const today = new Date().toISOString().split('T')[0]
     const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
     if (!data) return
@@ -301,7 +302,15 @@ export default function TerminalPage() {
     
     setOrders(data)
 
-    // Check SumUp status for any waiting_payment orders
+    // On first load, mark all existing paid/alerted orders so we don't re-trigger
+    if (isFirstLoad) {
+      data.filter(o => o.status === 'paid' || o.status === 'accepted' || o.status === 'waiting_payment').forEach(o => {
+        alertedOrderIds.current.add(o.id)
+        alertedOrderIds.current.add('paid_' + o.id)
+        printPendingRef.current.add(o.id)
+      })
+      return
+    }
     const waitingOrders = data.filter(o => o.status === 'waiting_payment' && o.id)
     for (const o of waitingOrders) {
       try {
