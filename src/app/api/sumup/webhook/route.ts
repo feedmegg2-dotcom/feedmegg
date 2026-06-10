@@ -7,10 +7,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { event_type, payload } = body
     if (event_type === 'CHECKOUT_STATUS_CHANGED' && payload.status === 'PAID') {
+      // checkout_reference is ORDER-{order_number}
+      const orderNumber = payload.checkout_reference?.replace(/^ORDER-/, '')
       const { data: order } = await supabase
         .from('orders')
         .select('*')
-        .eq('order_number', payload.checkout_reference)
+        .eq('order_number', orderNumber)
         .single()
       if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
       if (order.status === 'paid') return NextResponse.json({ success: true })
