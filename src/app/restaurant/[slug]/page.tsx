@@ -171,7 +171,10 @@ export default function RestaurantPage() {
 
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
-  const deliveryFee = restaurant?.delivery_fee || 2.50
+  const deliveryFee = zones.length > 0 
+    ? Math.min(...zones.map((z: any) => parseFloat(z.fee) || 0))
+    : parseFloat(restaurant?.delivery_fee) || 2.50
+  const deliveryFeeLabel = zones.length > 1 ? `from GBP${deliveryFee.toFixed(2)}` : `GBP${deliveryFee.toFixed(2)}`
 
   // Filter categories/items by search
   const filteredCategories = categories.map(cat => ({
@@ -479,10 +482,10 @@ export default function RestaurantPage() {
                     <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>
-                    <span>Delivery</span><span>GBP{deliveryFee.toFixed(2)}</span>
+                    <span>Delivery</span><span>{deliveryFeeLabel}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
-                    <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}</span>
+                    <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}+</span>
                   </div>
                   <button onClick={() => { if (!restaurant?.id) return; localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
                     style={{ width: '100%', padding: '14px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
