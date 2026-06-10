@@ -112,7 +112,7 @@ export default function MerchantDashboard() {
 
   async function fetchZones(restId: string) {
     setZonesLoading(true)
-    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
+    const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('name')
     // Always show all 10 parishes merged with saved data
     const merged = PARISHES.map(p => {
       const saved = (data || []).find((z: any) => z.name === p)
@@ -122,10 +122,10 @@ export default function MerchantDashboard() {
     const missing = merged.filter((z: any) => !z.id)
     if (missing.length > 0) {
       const { data: newZones } = await supabase.from('delivery_zones').insert(
-        missing.map((z: any) => ({ restaurant_id: restId, parish: z.name, name: z.name, fee: z.fee, min_order: z.min_order, is_active: z.is_active }))
+        missing.map((z: any) => ({ restaurant_id: restId, name: z.name, fee: z.fee, min_order: z.min_order, is_active: z.is_active }))
       ).select()
       const allZones = [...(data || []), ...(newZones || [])]
-      setZones(PARISHES.map(p => allZones.find((z: any) => z.name === p || z.name === p) || { name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId }))
+      setZones(PARISHES.map(p => allZones.find((z: any) => z.name === p) || { name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId }))
     } else {
       setZones(merged)
     }
