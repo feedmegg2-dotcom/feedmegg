@@ -115,17 +115,17 @@ export default function MerchantDashboard() {
     const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
     // Always show all 10 parishes merged with saved data
     const merged = PARISHES.map(p => {
-      const saved = (data || []).find((z: any) => z.parish === p || z.name === p)
-      return saved || { parish: p, name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId, id: null }
+      const saved = (data || []).find((z: any) => z.name === p || z.name === p)
+      return saved || { name: p, name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId, id: null }
     })
     // Insert any missing parishes
     const missing = merged.filter((z: any) => !z.id)
     if (missing.length > 0) {
       const { data: newZones } = await supabase.from('delivery_zones').insert(
-        missing.map((z: any) => ({ restaurant_id: restId, parish: z.parish, name: z.name, fee: z.fee, min_order: z.min_order, is_active: z.is_active }))
+        missing.map((z: any) => ({ restaurant_id: restId, parish: z.name, name: z.name, fee: z.fee, min_order: z.min_order, is_active: z.is_active }))
       ).select()
       const allZones = [...(data || []), ...(newZones || [])]
-      setZones(PARISHES.map(p => allZones.find((z: any) => z.parish === p || z.name === p) || { parish: p, name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId }))
+      setZones(PARISHES.map(p => allZones.find((z: any) => z.name === p || z.name === p) || { name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId }))
     } else {
       setZones(merged)
     }
@@ -137,13 +137,13 @@ export default function MerchantDashboard() {
       // Zone doesn't exist yet - create it first
       const { data } = await supabase.from('delivery_zones').insert({
         restaurant_id: zone.restaurant_id,
-        parish: zone.parish,
+        parish: zone.name,
         name: zone.name,
         fee: field === 'fee' ? value : zone.fee,
         min_order: field === 'min_order' ? value : zone.min_order,
         is_active: field === 'is_active' ? value : zone.is_active,
       }).select().single()
-      if (data) setZones(prev => prev.map(z => z.parish === zone.parish ? { ...z, ...data } : z))
+      if (data) setZones(prev => prev.map(z => z.name === zone.name ? { ...z, ...data } : z))
       return
     }
     await supabase.from('delivery_zones').update({ [field]: value }).eq('id', zoneId)
@@ -455,13 +455,15 @@ export default function MerchantDashboard() {
                   <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
                 </div>
                 {zones.map(zone => (
-                  <div key={zone.parish} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px' }}>{zone.parish}</span>
-                    <input type="number" step="0.01" value={zone.fee ?? ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0, zone)}
+                  <div key={zone.name} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px' }}>{zone.name}</span>
+                    <input type="number" step="0.01" defaultValue={zone.fee ?? ''} 
+                      onBlur={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="number" value={zone.min_order ?? ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0, zone)}
+                    <input type="number" defaultValue={zone.min_order ?? ''} 
+                      onBlur={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="checkbox" checked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked, zone)} style={{ width: '16px', height: '16px' }} />
+                    <input type="checkbox" defaultChecked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked, zone)} style={{ width: '16px', height: '16px' }} />
                   </div>
                 ))}
               </div>
