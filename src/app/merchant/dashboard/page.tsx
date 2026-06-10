@@ -115,8 +115,8 @@ export default function MerchantDashboard() {
     const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('parish')
     // Always show all 10 parishes merged with saved data
     const merged = PARISHES.map(p => {
-      const saved = (data || []).find((z: any) => z.name === p || z.name === p)
-      return saved || { name: p, name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId, id: null }
+      const saved = (data || []).find((z: any) => z.name === p)
+      return saved || { name: p, fee: 2.50, min_order: 10, is_active: true, restaurant_id: restId, id: null }
     })
     // Insert any missing parishes
     const missing = merged.filter((z: any) => !z.id)
