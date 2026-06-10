@@ -55,6 +55,13 @@ export async function PATCH(
     if (order.payment_method === 'card') {
       const restaurant = order.restaurants
 
+      console.log('SumUp debug - restaurant:', JSON.stringify({
+        id: restaurant?.id,
+        hasApiKey: !!restaurant?.sumup_api_key,
+        hasMerchantCode: !!restaurant?.sumup_merchant_code,
+        apiKeyStart: restaurant?.sumup_api_key?.substring(0, 10),
+      }))
+
       if (restaurant?.sumup_api_key && restaurant?.sumup_merchant_code) {
         try {
           const linkData = await generatePaymentLink({
@@ -70,10 +77,12 @@ export async function PATCH(
           paymentLink = linkData.paymentUrl
           paymentLinkExpiresAt = linkData.expiresAt
           sumupCheckoutId = linkData.checkoutId
+          console.log('SumUp link generated:', paymentLink)
         } catch (error) {
           console.error('SumUp link generation failed:', error)
-          // Continue without payment link — merchant can retry
         }
+      } else {
+        console.error('SumUp credentials missing - apiKey:', !!restaurant?.sumup_api_key, 'merchantCode:', !!restaurant?.sumup_merchant_code)
       }
     }
 
