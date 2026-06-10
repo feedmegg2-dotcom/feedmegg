@@ -134,14 +134,13 @@ export default function MerchantDashboard() {
 
   async function updateZone(zoneId: string | null, field: string, value: any, zone: any) {
     if (!zoneId) {
-      // Zone doesn't exist yet - create it first
       const { data } = await supabase.from('delivery_zones').insert({
         restaurant_id: zone.restaurant_id,
-        parish: zone.name,
         name: zone.name,
         fee: field === 'fee' ? value : zone.fee,
         min_order: field === 'min_order' ? value : zone.min_order,
-        is_active: field === 'is_active' ? value : zone.is_active,
+        is_active: field === 'is_active' ? value : (zone.is_active ?? true),
+        free_delivery_over: field === 'free_delivery_over' ? value : zone.free_delivery_over,
       }).select().single()
       if (data) setZones(prev => prev.map(z => z.name === zone.name ? { ...z, ...data } : z))
       return
@@ -454,21 +453,46 @@ export default function MerchantDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 36px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
                   <span>Parish</span><span>Fee</span><span>Min Order</span><span>Free over</span><span>On</span>
                 </div>
-                {zones.map(zone => (
+                {zones.map((zone, i) => (
                   <div key={zone.name} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px' }}>{zone.name}</span>
                     <input type="number" step="0.01" defaultValue={zone.fee ?? ''}
-                      onBlur={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0, zone)}
+                      onChange={e => setZones(prev => prev.map((z, j) => j === i ? { ...z, fee: e.target.value } : z))}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
                     <input type="number" defaultValue={zone.min_order ?? ''}
-                      onBlur={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0, zone)}
+                      onChange={e => setZones(prev => prev.map((z, j) => j === i ? { ...z, min_order: e.target.value } : z))}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
                     <input type="number" step="0.01" defaultValue={zone.free_delivery_over ?? ''} placeholder="—"
-                      onBlur={e => updateZone(zone.id, 'free_delivery_over', e.target.value ? parseFloat(e.target.value) : null, zone)}
+                      onChange={e => setZones(prev => prev.map((z, j) => j === i ? { ...z, free_delivery_over: e.target.value || null } : z))}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="checkbox" defaultChecked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked, zone)} style={{ width: '16px', height: '16px' }} />
+                    <input type="checkbox" defaultChecked={zone.is_active ?? true} onChange={e => setZones(prev => prev.map((z, j) => j === i ? { ...z, is_active: e.target.checked } : z))} style={{ width: '16px', height: '16px' }} />
                   </div>
                 ))}
+                <button onClick={async () => {
+                  for (const zone of zones) {
+                    if (!zone.id) {
+                      const { data } = await supabase.from('delivery_zones').insert({
+                        restaurant_id: zone.restaurant_id,
+                        name: zone.name,
+                        fee: parseFloat(zone.fee) || 0,
+                        min_order: parseFloat(zone.min_order) || 10,
+                        is_active: zone.is_active ?? true,
+                        free_delivery_over: zone.free_delivery_over ? parseFloat(zone.free_delivery_over) : null,
+                      }).select().single()
+                      if (data) setZones(prev => prev.map(z => z.name === zone.name ? { ...z, ...data } : z))
+                    } else {
+                      await supabase.from('delivery_zones').update({
+                        fee: parseFloat(zone.fee) || 0,
+                        min_order: parseFloat(zone.min_order) || 10,
+                        is_active: zone.is_active ?? true,
+                        free_delivery_over: zone.free_delivery_over ? parseFloat(zone.free_delivery_over) : null,
+                      }).eq('id', zone.id)
+                    }
+                  }
+                  alert('Delivery zones saved!')
+                }} style={{ marginTop: '8px', padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  Save Zones
+                </button>
               </div>
             )}
             <button onClick={() => setShowZones(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
