@@ -1,4 +1,4 @@
-'use client'
+use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -303,6 +303,7 @@ export default function AdminPage() {
       fee: parseFloat(z.fee) || 0,
       min_order: parseFloat(z.min_order) || 10,
       is_active: z.enabled !== false,
+      free_delivery_over: z.free_delivery_over ? parseFloat(z.free_delivery_over) : null,
     }))
     if (toUpsert.length > 0) {
       const { error } = await supabase.from('delivery_zones').upsert(toUpsert, { onConflict: 'id' })
@@ -666,18 +667,21 @@ export default function AdminPage() {
                     <button onClick={() => { setShowZones(false); setZonesRestaurant(null) }} style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '20px', cursor: 'pointer' }}>x</button>
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px' }}>Set delivery fee and minimum order per parish. Untick to disable delivery to that parish.</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', marginBottom: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 80px 40px', gap: '8px', marginBottom: '8px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Parish</div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Fee</div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Min Order</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Min</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>Free over</div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>On</div>
                   </div>
                   {deliveryZones.map((zone, i) => (
-                    <div key={zone.parish || zone.name || i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div key={zone.parish || zone.name || i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ fontSize: '13px' }}>{zone.parish || zone.name}</div>
                       <input type="number" step="0.50" min="0" value={zone.fee} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, fee: e.target.value } : z))}
                         style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
                       <input type="number" step="1" min="0" value={zone.min_order} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, min_order: e.target.value } : z))}
+                        style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
+                      <input type="number" step="0.50" min="0" placeholder="—" value={zone.free_delivery_over || ''} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, free_delivery_over: e.target.value } : z))}
                         style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
                       <input type="checkbox" checked={zone.enabled !== false} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, enabled: e.target.checked } : z))}
                         style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
