@@ -254,10 +254,8 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
     })
     const data = await res.json()
     if (data.success) return
-    alert('Print server error: ' + data.error)
-    return
   } catch (e) {
-    alert('Could not reach print server: ' + e)
+    console.warn('Local print server failed:', e)
   }
 
   // Fallback to browser
