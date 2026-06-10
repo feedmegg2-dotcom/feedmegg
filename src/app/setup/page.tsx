@@ -20,23 +20,35 @@ function CopyButton({ text, label }: { text: string, label: string }) {
 export default function SetupPage() {
   const [step, setStep] = useState(1)
 
-  const serverScript = `const http=require('http'),net=require('net'),PORT=3001,ESC='\\x1B',GS='\\x1D',INIT=ESC+'@',BON=ESC+'E\\x01',BOFF=ESC+'E\\x00',AL=ESC+'a\\x00',AC=ESC+'a\\x01',AR=ESC+'a\\x02',SN=GS+'!\\x00',SDH=GS+'!\\x01',SD=GS+'!\\x11',CUT=GS+'V\\x41\\x03',LF='\\n';function rep(c,n){return c.repeat(Math.max(0,n))}function lr(l,r,w=42){const s=w-l.length-r.length;return s<=0?l+' '+r:l+rep(' ',s)+r}function ticket(o,cols=42){let t=INIT;if(o.scheduled_for){t+=AC+SD+BON+'*** PRE-ORDER ***'+LF+SN+'For: '+new Date(o.scheduled_for).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+LF+BOFF}if(o.contactless_delivery){t+=AC+SD+BON+'CONTACTLESS'+LF+BOFF+SN}t+=AC+rep('-',cols)+LF+SD+BON+'ORDER #'+String(o.order_number||o.id).slice(-6).toUpperCase()+LF+BOFF+SN+AL+SDH+BON+o.customer_name+LF+BOFF+SN+(o.order_type==='collection'?'COLLECTION':'DELIVERY')+LF;if(o.customer_phone)t+=o.customer_phone+LF;if(o.order_type==='delivery'&&o.delivery_address)t+=o.delivery_address+LF;t+=rep('-',cols)+LF+BON+'ITEMS:'+LF+BOFF;for(const i of(o.order_items||[])){t+=SDH+BON+i.quantity+'x '+i.name+LF+BOFF+SN;if(i.special_instructions)t+='  -> '+i.special_instructions+LF}t+=rep('-',cols)+LF;if(o.notes){t+=BON+'** NOTES **'+LF+BOFF+o.notes+LF+rep('-',cols)+LF}if(o.delivery_fee>0){t+=AL+lr('Subtotal:','GBP'+parseFloat(o.subtotal).toFixed(2),cols)+LF+lr('Delivery:','GBP'+parseFloat(o.delivery_fee).toFixed(2),cols)+LF}if(o.tip>0)t+=lr('Tip:','GBP'+parseFloat(o.tip).toFixed(2),cols)+LF;t+=BON+SDH+lr('TOTAL:','GBP'+parseFloat(o.total).toFixed(2),cols)+LF+BOFF+SN+AC+(o.payment_method==='cash'?'CASH':'CARD')+LF+rep('-',cols)+LF+AR+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+LF+LF+LF+CUT;return t}function send(data,ip){return new Promise((res,rej)=>{const c=new net.Socket(),t=setTimeout(()=>{c.destroy();rej(new Error('Timeout'))},5000);c.connect(9100,ip,()=>{c.write(Buffer.from(data,'binary'),()=>{clearTimeout(t);c.destroy();res()})});c.on('error',e=>{clearTimeout(t);rej(e)})})}const srv=http.createServer((req,res)=>{res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS'){res.writeHead(200);res.end();return}if(req.method==='GET'&&req.url==='/status'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({status:'ok'}));return}if(req.method==='POST'&&req.url==='/print'){let b='';req.on('data',c=>b+=c);req.on('end',async()=>{try{const{order,printerIp,printerWidth}=JSON.parse(b);await send(ticket(order,printerWidth===58?32:42),printerIp);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({success:true}));console.log('Printed:',order.order_number||order.id)}catch(e){console.error(e.message);res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({success:false,error:e.message}))}});return}res.writeHead(404);res.end()});srv.listen(PORT,'0.0.0.0',()=>{console.log('feedme.gg Print Server running on port '+PORT)})`
-
   const steps = [
-    { num: 1, title: 'Install Firefox', commands: [], apk: { url: 'https://download.mozilla.org/?product=fennec-latest&os=android&lang=en-US', label: '⬇️ Download & Install Firefox', note: 'Firefox is needed to allow printing. After installing use Firefox (not Chrome) to access the terminal.' } },
-    { num: 2, title: 'Install Termux', commands: [], apk: { url: 'https://github.com/termux/termux-app/releases/download/v0.118.3/termux-app_v0.118.3+github-debug_arm64-v8a.apk', label: '⬇️ Download & Install Termux', note: 'After downloading tap the file to install. Allow "Install from unknown sources" if prompted.' } },
-    { num: 3, title: 'Install Termux:Boot', commands: [], apk: { url: '/termux-boot.apk', label: '⬇️ Download & Install Termux:Boot', note: 'This makes the print server start automatically when the tablet boots.' } },
-    { num: 4, title: 'Fix Termux repositories', commands: [
-      { label: 'Step 1 - Fix repo source:', text: 'echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > /data/data/com.termux/files/usr/etc/apt/sources.list' },
-      { label: 'Step 2 - Update packages:', text: 'pkg update -y && pkg upgrade -y' },
-    ]},
-    { num: 5, title: 'Install Node.js', commands: [{ label: 'Run in Termux:', text: 'pkg install nodejs -y' }] },
-    { num: 6, title: 'Download print server', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/printserver && curl -o ~/printserver/server.js https://feedme.gg/server.js' }] },
-    { num: 7, title: 'Auto-start on boot', commands: [{ label: 'Run in Termux:', text: 'mkdir -p ~/.termux/boot && echo "curl -o ~/printserver/server.js https://feedme.gg/server.js && node ~/printserver/server.js" > ~/.termux/boot/start-printserver.sh && chmod +x ~/.termux/boot/start-printserver.sh' }] },
-    { num: 8, title: 'Test print server', commands: [
-      { label: 'Start the server:', text: 'pkill node; curl -o ~/printserver/server.js https://feedme.gg/server.js && node ~/printserver/server.js' },
-      { label: 'Open in Firefox to test:', text: 'http://localhost:3001/status' },
-    ]},
+    {
+      num: 1,
+      title: 'Install feedme Terminal App',
+      commands: [],
+      apk: {
+        url: '/feedme-terminal.apk',
+        label: '⬇️ Download & Install feedme Terminal',
+        note: 'After downloading tap the file to install. Allow "Install from unknown sources" if prompted. This app includes the print server built in.'
+      }
+    },
+    {
+      num: 2,
+      title: 'Open the app & log in',
+      commands: [],
+      note: 'Open the feedme Terminal app. Log in with your merchant account. The app will load the terminal and start the print server automatically.'
+    },
+    {
+      num: 3,
+      title: 'Set up printer IP address',
+      commands: [],
+      note: 'Turn on your Xprinter. Hold the feed button while powering on to print the network config - note the IP address. Open the cog menu ⚙️ in the terminal, enter the IP address and tap Save Printer IP.'
+    },
+    {
+      num: 4,
+      title: 'Test printing',
+      commands: [],
+      note: 'Tap the 🖨️ Test button in the terminal header. Three tickets should print: kitchen, customer receipt and delivery label. If they print correctly you are all set!'
+    },
   ]
 
   return (
@@ -48,7 +60,7 @@ export default function SetupPage() {
             <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me.gg</span>
           </div>
           <h1 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '6px' }}>Tablet Setup</h1>
-          <p style={{ fontSize: '13px', color: '#64748b' }}>Set up the print server on this tablet</p>
+          <p style={{ fontSize: '13px', color: '#64748b' }}>Get your terminal up and running in minutes</p>
         </div>
 
         {/* PROGRESS */}
@@ -80,7 +92,12 @@ export default function SetupPage() {
                     <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>{s.apk.note}</div>
                   </div>
                 )}
-                {s.commands.map((cmd, i) => (
+                {(s as any).note && !s.apk && (
+                  <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.7, background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px' }}>
+                    {(s as any).note}
+                  </div>
+                )}
+                {s.commands.map((cmd: any, i: number) => (
                   <CopyButton key={i} text={cmd.text} label={cmd.label} />
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
