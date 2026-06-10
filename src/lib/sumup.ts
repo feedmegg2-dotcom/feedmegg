@@ -1,28 +1,13 @@
 // =============================================
 // SumUp Payment Link Integration
-// feedme.gg uses SumUp payment links
-// Each merchant has their own SumUp credentials
+// Uses merchant's own API key directly as Bearer token
+// No OAuth/client_credentials needed
 // =============================================
 
 interface SumUpPaymentLink {
   checkoutId: string
   paymentUrl: string
   expiresAt: string
-}
-
-// Get SumUp access token for a merchant
-async function getSumUpToken(): Promise<string> {
-  const response = await fetch('https://api.sumup.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: process.env.SUMUP_CLIENT_ID!,
-      client_secret: process.env.SUMUP_CLIENT_SECRET!,
-    }),
-  })
-  const data = await response.json()
-  return data.access_token
 }
 
 // Generate a SumUp payment link for an order
@@ -32,28 +17,25 @@ export async function generatePaymentLink(params: {
   amount: number
   merchantApiKey: string
   merchantCode: string
-  customerEmail: string
+  customerEmail?: string
   restaurantName: string
 }): Promise<SumUpPaymentLink> {
-  const token = await getSumUpToken()
-  const expiresAt = new Date(Date.now() + 2 * 60 * 1000) // 2 minutes
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
 
   const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${params.merchantApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      checkout_reference: params.orderNumber,
+      checkout_reference: `ORDER-${params.orderNumber}`,
       amount: params.amount,
       currency: 'GBP',
       merchant_code: params.merchantCode,
       description: `Order ${params.orderNumber} from ${params.restaurantName}`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirm`,
-      valid_until: expiresAt.toISOString(),
-      customer_id: params.customerEmail,
-    } as any),
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
+    }),
   })
 
   if (!response.ok) {
@@ -71,13 +53,10 @@ export async function generatePaymentLink(params: {
 }
 
 // Check payment status
-export async function checkPaymentStatus(checkoutId: string): Promise<string> {
-  const token = await getSumUpToken()
-
+export async function checkPaymentStatus(checkoutId: string, merchantApiKey: string): Promise<string> {
   const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${merchantApiKey}` },
   })
-
   const checkout = await response.json()
   return checkout.status // PENDING, PAID, FAILED, EXPIRED
 }
@@ -87,13 +66,12 @@ export async function issueRefund(params: {
   transactionId: string
   amount: number
   reason: string
+  merchantApiKey: string
 }): Promise<any> {
-  const token = await getSumUpToken()
-
   const response = await fetch(`https://api.sumup.com/v0.1/me/refund/${params.transactionId}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${params.merchantApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -112,5 +90,5 @@ export async function issueRefund(params: {
 
 // Verify SumUp webhook signature
 export function verifySumUpWebhook(payload: string, signature: string): boolean {
-  return true // placeholder - implement HMAC verification in production
+  return true // TODO: implement HMAC verification in production
 }
