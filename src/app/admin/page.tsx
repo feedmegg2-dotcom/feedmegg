@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { TicketEditor } from '@/components/TicketEditor'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
@@ -44,14 +43,6 @@ export default function AdminPage() {
   const [importing, setImporting] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
-  const [showSlotModal, setShowSlotModal] = useState<any>(null)
-  const [ticketEditorRestaurant, setTicketEditorRestaurant] = useState<any>(null)
-  const [slotDeliveryTime, setSlotDeliveryTime] = useState(45)
-  const [slotDeliveryDuration, setSlotDeliveryDuration] = useState(30)
-  const [slotDeliveryCapacity, setSlotDeliveryCapacity] = useState(4)
-  const [slotPickupTime, setSlotPickupTime] = useState(30)
-  const [slotPickupDuration, setSlotPickupDuration] = useState(30)
-  const [slotPickupCapacity, setSlotPickupCapacity] = useState(4)
 
   // Option groups - per item
   const [editingOptions, setEditingOptions] = useState<any>(null)
@@ -288,12 +279,17 @@ export default function AdminPage() {
     try {
       const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('name')
       if (data && data.length > 0) {
-        setDeliveryZones(data.map((z: any) => ({ ...z, enabled: true })))
+        // Merge DB zones with all parishes so all 10 always show
+        const merged = PARISHES.map(p => {
+          const saved = data.find((z: any) => z.name === p || z.parish === p)
+          return saved ? { ...saved, parish: saved.name || saved.parish, enabled: true } : { parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId }
+        })
+        setDeliveryZones(merged)
       } else {
-        setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
+        setDeliveryZones(PARISHES.map(p => ({ parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
       }
     } catch (e) {
-      setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
+      setDeliveryZones(PARISHES.map(p => ({ parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId })))
     }
   }
 
@@ -636,8 +632,6 @@ export default function AdminPage() {
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setHoursRestaurant(r); setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: r.id }))); setShowHours(true); fetchHours(r.id) }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#EAB308', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Hours</button>
-                    <button onClick={() => { setSlotDeliveryTime(r.delivery_time_mins || 45); setSlotDeliveryDuration(r.delivery_slot_duration || 30); setSlotDeliveryCapacity(r.delivery_slot_capacity || 4); setSlotPickupTime(r.pickup_time_mins || 30); setSlotPickupDuration(r.pickup_slot_duration || 30); setSlotPickupCapacity(r.pickup_slot_capacity || 4); setShowSlotModal(r) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>Slots</button>
-                    <button onClick={() => setTicketEditorRestaurant(r)} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>🎫 Tickets</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
 
                     <button onClick={() => deleteRestaurant(r.id, r.name)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
@@ -678,7 +672,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--sub)', textTransform: 'uppercase' }}>On</div>
                   </div>
                   {deliveryZones.map((zone, i) => (
-                    <div key={zone.parish} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div key={zone.parish || zone.name || i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 40px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ fontSize: '13px' }}>{zone.parish || zone.name}</div>
                       <input type="number" step="0.50" min="0" value={zone.fee} onChange={e => setDeliveryZones(zones => zones.map((z, j) => j === i ? { ...z, fee: e.target.value } : z))}
                         style={{ padding: '5px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '12px' }} />
@@ -788,7 +782,7 @@ export default function AdminPage() {
                   <div style={{ marginBottom: '10px' }}><label>Description</label><textarea className="input" rows={2} value={editRestaurant.description || ''} onChange={e => setEditRestaurant({...editRestaurant, description: e.target.value})} style={{ resize: 'none' }} /></div>
                   <div style={{ marginBottom: '14px' }}><label>Custom Thank You Message</label><input className="input" value={editRestaurant.custom_message || ''} onChange={e => setEditRestaurant({...editRestaurant, custom_message: e.target.value})} /></div>
                   <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                    {[['is_open','Open for orders'],['is_active','Visible on site'],['accepts_delivery','Accepts Delivery'],['accepts_pickup','Accepts Pickup'],['delivery_enabled','Delivery Open Now'],['pickup_enabled','Pickup Open Now'],['preorder_delivery_enabled','Pre-Order Delivery'],['preorder_pickup_enabled','Pre-Order Pickup']].map(([key, label]) => (
+                    {[['is_open','Open for orders'],['is_active','Visible on site'],['accepts_delivery','Delivery'],['accepts_pickup','Pickup']].map(([key, label]) => (
                       <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editRestaurant[key]} onChange={e => setEditRestaurant({...editRestaurant, [key]: e.target.checked})} />
                         {label}
@@ -1345,94 +1339,6 @@ export default function AdminPage() {
           </div>
         )}
       </div>
-
-      {/* SLOT SETTINGS MODAL */}
-      {showSlotModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowSlotModal(null) }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, textAlign: 'center', marginBottom: '20px', color: 'var(--text)' }}>
-              Time Slot Settings — {showSlotModal.name}
-            </h3>
-
-            {/* DELIVERY */}
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: 'var(--text)' }}>🚗 Delivery</div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
-                  <input type="number" value={slotDeliveryTime} onChange={e => setSlotDeliveryTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
-                    {[20,30,45,60,90].map(t => (
-                      <button key={t} onClick={() => setSlotDeliveryTime(t)} style={{ padding: '6px', background: slotDeliveryTime === t ? 'rgba(34,197,94,0.15)' : 'var(--card)', border: `1px solid ${slotDeliveryTime === t ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, color: slotDeliveryTime === t ? '#22c55e' : 'var(--sub)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                      {[15,20,30,45,60].map(d => (
-                        <button key={d} onClick={() => setSlotDeliveryDuration(d)} style={{ padding: '6px', background: slotDeliveryDuration === d ? 'rgba(34,197,94,0.15)' : 'var(--card)', border: `1px solid ${slotDeliveryDuration === d ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, color: slotDeliveryDuration === d ? '#22c55e' : 'var(--sub)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
-                    <input type="number" value={slotDeliveryCapacity} onChange={e => setSlotDeliveryCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* PICKUP */}
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: 'var(--text)' }}>🏪 Pickup</div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Estimated Time (mins)</label>
-                  <input type="number" value={slotPickupTime} onChange={e => setSlotPickupTime(parseInt(e.target.value))} min="10" max="120" style={{ width: '100%', padding: '8px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '6px' }}>
-                    {[10,15,20,30,45].map(t => (
-                      <button key={t} onClick={() => setSlotPickupTime(t)} style={{ padding: '6px', background: slotPickupTime === t ? 'rgba(34,197,94,0.15)' : 'var(--card)', border: `1px solid ${slotPickupTime === t ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, color: slotPickupTime === t ? '#22c55e' : 'var(--sub)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{t}m</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Slot Duration (mins)</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
-                      {[15,20,30,45,60].map(d => (
-                        <button key={d} onClick={() => setSlotPickupDuration(d)} style={{ padding: '6px', background: slotPickupDuration === d ? 'rgba(34,197,94,0.15)' : 'var(--card)', border: `1px solid ${slotPickupDuration === d ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, color: slotPickupDuration === d ? '#22c55e' : 'var(--sub)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>{d}m</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--sub)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Orders Per Slot</label>
-                    <input type="number" value={slotPickupCapacity} onChange={e => setSlotPickupCapacity(parseInt(e.target.value))} min="1" max="50" style={{ width: '100%', padding: '8px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowSlotModal(null)} style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--sub)', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>Cancel</button>
-              <button onClick={async () => {
-                await fetch('/api/admin/update-restaurant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurantId: showSlotModal.id, delivery_time_mins: slotDeliveryTime, delivery_slot_duration: slotDeliveryDuration, delivery_slot_capacity: slotDeliveryCapacity, pickup_time_mins: slotPickupTime, pickup_slot_duration: slotPickupDuration, pickup_slot_capacity: slotPickupCapacity }) })
-                fetchAll()
-                setShowSlotModal(null)
-              }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* TICKET EDITOR */}
-      {ticketEditorRestaurant && (
-        <TicketEditor
-          restaurantId={ticketEditorRestaurant.id}
-          restaurantName={ticketEditorRestaurant.name}
-          onClose={() => setTicketEditorRestaurant(null)}
-        />
-      )}
     </div>
   )
 }
