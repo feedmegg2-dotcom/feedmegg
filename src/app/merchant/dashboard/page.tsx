@@ -362,8 +362,6 @@ export default function MerchantDashboard() {
                   {PARISHES.map(p => <option key={p} value={p} style={{ background: '#0d1321' }}>{p}</option>)}
                 </select>
               </div>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Min Order GBP</label><input type="number" value={editingRestaurant.min_order} onChange={e => setEditingRestaurant({...editingRestaurant, min_order: e.target.value})} style={inputStyle} /></div>
-              <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Fee GBP</label><input type="number" step="0.01" value={editingRestaurant.delivery_fee} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_fee: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Delivery Mins</label><input type="number" value={editingRestaurant.delivery_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, delivery_time_mins: e.target.value})} style={inputStyle} /></div>
               <div><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Pickup Mins</label><input type="number" value={editingRestaurant.pickup_time_mins} onChange={e => setEditingRestaurant({...editingRestaurant, pickup_time_mins: e.target.value})} style={inputStyle} /></div>
 
