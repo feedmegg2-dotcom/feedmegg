@@ -234,7 +234,12 @@ export default function CheckoutPage() {
     const parish = form.addressMode === 'saved' ? (getSelectedAddress()?.parish || form.parish) : form.parish
     if (deliveryZones.length > 0) {
       const zone = deliveryZones.find((z: any) => z.parish === parish || z.name === parish)
-      if (zone) return parseFloat(zone.fee) || 0
+      if (zone) {
+        const fee = parseFloat(zone.fee) || 0
+        const freeOver = zone.free_delivery_over ? parseFloat(zone.free_delivery_over) : null
+        if (freeOver && cartTotal >= freeOver) return 0
+        return fee
+      }
     }
     return parseFloat(restaurant?.delivery_fee) || 2.50
   }
