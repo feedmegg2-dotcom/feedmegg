@@ -171,10 +171,13 @@ export default function RestaurantPage() {
 
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
-  const deliveryFee = zones.length > 0 
+  const minFee = zones.length > 0 
     ? Math.min(...zones.map((z: any) => parseFloat(z.fee) || 0))
     : parseFloat(restaurant?.delivery_fee) || 2.50
-  const deliveryFeeLabel = zones.length > 1 ? `from GBP${deliveryFee.toFixed(2)}` : `GBP${deliveryFee.toFixed(2)}`
+  const deliveryFee = minFee
+  const deliveryFeeLabel = zones.length > 1 
+    ? (minFee === 0 ? 'from FREE' : `from GBP${minFee.toFixed(2)}`)
+    : (minFee === 0 ? 'FREE' : `GBP${minFee.toFixed(2)}`)
 
   // Filter categories/items by search
   const filteredCategories = categories.map(cat => ({
