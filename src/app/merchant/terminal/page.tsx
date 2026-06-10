@@ -344,8 +344,7 @@ export default function TerminalPage() {
       alertedOrderIds.current.add(firstNew.id)
       setCurrentOrderId(firstNew.id)
       setScreen('neworder')
-      playAlertSound(paymentSound)
-      alertRef.current = setInterval(() => playAlertSound(paymentSound), 2000)
+      startAlertRepeat()
     } else if (newPending.length > 0) {
       const firstNew = newPending[0]
       alertedOrderIds.current.add(firstNew.id)
@@ -408,12 +407,8 @@ export default function TerminalPage() {
       }, 'paid')
       setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
     } else {
-      // Card order - show payment waiting screen with countdown
+      // Card order - show payment waiting screen
       setScreen('paying')
-      setCountdown(10)
-      countdownRef.current = setInterval(() => {
-        setCountdown(prev => { if (prev <= 1) { clearInterval(countdownRef.current); return 0 } return prev - 1 })
-      }, 1000)
     }
   }
 
@@ -1009,12 +1004,16 @@ export default function TerminalPage() {
         <div style={{ position: 'absolute', inset: 0, background: '#0a0f1e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', zIndex: 10 }}>
           <div style={{ fontSize: 'clamp(36px,7vw,56px)', marginBottom: '16px' }}>&#128179;</div>
           <div style={{ fontSize: 'clamp(18px,3.5vw,26px)', fontWeight: 700, color: '#f97316', marginBottom: '6px' }}>Waiting for Payment</div>
-          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '20px' }}>Payment link sent to {currentOrder?.customer_name}</div>
-          <div style={{ fontSize: 'clamp(44px,9vw,64px)', fontWeight: 700, color: '#f97316', marginBottom: '8px' }}>{countdown}</div>
-          <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#334155', marginBottom: '20px' }}>Testing: tap button below when payment is complete</div>
-          <button onClick={confirmPayment} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px) clamp(28px,6vw,48px)', borderRadius: '12px', fontSize: 'clamp(14px,2.5vw,18px)', fontWeight: 700, cursor: 'pointer' }}>
-            Confirm Payment
-          </button>
+          <div style={{ fontSize: 'clamp(11px,2vw,14px)', color: '#64748b', marginBottom: '8px' }}>Payment link sent to {currentOrder?.customer_name}</div>
+          <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#475569', marginBottom: '28px' }}>Tickets will print automatically when payment is received</div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => { setScreen('main'); setCurrentOrderId(null) }} style={{ background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,28px)', borderRadius: '12px', fontSize: 'clamp(12px,2vw,16px)', cursor: 'pointer' }}>
+              Back to Orders
+            </button>
+            <button onClick={confirmPayment} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,28px)', borderRadius: '12px', fontSize: 'clamp(12px,2vw,16px)', fontWeight: 700, cursor: 'pointer' }}>
+              Confirm Payment Manually
+            </button>
+          </div>
         </div>
       )}
 
