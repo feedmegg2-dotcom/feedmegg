@@ -1,113 +1,163 @@
-// =============================================
-// SumUp Payment Link Integration
-// Uses merchant's own API key directly as Bearer token
-// No OAuth/client_credentials needed
-// =============================================
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase'
+import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
+import { sendOrderConfirmation } from '@/lib/email'
 
-interface SumUpPaymentLink {
-  checkoutId: string
-  paymentUrl: string
-  expiresAt: string
-}
+// PATCH /api/orders/[id]/accept
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = createAdminClient()
+  const body = await request.json()
+  const { action, estimatedWaitMins, rejectionReason, removedItems } = body
+  const orderId = params.id
 
-// Generate a SumUp payment link for an order
-export async function generatePaymentLink(params: {
-  orderId: string
-  orderNumber: string
-  amount: number
-  merchantApiKey: string
-  merchantCode: string
-  customerEmail?: string
-  restaurantName: string
-}): Promise<SumUpPaymentLink> {
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+  // Get order with restaurant and merchant details
+  const { data: order } = await supabase
+    .from('orders')
+    .select('*, restaurants(*, merchants(*))')
+    .eq('id', orderId)
+    .single()
 
-  const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${params.merchantApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      checkout_reference: `ORDER-${params.orderNumber}`,
-      amount: params.amount,
-      currency: 'GBP',
-      merchant_code: params.merchantCode,
-      description: `Order ${params.orderNumber} from ${params.restaurantName}`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
-      hosted_checkout: {
-        enabled: true,
-        redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
-      },
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(`SumUp API error: ${JSON.stringify(error)}`)
+  if (!order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   }
 
-  const checkout = await response.json()
+  if (action === 'accept') {
+    // Remove any unchecked items and recalculate total
+    if (removedItems && removedItems.length > 0) {
+      await supabase
+        .from('order_items')
+        .delete()
+        .in('id', removedItems)
 
-  return {
-    checkoutId: checkout.id,
-    paymentUrl: checkout.hosted_checkout_url || `https://pay.sumup.com/b2c/checkout/${checkout.id}`,
-    expiresAt: expiresAt.toISOString(),
+      // Recalculate subtotal
+      const { data: remainingItems } = await supabase
+        .from('order_items')
+        .select('subtotal')
+        .eq('order_id', orderId)
+
+      const newSubtotal = remainingItems?.reduce((s, i) => s + i.subtotal, 0) || 0
+      const newTotal = newSubtotal + order.delivery_fee + order.tip - order.discount
+
+      await supabase
+        .from('orders')
+        .update({ subtotal: newSubtotal, total: newTotal })
+        .eq('id', orderId)
+    }
+
+    // Generate SumUp payment link (for card payments only)
+    let paymentLink = null
+    let paymentLinkExpiresAt = null
+    let sumupCheckoutId = null
+
+    if (order.payment_method === 'card') {
+      const restaurant = order.restaurants
+
+      console.log('SumUp debug - restaurant:', JSON.stringify({
+        id: restaurant?.id,
+        hasApiKey: !!restaurant?.sumup_api_key,
+        hasMerchantCode: !!restaurant?.sumup_merchant_code,
+        apiKeyStart: restaurant?.sumup_api_key?.substring(0, 10),
+      }))
+
+      if (restaurant?.sumup_api_key && restaurant?.sumup_merchant_code) {
+        try {
+          const linkData = await generatePaymentLink({
+            orderId: order.id,
+            orderNumber: order.order_number,
+            amount: order.total,
+            merchantApiKey: restaurant.sumup_api_key,
+            merchantCode: restaurant.sumup_merchant_code,
+            customerEmail: order.customer_email,
+            restaurantName: restaurant.name,
+          })
+          paymentLink = linkData.paymentUrl
+          paymentLinkExpiresAt = linkData.expiresAt
+          sumupCheckoutId = linkData.checkoutId
+          console.log('SumUp link generated:', paymentLink)
+        } catch (error: any) {
+          console.error('SumUp link generation failed:', error)
+          // If duplicate, fetch the existing checkout
+          if (error.message?.includes('DUPLICATED_CHECKOUT')) {
+            try {
+              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, restaurant.sumup_api_key)
+              if (existing) {
+                paymentLink = existing.paymentUrl
+                sumupCheckoutId = existing.checkoutId
+                console.log('Using existing SumUp checkout:', paymentLink)
+              }
+            } catch (e2) {
+              console.error('Failed to fetch existing checkout:', e2)
+            }
+          }
+        }
+      } else {
+        console.error('SumUp credentials missing - apiKey:', !!restaurant?.sumup_api_key, 'merchantCode:', !!restaurant?.sumup_merchant_code)
+      }
+    }
+
+    // Update order status to accepted (waiting for payment)
+    await supabase
+      .from('orders')
+      .update({
+        status: order.payment_method === 'card' ? 'waiting_payment' : 'paid',
+        estimated_wait_mins: estimatedWaitMins,
+        accepted_at: new Date().toISOString(),
+        sumup_link: paymentLink,
+        sumup_checkout_id: sumupCheckoutId,
+        payment_link_sent_at: paymentLink ? new Date().toISOString() : null,
+        payment_link_expires_at: paymentLinkExpiresAt,
+      })
+      .eq('id', orderId)
+
+    // For cash orders — mark as paid immediately and send confirmation
+    if (order.payment_method === 'cash') {
+      await supabase
+        .from('orders')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', orderId)
+    }
+
+    return NextResponse.json({
+      success: true,
+      paymentLink,
+      paymentLinkExpiresAt,
+      message: order.payment_method === 'card'
+        ? 'Order accepted. Payment link sent to customer.'
+        : 'Order accepted. Cash payment on delivery.',
+    })
+
+  } else if (action === 'reject') {
+    await supabase
+      .from('orders')
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectionReason,
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Order rejected. Customer has been notified.',
+    })
+
+  } else if (action === 'complete') {
+    await supabase
+      .from('orders')
+      .update({
+        status: 'complete',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+
+    // Update restaurant total orders count
+    await supabase.rpc('increment_restaurant_orders', { rest_id: order.restaurant_id })
+
+    return NextResponse.json({ success: true })
   }
-}
 
-// Fetch existing checkout by reference
-export async function fetchExistingCheckout(reference: string, merchantApiKey: string): Promise<{ checkoutId: string, paymentUrl: string } | null> {
-  const response = await fetch(`https://api.sumup.com/v0.1/checkouts?checkout_reference=${encodeURIComponent(reference)}`, {
-    headers: { 'Authorization': `Bearer ${merchantApiKey}` },
-  })
-  if (!response.ok) return null
-  const data = await response.json()
-  const checkout = Array.isArray(data) ? data[0] : data
-  if (!checkout?.id) return null
-  return {
-    checkoutId: checkout.id,
-    paymentUrl: checkout.hosted_checkout_url || `https://checkout.sumup.com/pay/c-${checkout.id}`,
-  }
-}
-
-// Check payment status
-export async function checkPaymentStatus(checkoutId: string, merchantApiKey: string): Promise<string> {
-  const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
-    headers: { 'Authorization': `Bearer ${merchantApiKey}` },
-  })
-  const checkout = await response.json()
-  return checkout.status // PENDING, PAID, FAILED, EXPIRED
-}
-
-// Issue a refund
-export async function issueRefund(params: {
-  transactionId: string
-  amount: number
-  reason: string
-  merchantApiKey: string
-}): Promise<any> {
-  const response = await fetch(`https://api.sumup.com/v0.1/me/refund/${params.transactionId}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${params.merchantApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      amount: params.amount,
-      reason: params.reason,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(`SumUp refund failed: ${JSON.stringify(error)}`)
-  }
-
-  return await response.json()
-}
-
-// Verify SumUp webhook signature
-export function verifySumUpWebhook(payload: string, signature: string): boolean {
-  return true // TODO: implement HMAC verification in production
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 }
