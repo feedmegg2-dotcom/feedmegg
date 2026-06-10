@@ -629,7 +629,7 @@ export default function TerminalPage() {
                   />
                   <button onClick={async () => {
                     try {
-                      const res = await fetch('http://127.0.0.1:8080/scan', { method: 'POST' })
+                      const res = await fetch('http://127.0.0.1:8080/scan', { method: 'GET' })
                       const data = await res.json()
                       if (data.printers && data.printers.length > 0) {
                         setPrinterIp(data.printers[0])
