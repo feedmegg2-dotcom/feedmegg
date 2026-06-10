@@ -56,6 +56,21 @@ export async function generatePaymentLink(params: {
   }
 }
 
+// Fetch existing checkout by reference
+export async function fetchExistingCheckout(reference: string, merchantApiKey: string): Promise<{ checkoutId: string, paymentUrl: string } | null> {
+  const response = await fetch(`https://api.sumup.com/v0.1/checkouts?checkout_reference=${encodeURIComponent(reference)}`, {
+    headers: { 'Authorization': `Bearer ${merchantApiKey}` },
+  })
+  if (!response.ok) return null
+  const data = await response.json()
+  const checkout = Array.isArray(data) ? data[0] : data
+  if (!checkout?.id) return null
+  return {
+    checkoutId: checkout.id,
+    paymentUrl: checkout.hosted_checkout_url || `https://checkout.sumup.com/pay/c-${checkout.id}`,
+  }
+}
+
 // Check payment status
 export async function checkPaymentStatus(checkoutId: string, merchantApiKey: string): Promise<string> {
   const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
