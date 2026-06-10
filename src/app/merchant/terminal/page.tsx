@@ -374,8 +374,11 @@ export default function TerminalPage() {
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
   const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.current.has(o.id))
 
+  const [accepting, setAccepting] = useState(false)
+
   async function acceptOrder() {
-    if (!currentOrder) return
+    if (!currentOrder || accepting) return
+    setAccepting(true)
     stopAlertRepeat()
     setAcceptOpen(false)
     alertedOrderIds.current.delete(currentOrder.id)
@@ -405,10 +408,11 @@ export default function TerminalPage() {
         tip: currentOrder.tip,
         total: currentOrder.total,
       }, 'paid')
-      setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
+      setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
     } else {
       // Card order - show payment waiting screen
       setScreen('paying')
+      setAccepting(false)
     }
   }
 
@@ -1160,8 +1164,8 @@ export default function TerminalPage() {
           </div>
           <div style={{ display: 'flex', gap: '7px' }}>
             <button onClick={() => setAcceptOpen(false)} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
-            <button onClick={acceptOrder} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer' }}>
-              {currentOrder?.payment_method === 'cash' ? 'Accept Order (Cash)' : 'Accept & Send Payment Link'}
+            <button onClick={acceptOrder} disabled={accepting} style={{ flex: 2, background: accepting ? '#64748b' : '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: accepting ? 'not-allowed' : 'pointer' }}>
+              {accepting ? 'Processing...' : currentOrder?.payment_method === 'cash' ? 'Accept Order (Cash)' : 'Accept & Send Payment Link'}
             </button>
           </div>
         </Modal>
