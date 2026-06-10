@@ -616,12 +616,41 @@ export default function TerminalPage() {
                     <div style={{ position: 'absolute', top: '2px', left: autoPrint ? '18px' : '2px', width: '16px', height: '16px', background: 'white', borderRadius: '50%', transition: 'left 0.2s' }} />
                   </div>
                 </div>
-                <div style={{ fontSize: '10px', color: '#475569' }}>{autoPrint ? 'Tickets print automatically' : 'Auto print disabled'}</div>
-                {printerIp ? (
-                  <div style={{ fontSize: '10px', color: '#22c55e', marginTop: '4px' }}>🖨️ {printerIp}</div>
-                ) : (
-                  <div style={{ fontSize: '10px', color: '#ef4444', marginTop: '4px' }}>No printer configured - set in dashboard</div>
-                )}
+                <div style={{ fontSize: '10px', color: '#475569', marginBottom: '8px' }}>{autoPrint ? 'Tickets print automatically' : 'Auto print disabled'}</div>
+                
+                {/* Printer IP + Scan */}
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>Printer IP</div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                  <input
+                    value={printerIp}
+                    onChange={e => setPrinterIp(e.target.value)}
+                    placeholder="e.g. 192.168.1.100"
+                    style={{ flex: 1, padding: '5px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '11px', outline: 'none' }}
+                  />
+                  <button onClick={async () => {
+                    try {
+                      const res = await fetch('http://127.0.0.1:8080/scan', { method: 'POST' })
+                      const data = await res.json()
+                      if (data.printers && data.printers.length > 0) {
+                        setPrinterIp(data.printers[0])
+                        if (restaurant) await supabase.from('restaurants').update({ printer_ip: data.printers[0] }).eq('id', restaurant.id)
+                        alert('Found printer at: ' + data.printers.join(', '))
+                      } else {
+                        alert('No printers found on network')
+                      }
+                    } catch (e) {
+                      alert('Scan failed - make sure app is running')
+                    }
+                  }} style={{ padding: '5px 8px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    🔍 Scan
+                  </button>
+                </div>
+                <button onClick={async () => {
+                  if (restaurant) await supabase.from('restaurants').update({ printer_ip: printerIp, printer_width: printerWidth }).eq('id', restaurant.id)
+                  alert('Printer settings saved!')
+                }} style={{ width: '100%', padding: '5px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, marginBottom: '4px' }}>
+                  Save Printer IP
+                </button>
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
