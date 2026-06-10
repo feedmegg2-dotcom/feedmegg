@@ -34,7 +34,7 @@ export async function generatePaymentLink(params: {
       currency: 'GBP',
       merchant_code: params.merchantCode,
       description: `Order ${params.orderNumber} from ${params.restaurantName}`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/sumup/webhook`,
       hosted_checkout: {
         enabled: true,
         redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${params.orderId}/confirmed`,
