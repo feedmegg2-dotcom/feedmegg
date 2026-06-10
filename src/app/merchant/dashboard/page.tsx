@@ -132,7 +132,20 @@ export default function MerchantDashboard() {
     setZonesLoading(false)
   }
 
-  async function updateZone(zoneId: string, field: string, value: any) {
+  async function updateZone(zoneId: string | null, field: string, value: any, zone: any) {
+    if (!zoneId) {
+      // Zone doesn't exist yet - create it first
+      const { data } = await supabase.from('delivery_zones').insert({
+        restaurant_id: zone.restaurant_id,
+        parish: zone.parish,
+        name: zone.name,
+        fee: field === 'fee' ? value : zone.fee,
+        min_order: field === 'min_order' ? value : zone.min_order,
+        is_active: field === 'is_active' ? value : zone.is_active,
+      }).select().single()
+      if (data) setZones(prev => prev.map(z => z.parish === zone.parish ? { ...z, ...data } : z))
+      return
+    }
     await supabase.from('delivery_zones').update({ [field]: value }).eq('id', zoneId)
     setZones(prev => prev.map(z => z.id === zoneId ? { ...z, [field]: value } : z))
   }
@@ -158,6 +171,7 @@ export default function MerchantDashboard() {
       printer_ip: editingRestaurant.printer_ip || null,
       printer_width: editingRestaurant.printer_width || 80,
     }).eq('id', editingRestaurant.id)
+
     setRestaurants(prev => prev.map(r => r.id === editingRestaurant.id ? { ...r, ...editingRestaurant } : r))
     setEditingRestaurant(null)
     setSavingSettings(false)
@@ -356,7 +370,7 @@ export default function MerchantDashboard() {
 
               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Custom Message to Customers</label><input value={editingRestaurant.custom_message || ''} onChange={e => setEditingRestaurant({...editingRestaurant, custom_message: e.target.value})} style={inputStyle} /></div>
 
-              {/* PRINTER SETTINGS */}
+
               <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', marginTop: '4px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>🖨️ Printer Settings</div>
                 <div>
@@ -441,13 +455,13 @@ export default function MerchantDashboard() {
                   <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
                 </div>
                 {zones.map(zone => (
-                  <div key={zone.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
+                  <div key={zone.parish} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px' }}>{zone.parish}</span>
-                    <input type="number" step="0.01" value={zone.fee ?? ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0)}
+                    <input type="number" step="0.01" value={zone.fee ?? ''} onChange={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="number" value={zone.min_order ?? ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0)}
+                    <input type="number" value={zone.min_order ?? ''} onChange={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="checkbox" checked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked)} style={{ width: '16px', height: '16px' }} />
+                    <input type="checkbox" checked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked, zone)} style={{ width: '16px', height: '16px' }} />
                   </div>
                 ))}
               </div>
