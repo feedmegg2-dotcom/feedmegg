@@ -451,17 +451,20 @@ export default function MerchantDashboard() {
               <div style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Loading zones...</div>
             ) : (
               <div style={{ display: 'grid', gap: '8px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
-                  <span>Parish</span><span>Fee GBP</span><span>Min Order</span><span>On</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 36px', gap: '8px', fontSize: '11px', color: '#64748b', padding: '0 4px' }}>
+                  <span>Parish</span><span>Fee</span><span>Min Order</span><span>Free over</span><span>On</span>
                 </div>
                 {zones.map(zone => (
-                  <div key={zone.name} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
+                  <div key={zone.name} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 36px', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px' }}>{zone.name}</span>
-                    <input type="number" step="0.01" defaultValue={zone.fee ?? ''} 
+                    <input type="number" step="0.01" defaultValue={zone.fee ?? ''}
                       onBlur={e => updateZone(zone.id, 'fee', parseFloat(e.target.value) || 0, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
-                    <input type="number" defaultValue={zone.min_order ?? ''} 
+                    <input type="number" defaultValue={zone.min_order ?? ''}
                       onBlur={e => updateZone(zone.id, 'min_order', parseFloat(e.target.value) || 0, zone)}
+                      style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
+                    <input type="number" step="0.01" defaultValue={zone.free_delivery_over ?? ''} placeholder="—"
+                      onBlur={e => updateZone(zone.id, 'free_delivery_over', e.target.value ? parseFloat(e.target.value) : null, zone)}
                       style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#f1f5f9', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' as any }} />
                     <input type="checkbox" defaultChecked={zone.is_active ?? true} onChange={e => updateZone(zone.id, 'is_active', e.target.checked, zone)} style={{ width: '16px', height: '16px' }} />
                   </div>
