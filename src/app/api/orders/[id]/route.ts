@@ -54,16 +54,15 @@ export async function PATCH(
 
     if (order.payment_method === 'card') {
       const restaurant = order.restaurants
-      const merchant = restaurant?.merchants
 
-      if (merchant?.sumup_api_key && merchant?.sumup_merchant_code) {
+      if (restaurant?.sumup_api_key && restaurant?.sumup_merchant_code) {
         try {
           const linkData = await generatePaymentLink({
             orderId: order.id,
             orderNumber: order.order_number,
             amount: order.total,
-            merchantApiKey: merchant.sumup_api_key,
-            merchantCode: merchant.sumup_merchant_code,
+            merchantApiKey: restaurant.sumup_api_key,
+            merchantCode: restaurant.sumup_merchant_code,
             customerEmail: order.customer_email,
             restaurantName: restaurant.name,
           })
