@@ -573,7 +573,7 @@ export default function TerminalPage() {
         <a href="/merchant/dashboard" style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(10px,1.6vw,12px)', cursor: 'pointer', flexShrink: 0, textDecoration: 'none', fontWeight: 600 }}>&#8962;</a>
 
         {cogOpen && (
-          <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(180px,25vw,240px)' }}>
+          <div style={{ position: 'absolute', top: '100%', right: '10px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '8px', zIndex: 50, width: 'clamp(260px,30vw,320px)', maxHeight: '80vh', overflowY: 'auto' }}>
             {[
               { icon: '&#9776;', label: 'Menu Items', sub: 'Enable / disable items', screen: 'items' },
               { icon: '&#128203;', label: 'End of Day', sub: 'Report & reset orders', screen: 'eod' },
