@@ -58,6 +58,8 @@ export default function TerminalPage() {
   const [showTimeSlotModal, setShowTimeSlotModal] = useState<'delivery' | 'pickup' | null>(null)
   const [deliveryTime, setDeliveryTime] = useState(45)
   const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
+  const printPendingRef = useRef<Set<string>>(new Set())
+  const [printPendingOrders, setPrintPendingOrders] = useState<any[]>([])
   const [printerIp, setPrinterIp] = useState('')
   const [printerWidth, setPrinterWidth] = useState(80)
   const [autoPrint, setAutoPrint] = useState(true)
@@ -298,6 +300,44 @@ export default function TerminalPage() {
     const newFromPreOrder = preOrdersDue.filter(o => !alertedOrderIds.current.has(o.id))
     
     setOrders(data)
+
+    // Detect orders that just became paid (card payment completed)
+    const justPaid = data.filter(o => 
+      o.status === 'paid' && 
+      o.payment_method === 'card' &&
+      !printPendingRef.current.has(o.id) &&
+      !alertedOrderIds.current.has('paid_' + o.id)
+    )
+
+    for (const o of justPaid) {
+      alertedOrderIds.current.add('paid_' + o.id)
+      playAlertSound(paymentSound)
+      const printOrder = {
+        id: o.id,
+        orderNumber: o.order_number,
+        restaurantName: restaurant?.name || 'Restaurant',
+        customerName: o.customer_name,
+        customerPhone: o.customer_phone,
+        deliveryAddress: o.delivery_address,
+        isCollection: o.order_type === 'collection' || o.order_type === 'pickup',
+        contactlessDelivery: o.contactless_delivery,
+        isPreOrder: !!o.scheduled_for,
+        items: o.order_items || [],
+        specialInstructions: o.special_instructions || o.notes,
+        subtotal: o.subtotal,
+        deliveryFee: o.delivery_fee,
+        tip: o.tip,
+        total: o.total,
+        paymentMethod: o.payment_method,
+      }
+      if (autoPrint) {
+        triggerAutoPrint(printOrder, 'paid')
+        printPendingRef.current.add(o.id)
+      } else {
+        // Show print button for merchant to tap
+        setPrintPendingOrders(prev => [...prev.filter(p => p.id !== o.id), printOrder])
+      }
+    }
     
     if (newFromPreOrder.length > 0) {
       const firstNew = newFromPreOrder[0]
@@ -608,6 +648,26 @@ export default function TerminalPage() {
           </div>
         )}
       </div>
+
+      {/* PRINT PENDING BANNER */}
+      {printPendingOrders.length > 0 && (
+        <div style={{ background: 'rgba(34,197,94,0.1)', borderBottom: '1px solid rgba(34,197,94,0.3)', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+          {printPendingOrders.map(o => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ fontSize: 'clamp(11px,1.8vw,13px)', color: '#22c55e', fontWeight: 600 }}>
+                ✅ Order #{String(o.orderNumber).slice(-6).toUpperCase()} paid - GBP{o.total?.toFixed(2)}
+              </div>
+              <button onClick={() => {
+                manualReprint(o)
+                setPrintPendingOrders(prev => prev.filter(p => p.id !== o.id))
+                printPendingRef.current.add(o.id)
+              }} style={{ padding: '6px 14px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '6px', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                🖨️ Print Tickets
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* TABS */}
       <div style={{ display: 'flex', background: colors.surface, borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
