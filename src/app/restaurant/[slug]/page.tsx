@@ -178,6 +178,10 @@ export default function RestaurantPage() {
   const deliveryFeeLabel = zones.length > 1 
     ? (minFee === 0 ? 'from FREE' : `from GBP${minFee.toFixed(2)}`)
     : (minFee === 0 ? 'FREE' : `GBP${minFee.toFixed(2)}`)
+  const freeDeliveryOver = zones.length > 0 
+    ? Math.min(...zones.filter((z: any) => z.free_delivery_over).map((z: any) => parseFloat(z.free_delivery_over)))
+    : null
+  const hasFreeDeliveryThreshold = freeDeliveryOver && isFinite(freeDeliveryOver)
 
   // Filter categories/items by search
   const filteredCategories = categories.map(cat => ({
@@ -484,9 +488,14 @@ export default function RestaurantPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>
                     <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: hasFreeDeliveryThreshold ? '4px' : '12px' }}>
                     <span>Delivery</span><span>{deliveryFeeLabel}</span>
                   </div>
+                  {hasFreeDeliveryThreshold && (
+                    <div style={{ fontSize: '11px', color: '#22c55e', marginBottom: '12px', textAlign: 'right' }}>
+                      🎉 Free delivery over GBP{freeDeliveryOver!.toFixed(2)}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
                     <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}+</span>
                   </div>
