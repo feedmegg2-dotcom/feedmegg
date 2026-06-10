@@ -1072,7 +1072,7 @@ export default function TerminalPage() {
 
       {screen === 'eod' && (
         <FullScreen title="End of Day Report" onBack={() => setScreen('main')}>
-          <EODReport orders={orders} onClear={async () => { 
+          <EODReport orders={orders} printerIp={printerIp} onClear={async () => { 
             const completedStatuses = ['paid', 'cancelled', 'accepted', 'waiting_payment', 'complete', 'rejected']
             const ordersToArchive = orders.filter(o => completedStatuses.includes(o.status))
             
@@ -1312,7 +1312,7 @@ function PrintRow({ label, delay }: { label: string; delay: number }) {
   )
 }
 
-function EODReport({ orders, onClear }: { orders: any[]; onClear: () => void }) {
+function EODReport({ orders, printerIp, onClear }: { orders: any[]; printerIp: string; onClear: () => void }) {
   const paid = orders.filter(o => o.status === 'paid')
   const cancelled = orders.filter(o => o.status === 'cancelled')
   const card = paid.filter(o => o.payment_method === 'card').reduce((s, o) => s + (o.total || 0), 0)
@@ -1326,7 +1326,33 @@ function EODReport({ orders, onClear }: { orders: any[]; onClear: () => void }) 
           </div>
         ))}
       </div>
-      <button onClick={() => alert('Print coming soon')} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>Print Report</button>
+      <button onClick={() => {
+        const ESC = '\x1B', GS = '\x1D'
+        const INIT = ESC+'@', BOLD_ON = ESC+'E\x01', BOLD_OFF = ESC+'E\x00'
+        const ALIGN_CENTER = ESC+'a\x01', ALIGN_LEFT = ESC+'a\x00'
+        const SIZE_DOUBLE = GS+'!\x11', SIZE_NORMAL = GS+'!\x00'
+        const CUT = GS+'V\x41\x03', LF = '\n'
+        const cols = 42
+        const divider = '-'.repeat(cols)
+        let t = INIT
+        t += ALIGN_CENTER + SIZE_DOUBLE + BOLD_ON + 'END OF DAY' + BOLD_OFF + SIZE_NORMAL + LF
+        t += new Date().toLocaleString('en-GB') + LF
+        t += ALIGN_LEFT + divider + LF
+        t += `Total orders: ${paid.length + cancelled.length}` + LF
+        t += `Card sales: GBP${card.toFixed(2)}` + LF
+        t += `Cash sales: GBP${cash.toFixed(2)}` + LF
+        t += `Cancelled: ${cancelled.length}` + LF
+        t += divider + LF
+        t += BOLD_ON + SIZE_DOUBLE + `TOTAL: GBP${(card+cash).toFixed(2)}` + BOLD_OFF + SIZE_NORMAL + LF
+        t += divider + LF + LF + LF + CUT
+        let hex = ''
+        for (let i = 0; i < t.length; i++) hex += ('0'+t.charCodeAt(i).toString(16)).slice(-2)
+        fetch('http://127.0.0.1:8080/print', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hexData: hex, printerIp: printerIp, port: 9100 })
+        }).catch(() => alert('Could not print - check printer is connected'))
+      }} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(10px,2vw,14px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>Print Report</button>
       <button onClick={() => { if (confirm('Clear accepted orders? All records saved in history.')) onClear() }} style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316', padding: 'clamp(8px,1.5vw,12px) clamp(20px,4vw,30px)', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', cursor: 'pointer' }}>
         Perform End of Day & Clear Orders
       </button>
