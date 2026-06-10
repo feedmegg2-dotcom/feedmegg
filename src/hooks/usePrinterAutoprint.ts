@@ -47,6 +47,10 @@ function alignCmd(align: string) {
   return ALIGN_LEFT
 }
 
+function decodeHtml(str: string): string {
+  return (str || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+}
+
 function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): string {
   let t = ''
   const bold = el.bold ? BOLD_ON : ''
@@ -62,10 +66,10 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
       t += boldOff + SIZE_NORMAL
       break
     case 'customer_name':
-      t += align + size + bold + order.customerName + boldOff + SIZE_NORMAL + LF
+      t += align + size + bold + decodeHtml(order.customerName) + boldOff + SIZE_NORMAL + LF
       break
     case 'restaurant_name':
-      t += align + size + bold + order.restaurantName + boldOff + SIZE_NORMAL + LF
+      t += align + size + bold + decodeHtml(order.restaurantName || 'Restaurant') + boldOff + SIZE_NORMAL + LF
       break
     case 'phone':
       if (order.customerPhone) t += align + size + bold + order.customerPhone + boldOff + SIZE_NORMAL + LF
