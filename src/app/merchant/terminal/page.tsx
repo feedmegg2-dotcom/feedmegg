@@ -301,7 +301,17 @@ export default function TerminalPage() {
     
     setOrders(data)
 
-    // Detect orders that just became paid (card payment completed)
+    // Check SumUp status for any waiting_payment orders
+    const waitingOrders = data.filter(o => o.status === 'waiting_payment' && o.id)
+    for (const o of waitingOrders) {
+      try {
+        const res = await fetch(`/api/sumup/webhook?orderId=${o.id}`)
+        const result = await res.json()
+        if (result.status === 'paid') {
+          // Status updated - will be picked up in next poll
+        }
+      } catch (e) {}
+    }
     const justPaid = data.filter(o => 
       o.status === 'paid' && 
       o.payment_method === 'card' &&
@@ -379,39 +389,43 @@ export default function TerminalPage() {
   async function acceptOrder() {
     if (!currentOrder || accepting) return
     setAccepting(true)
-    stopAlertRepeat()
-    setAcceptOpen(false)
-    alertedOrderIds.current.delete(currentOrder.id)
-    
-    const isCash = currentOrder.payment_method === 'cash'
-    
-    await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
-    
-    if (isCash) {
-      setScreen('paid')
-      playAlertSound(paymentSound)
-      if (autoPrint) triggerAutoPrint({
-        id: currentOrder.id,
-        orderNumber: currentOrder.order_number,
-        restaurantName: restaurant?.name || 'Restaurant',
-        customerName: currentOrder.customer_name,
-        customerPhone: currentOrder.customer_phone,
-        deliveryAddress: currentOrder.delivery_address,
-        isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
-        contactlessDelivery: currentOrder.contactless_delivery,
-        isPreOrder: !!currentOrder.scheduled_for,
-        preOrderTime: currentOrder.scheduled_for ? new Date(currentOrder.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : undefined,
-        items: currentOrder.order_items || [],
-        specialInstructions: currentOrder.special_instructions || currentOrder.notes,
-        subtotal: currentOrder.subtotal,
-        deliveryFee: currentOrder.delivery_fee,
-        tip: currentOrder.tip,
-        total: currentOrder.total,
-      }, 'paid')
-      setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
-    } else {
-      // Card order - show payment waiting screen
-      setScreen('paying')
+    try {
+      stopAlertRepeat()
+      setAcceptOpen(false)
+      alertedOrderIds.current.delete(currentOrder.id)
+      
+      const isCash = currentOrder.payment_method === 'cash'
+      
+      await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accept', estimatedWaitMins: selectedWait }) })
+      
+      if (isCash) {
+        setScreen('paid')
+        playAlertSound(paymentSound)
+        if (autoPrint) triggerAutoPrint({
+          id: currentOrder.id,
+          orderNumber: currentOrder.order_number,
+          restaurantName: restaurant?.name || 'Restaurant',
+          customerName: currentOrder.customer_name,
+          customerPhone: currentOrder.customer_phone,
+          deliveryAddress: currentOrder.delivery_address,
+          isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
+          contactlessDelivery: currentOrder.contactless_delivery,
+          isPreOrder: !!currentOrder.scheduled_for,
+          preOrderTime: currentOrder.scheduled_for ? new Date(currentOrder.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : undefined,
+          items: currentOrder.order_items || [],
+          specialInstructions: currentOrder.special_instructions || currentOrder.notes,
+          subtotal: currentOrder.subtotal,
+          deliveryFee: currentOrder.delivery_fee,
+          tip: currentOrder.tip,
+          total: currentOrder.total,
+        }, 'paid')
+        setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
+      } else {
+        setScreen('paying')
+        setAccepting(false)
+      }
+    } catch (e) {
+      console.error('Accept order failed:', e)
       setAccepting(false)
     }
   }
