@@ -5,25 +5,40 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
   try {
     const body = await request.json()
+    console.log('SumUp webhook received:', JSON.stringify(body))
+    
     const { event_type, payload } = body
-    if (event_type === 'CHECKOUT_STATUS_CHANGED' && payload.status === 'PAID') {
-      // checkout_reference is ORDER-{order_number}
-      const orderNumber = payload.checkout_reference?.replace(/^ORDER-/, '')
-      const { data: order } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('order_number', orderNumber)
-        .single()
-      if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-      if (order.status === 'paid') return NextResponse.json({ success: true })
-      await supabase.from('orders').update({
-        status: 'paid',
-        paid_at: new Date().toISOString(),
-        sumup_payment_id: payload.transaction_id,
-      }).eq('id', order.id)
+    
+    // Handle checkout status change
+    if (event_type === 'CHECKOUT_STATUS_CHANGED' || body.status === 'PAID') {
+      const reference = payload?.checkout_reference || body.checkout_reference
+      const checkoutId = payload?.id || body.id
+      
+      // Find order by checkout ID or reference
+      let order = null
+      if (checkoutId) {
+        const { data } = await supabase.from('orders').select('*').eq('sumup_checkout_id', checkoutId).single()
+        order = data
+      }
+      if (!order && reference) {
+        const orderNumber = reference.replace(/^ORDER-/, '')
+        const { data } = await supabase.from('orders').select('*').eq('order_number', orderNumber).single()
+        order = data
+      }
+      
+      if (order && order.status !== 'paid') {
+        await supabase.from('orders').update({
+          status: 'paid',
+          paid_at: new Date().toISOString(),
+          sumup_payment_id: payload?.transaction_id || body.transaction_id,
+        }).eq('id', order.id)
+        console.log('Order marked as paid:', order.id)
+      }
     }
+    
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    console.error('Webhook error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
