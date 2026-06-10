@@ -92,4 +92,3 @@ export async function issueRefund(params: {
 export function verifySumUpWebhook(payload: string, signature: string): boolean {
   return true // TODO: implement HMAC verification in production
 }
- 
