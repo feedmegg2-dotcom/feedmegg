@@ -313,13 +313,18 @@ export default function TerminalPage() {
     }
     const waitingOrders = data.filter(o => o.status === 'waiting_payment' && o.id)
     for (const o of waitingOrders) {
-      try {
-        const res = await fetch(`/api/sumup/webhook?orderId=${o.id}`)
-        const result = await res.json()
-        if (result.status === 'paid') {
-          // Status updated - will be picked up in next poll
-        }
-      } catch (e) {}
+      const checkKey = 'sumup_check_' + o.id
+      if (!alertedOrderIds.current.has(checkKey)) {
+        alertedOrderIds.current.add(checkKey)
+        setTimeout(() => alertedOrderIds.current.delete(checkKey), 15000)
+        try {
+          const res = await fetch(`/api/sumup/webhook?orderId=${o.id}`)
+          const result = await res.json()
+          if (result.status === 'paid') {
+            // Will be picked up in next poll
+          }
+        } catch (e) {}
+      }
     }
     const justPaid = data.filter(o => 
       o.status === 'paid' && 
@@ -430,6 +435,7 @@ export default function TerminalPage() {
         }, 'paid')
         setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
       } else {
+        stopAlertRepeat()
         setScreen('paying')
         setAccepting(false)
       }
