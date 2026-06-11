@@ -358,9 +358,16 @@ export default function TerminalPage() {
         triggerAutoPrint(printOrder, 'paid')
         printPendingRef.current.add(o.id)
       } else {
-        // Show print button for merchant to tap
         setPrintPendingOrders(prev => [...prev.filter(p => p.id !== o.id), printOrder])
       }
+      // If this is the current order on paying screen, move to paid screen
+      setScreen(prev => {
+        if (prev === 'paying' && o.id === currentOrderId) {
+          setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
+          return 'paid'
+        }
+        return prev
+      })
     }
     
     if (newFromPreOrder.length > 0) {
