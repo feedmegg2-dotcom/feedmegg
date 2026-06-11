@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
 interface OrderForPrint {
@@ -250,21 +250,32 @@ async function sendToPrinter(order: OrderForPrint, printerIp: string, printerWid
     const res = await fetch('http://127.0.0.1:8080/print', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hexData, printerIp, port: 9100 })
+      body: JSON.stringify({ hexData, printerIp, port: 9100 }),
+      signal: AbortSignal.timeout(5000)
     })
     const data = await res.json()
-    if (data.success) return
+    if (data.success) return true
   } catch (e) {
     console.warn('Local print server failed:', e)
   }
 
-  // Fallback to browser
-  printViaBrowser(order)
+  return false // Print failed - caller decides what to do
+}
+
+async function sendToPrinterWithFallback(order: OrderForPrint, printerIp: string, printerWidth: number, templates?: any[]) {
+  const success = await sendToPrinter(order, printerIp, printerWidth, templates)
+  if (!success) printViaBrowser(order)
 }
 
 export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, printerWidth?: number) {
   const supabase = createClient()
   const printedOrdersRef = useRef<Set<string>>(new Set())
+  const printerIpRef = useRef(printerIp)
+  const printerWidthRef = useRef(printerWidth)
+  
+  // Keep refs in sync
+  useEffect(() => { printerIpRef.current = printerIp }, [printerIp])
+  useEffect(() => { printerWidthRef.current = printerWidth }, [printerWidth])
 
   async function getTemplates() {
     if (!restaurantId) return null
@@ -276,21 +287,34 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
     }
   }
 
-  async function doPrint(order: OrderForPrint) {
-    if (!printerIp) { printViaBrowser(order); return }
+  async function doPrint(order: OrderForPrint, allowFallback = true) {
+    if (!printerIp) { 
+      if (allowFallback) printViaBrowser(order)
+      return 
+    }
     const templates = await getTemplates()
-    await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
+    if (allowFallback) {
+      await sendToPrinterWithFallback(order, printerIp, printerWidth || 80, templates || undefined)
+    } else {
+      await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
+    }
   }
 
-  const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string) => {
-    if (!['paid', 'accepted'].includes(status)) return
-    if (printedOrdersRef.current.has(order.id)) return
+  const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string): Promise<boolean> => {
+    if (!['paid', 'accepted'].includes(status)) return false
+    if (printedOrdersRef.current.has(order.id)) return true
+    const ip = printerIpRef.current
+    const width = printerWidthRef.current
+    if (!ip) return false
     printedOrdersRef.current.add(order.id)
-    await doPrint(order)
-  }, [printerIp, printerWidth, restaurantId])
+    const templates = await getTemplates()
+    const result = await sendToPrinter(order, ip, width || 80, templates || undefined)
+    if (!result) printedOrdersRef.current.delete(order.id)
+    return !!result
+  }, [restaurantId])
 
   const manualReprint = useCallback(async (order: OrderForPrint) => {
-    await doPrint(order)
+    await doPrint(order, true) // Allow browser fallback for manual reprint
   }, [printerIp, printerWidth, restaurantId])
 
   const clearPrintHistory = useCallback(() => {
