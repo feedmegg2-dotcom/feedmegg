@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 
 interface OrderForPrint {
@@ -270,12 +270,6 @@ async function sendToPrinterWithFallback(order: OrderForPrint, printerIp: string
 export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, printerWidth?: number) {
   const supabase = createClient()
   const printedOrdersRef = useRef<Set<string>>(new Set())
-  const printerIpRef = useRef(printerIp)
-  const printerWidthRef = useRef(printerWidth)
-  
-  // Keep refs in sync
-  useEffect(() => { printerIpRef.current = printerIp }, [printerIp])
-  useEffect(() => { printerWidthRef.current = printerWidth }, [printerWidth])
 
   async function getTemplates() {
     if (!restaurantId) return null
@@ -303,16 +297,13 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const triggerAutoPrint = useCallback(async (order: OrderForPrint, status: string): Promise<boolean> => {
     if (!['paid', 'accepted'].includes(status)) return false
     if (printedOrdersRef.current.has(order.id)) return true
-    const ip = printerIpRef.current
-    const width = printerWidthRef.current
-    console.log('triggerAutoPrint - ip:', ip, 'order:', order.orderNumber)
-    if (!ip) return false
+    if (!printerIp) return false
     printedOrdersRef.current.add(order.id)
     const templates = await getTemplates()
-    const result = await sendToPrinter(order, ip, width || 80, templates || undefined)
+    const result = await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
     if (!result) printedOrdersRef.current.delete(order.id)
     return !!result
-  }, [restaurantId])
+  }, [printerIp, printerWidth, restaurantId])
 
   const manualReprint = useCallback(async (order: OrderForPrint) => {
     await doPrint(order, true) // Allow browser fallback for manual reprint
