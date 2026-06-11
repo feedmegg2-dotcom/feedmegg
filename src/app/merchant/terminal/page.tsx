@@ -78,6 +78,8 @@ export default function TerminalPage() {
 
   // Printer hook
   const { triggerAutoPrint, manualReprint } = usePrinterAutoprint(restaurant?.id, printerIp, printerWidth)
+  const triggerAutoPrintRef = useRef(triggerAutoPrint)
+  useEffect(() => { triggerAutoPrintRef.current = triggerAutoPrint }, [triggerAutoPrint])
 
   useEffect(() => {
     checkAuth()
@@ -334,20 +336,15 @@ export default function TerminalPage() {
       !alertedOrderIds.current.has('paid_' + o.id)
     )
 
-    // Detect failed/cancelled payments while on paying screen
+    // Detect failed/cancelled card payments
     const justFailed = data.filter(o =>
-      (o.status === 'cancelled' || o.status === 'rejected') &&
+      o.status === 'cancelled' &&
+      o.payment_method === 'card' &&
       !alertedOrderIds.current.has('failed_' + o.id)
     )
     for (const o of justFailed) {
       alertedOrderIds.current.add('failed_' + o.id)
-      setScreen(prev => {
-        if (prev === 'paying') {
-          setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 2000)
-          return 'main'
-        }
-        return prev
-      })
+      playAlertSound('buzz')
     }
 
     for (const o of justPaid) {
@@ -372,7 +369,7 @@ export default function TerminalPage() {
         paymentMethod: o.payment_method,
       }
       if (autoPrint) {
-        triggerAutoPrint(printOrder, 'paid')
+        triggerAutoPrintRef.current(printOrder, 'paid')
         printPendingRef.current.add(o.id)
       } else {
         setPrintPendingOrders(prev => [...prev.filter(p => p.id !== o.id), printOrder])
