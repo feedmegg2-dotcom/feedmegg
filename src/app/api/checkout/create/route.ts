@@ -40,13 +40,18 @@ export async function POST(request: NextRequest) {
     // Get delivery fee
     let deliveryFee = 0
     if (orderType === 'delivery') {
-      const { data: zone } = await supabase
+      const { data: zones } = await supabase
         .from('delivery_zones')
-        .select('fee')
+        .select('fee, free_delivery_over')
         .eq('restaurant_id', restaurantId)
-        .eq('parish', parish)
-        .maybeSingle()
-      deliveryFee = zone ? parseFloat(zone.fee) : parseFloat(restaurant.delivery_fee) || 2.50
+        .eq('is_active', true)
+      const zone = zones?.find((z: any) => z.name === parish || z.parish === parish)
+      if (zone) {
+        deliveryFee = parseFloat(zone.fee) || 0
+        if (zone.free_delivery_over && subtotal >= parseFloat(zone.free_delivery_over)) {
+          deliveryFee = 0
+        }
+      }
     }
 
     const total = subtotal + deliveryFee
