@@ -314,7 +314,11 @@ export default function CheckoutPage() {
     // Don't clear cart yet - keep it in case order is rejected/times out
     // Cart will be cleared when order is confirmed
     // localStorage.removeItem('feedme-cart')
-    router.push(`/order/${data.orderId}/waiting`)
+    if (data.paymentMethod === 'cash') {
+      router.push(`/order/${data.orderId}/confirmed?method=cash`)
+    } else {
+      router.push(`/order/${data.orderId}/waiting`)
+    }
   }
 
   const bg = dark ? '#080c14' : '#f8fafc'
