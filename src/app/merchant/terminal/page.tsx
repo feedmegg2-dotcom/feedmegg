@@ -334,6 +334,22 @@ export default function TerminalPage() {
       !alertedOrderIds.current.has('paid_' + o.id)
     )
 
+    // Detect failed/cancelled payments while on paying screen
+    const justFailed = data.filter(o =>
+      (o.status === 'cancelled' || o.status === 'rejected') &&
+      !alertedOrderIds.current.has('failed_' + o.id)
+    )
+    for (const o of justFailed) {
+      alertedOrderIds.current.add('failed_' + o.id)
+      setScreen(prev => {
+        if (prev === 'paying') {
+          setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 2000)
+          return 'main'
+        }
+        return prev
+      })
+    }
+
     for (const o of justPaid) {
       alertedOrderIds.current.add('paid_' + o.id)
       playAlertSound(paymentSound)
