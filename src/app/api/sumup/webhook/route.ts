@@ -77,5 +77,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ status: order.status, paymentLink: order.sumup_link })
+  return NextResponse.json({ status: order.status, paymentLink: order.sumup_link, sumupCheckoutId: order.sumup_checkout_id })
 }
