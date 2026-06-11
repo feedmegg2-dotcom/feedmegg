@@ -437,7 +437,7 @@ export default function TerminalPage() {
       if (isCash) {
         setScreen('paid')
         playAlertSound(paymentSound)
-        if (autoPrint) triggerAutoPrintRef.current({
+        const printOrder = {
           id: currentOrder.id,
           orderNumber: currentOrder.order_number,
           restaurantName: restaurant?.name || 'Restaurant',
@@ -454,7 +454,12 @@ export default function TerminalPage() {
           deliveryFee: currentOrder.delivery_fee,
           tip: currentOrder.tip,
           total: currentOrder.total,
-        }, 'paid')
+        }
+        if (autoPrint) {
+          triggerAutoPrintRef.current(printOrder, 'paid')
+        } else {
+          setPrintPendingOrders(prev => [...prev.filter(p => p.id !== currentOrder.id), printOrder])
+        }
         setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
       } else {
         stopAlertRepeat()
