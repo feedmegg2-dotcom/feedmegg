@@ -413,7 +413,7 @@ export default function CheckoutPage() {
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Type</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-            {restaurant.accepts_delivery !== false && restaurant.delivery_enabled !== false && (
+            {restaurant.accepts_delivery !== false && restaurant.delivery_enabled !== false && deliveryZones.length > 0 && (
               <button onClick={() => setForm({...form, orderType: 'delivery', isPreOrder: false})}
                 style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'delivery' ? '#22c55e' : border}`, background: form.orderType === 'delivery' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
                 🚗 Delivery<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{estTime} mins</span>
@@ -528,10 +528,18 @@ export default function CheckoutPage() {
                 <input placeholder="Apartment / building name (optional)" value={form.addressLine2} onChange={e => setForm({...form, addressLine2: e.target.value})} style={inputStyle} />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <select value={form.parish} onChange={e => setForm({...form, parish: e.target.value})} style={{ ...inputStyle, appearance: 'none' as any }}>
-                    {PARISHES.map(p => <option key={p} value={p} style={{ background: dark ? '#0d1321' : '#fff' }}>{p}</option>)}
+                    {(deliveryZones.length > 0 
+                      ? deliveryZones.filter((z: any) => z.is_active).map((z: any) => z.name || z.parish).filter(Boolean)
+                      : PARISHES
+                    ).map(p => <option key={p} value={p} style={{ background: dark ? '#0d1321' : '#fff' }}>{p}</option>)}
                   </select>
                   <input placeholder="Postcode" value={form.postcode} onChange={e => setForm({...form, postcode: e.target.value})} style={inputStyle} />
                 </div>
+                {form.parish && deliveryZones.length > 0 && !deliveryZones.find((z: any) => (z.name === form.parish || z.parish === form.parish) && z.is_active) && (
+                  <div style={{ fontSize: '12px', color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px' }}>
+                    ❌ Sorry, delivery is not available to {form.parish}
+                  </div>
+                )}
                 <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
                   style={{ ...inputStyle, resize: 'none' }} />
               </div>
