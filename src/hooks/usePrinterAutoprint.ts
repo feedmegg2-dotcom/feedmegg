@@ -305,14 +305,11 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
     if (printedOrdersRef.current.has(order.id)) return true
     const ip = printerIpRef.current
     const width = printerWidthRef.current
-    console.log('triggerAutoPrint - ip:', ip, 'width:', width, 'order:', order.orderNumber)
-    if (!ip) { console.log('No printer IP - skipping auto print'); alert('No printer IP!'); return false }
+    console.log('triggerAutoPrint - ip:', ip, 'order:', order.orderNumber)
+    if (!ip) return false
     printedOrdersRef.current.add(order.id)
     const templates = await getTemplates()
-    console.log('Templates loaded:', templates?.length)
     const result = await sendToPrinter(order, ip, width || 80, templates || undefined)
-    console.log('Print result:', result)
-    alert('Print result: ' + result + ' IP: ' + ip)
     if (!result) printedOrdersRef.current.delete(order.id)
     return !!result
   }, [restaurantId])
