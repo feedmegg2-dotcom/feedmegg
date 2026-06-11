@@ -455,7 +455,7 @@ export default function TerminalPage() {
           tip: currentOrder.tip,
           total: currentOrder.total,
         }
-        if (autoPrint) {
+        if (autoPrint || isCash) {
           triggerAutoPrintRef.current(printOrder, 'paid')
         } else {
           setPrintPendingOrders(prev => [...prev.filter(p => p.id !== currentOrder.id), printOrder])
