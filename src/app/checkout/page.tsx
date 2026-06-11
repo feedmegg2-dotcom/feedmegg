@@ -241,7 +241,7 @@ export default function CheckoutPage() {
         return fee
       }
     }
-    return parseFloat(restaurant?.delivery_fee) || 2.50
+    return 0
   }
 
   const deliveryFee = getDeliveryFee()
