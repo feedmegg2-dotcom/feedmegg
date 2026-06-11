@@ -63,6 +63,8 @@ export default function TerminalPage() {
   const [printerIp, setPrinterIp] = useState('')
   const [printerWidth, setPrinterWidth] = useState(80)
   const [autoPrint, setAutoPrint] = useState(true)
+  const autoPrintRef = useRef(autoPrint)
+  useEffect(() => { autoPrintRef.current = autoPrint }, [autoPrint])
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
@@ -368,7 +370,7 @@ export default function TerminalPage() {
         total: o.total,
         paymentMethod: o.payment_method,
       }
-      if (autoPrint) {
+      if (autoPrintRef.current) {
         triggerAutoPrintRef.current(printOrder, 'paid')
         printPendingRef.current.add(o.id)
       } else {
