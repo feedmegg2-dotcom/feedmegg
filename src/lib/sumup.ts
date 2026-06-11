@@ -34,10 +34,10 @@ export async function generatePaymentLink(params: {
       currency: 'GBP',
       merchant_code: params.merchantCode,
       description: `Order ${params.orderNumber} from ${params.restaurantName}`,
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/order/${params.orderId}/confirmed`,
+      return_url: `https://feedme.gg/order/${params.orderId}/confirmed`,
       hosted_checkout: {
         enabled: true,
-        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL}/order/${params.orderId}/confirmed`,
+        redirect_url: `https://feedme.gg/order/${params.orderId}/confirmed`,
       },
     }),
   })
