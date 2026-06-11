@@ -13,12 +13,14 @@ export default function WaitingPage() {
   const router = useRouter()
   const supabase = createClient()
   const [order, setOrder] = useState<any>(null)
-  const [status, setStatus] = useState<'waiting'|'accepted'|'rejected'|'timeout'>('waiting')
+  const [status, setStatus] = useState<'waiting'|'accepted'|'paying'|'paid'|'rejected'|'timeout'>('waiting')
   const [secondsLeft, setSecondsLeft] = useState(TIMEOUT_SECS)
   const [dark, setDark] = useState(true)
+  const [checkoutId, setCheckoutId] = useState<string|null>(null)
   const pollRef = useRef<any>(null)
   const countdownRef = useRef<any>(null)
   const startTimeRef = useRef<number>(Date.now())
+  const widgetMounted = useRef(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('feedme-theme')
@@ -31,6 +33,34 @@ export default function WaitingPage() {
       clearInterval(countdownRef.current)
     }
   }, [])
+
+  // Mount SumUp widget when checkoutId is available
+  useEffect(() => {
+    if (!checkoutId || widgetMounted.current) return
+    const script = document.createElement('script')
+    script.src = 'https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js'
+    script.onload = () => {
+      widgetMounted.current = true
+      ;(window as any).SumUpCard?.mount({
+        id: 'sumup-card',
+        checkoutId: checkoutId,
+        onResponse: async (type: string, body: any) => {
+          console.log('SumUp response:', type, body)
+          if (type === 'success') {
+            // Update order to paid
+            await fetch(`/api/sumup/webhook?orderId=${orderId}`)
+            setStatus('paid')
+            clearInterval(pollRef.current)
+            clearInterval(countdownRef.current)
+            setTimeout(() => router.push(`/order/${orderId}/confirmed`), 1500)
+          } else if (type === 'error' || type === 'fail') {
+            setStatus('accepted') // Show widget again with error
+          }
+        },
+      })
+    }
+    document.head.appendChild(script)
+  }, [checkoutId])
 
   async function fetchOrder() {
     const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).single()
@@ -60,17 +90,20 @@ export default function WaitingPage() {
       if (data.status === 'paid') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
-        window.location.href = `/order/${orderId}/confirmed`
+        setStatus('paid')
+        setTimeout(() => router.push(`/order/${orderId}/confirmed`), 1500)
       } else if (data.status === 'rejected' || data.status === 'cancelled') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('rejected')
-      } else if (data.paymentLink && data.status === 'waiting_payment' && status === 'waiting') {
-        clearInterval(pollRef.current)
-        clearInterval(countdownRef.current)
-        setStatus('accepted')
-        // Open payment in same tab - SumUp will try to redirect back
-        window.location.href = data.paymentLink
+      } else if (data.status === 'waiting_payment' && data.paymentLink && !checkoutId) {
+        // Extract checkout ID from payment link and show widget
+        const id = data.sumupCheckoutId || data.paymentLink.split('/').pop()?.replace('c-', '')
+        if (id) {
+          clearInterval(countdownRef.current)
+          setCheckoutId(id)
+          setStatus('accepted')
+        }
       }
     }, 5000)
   }
@@ -87,7 +120,6 @@ export default function WaitingPage() {
 
   return (
     <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column' }}>
-
       <nav style={{ background: dark ? '#060b18' : '#ffffff', borderBottom: `1px solid ${border}`, padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me.gg</span>
@@ -113,13 +145,10 @@ export default function WaitingPage() {
                   <div style={{ fontSize: '32px', fontWeight: 800, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{timerDisplay}</div>
                 </div>
               </div>
-
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>Order sent to the restaurant!</h1>
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '6px', maxWidth: '380px', margin: '0 auto 6px' }}>
-                Once your order is accepted you will automatically be taken to the SumUp payment page to complete your order.
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '28px', maxWidth: '380px', margin: '0 auto 28px' }}>
+                Waiting for the restaurant to accept your order...
               </p>
-              <p style={{ fontSize: '13px', color: dark ? '#334155' : '#94a3b8', marginBottom: '28px' }}>This usually takes less than a minute</p>
-
               {order && (
                 <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '16px', textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
@@ -143,23 +172,31 @@ export default function WaitingPage() {
           )}
 
           {status === 'accepted' && (
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <div style={{ width: '60px', height: '60px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>✅</div>
+                <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: '#22c55e' }}>Order accepted!</h1>
+                <p style={{ fontSize: '14px', color: sub }}>Complete your payment below</p>
+              </div>
+              {/* SumUp Payment Widget */}
+              <div id="sumup-card" style={{ background: card, borderRadius: '14px', padding: '16px', border: `1px solid ${border}` }}></div>
+            </div>
+          )}
+
+          {status === 'paid' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#22c55e' }}></div>
-              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px', color: '#22c55e' }}>Order accepted!</h1>
-              <p style={{ fontSize: '15px', color: sub }}>Taking you to payment now...</p>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '40px' }}>✅</div>
+              <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px', color: '#22c55e' }}>Payment confirmed!</h1>
+              <p style={{ fontSize: '15px', color: sub }}>Redirecting to your order...</p>
             </div>
           )}
 
           {status === 'rejected' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(239,68,68,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#ef4444' }}></div>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(239,68,68,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px', color: '#ef4444' }}>✕</div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Order not accepted</h1>
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
-                Sorry, the restaurant couldn't take your order right now.
-              </p>
-              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>
-                You have not been charged.
-              </p>
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>Sorry, the restaurant couldn't take your order right now.</p>
+              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>You have not been charged.</p>
               <Link href="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
                 Back to restaurants
               </Link>
@@ -168,14 +205,10 @@ export default function WaitingPage() {
 
           {status === 'timeout' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', background: 'rgba(249,115,22,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}></div>
+              <div style={{ width: '80px', height: '80px', background: 'rgba(249,115,22,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '36px' }}>⏱</div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Restaurant didn't respond</h1>
-              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>
-                The restaurant didn't confirm your order in time. Your order has been automatically cancelled.
-              </p>
-              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>
-                You have not been charged.
-              </p>
+              <p style={{ fontSize: '15px', color: sub, lineHeight: 1.6, marginBottom: '10px' }}>The restaurant didn't confirm your order in time. Your order has been automatically cancelled.</p>
+              <p style={{ fontSize: '15px', color: '#22c55e', fontWeight: 700, marginBottom: '28px' }}>You have not been charged.</p>
               <Link href="/" style={{ display: 'inline-block', padding: '14px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
                 Back to restaurants
               </Link>
