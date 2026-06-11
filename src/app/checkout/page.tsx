@@ -298,6 +298,7 @@ export default function CheckoutPage() {
         address: addressText,
         locationDescription: locationDesc,
         parish: form.addressMode === 'saved' ? (selectedAddr?.parish || form.parish) : form.parish,
+        deliveryParish: form.addressMode === 'saved' ? (selectedAddr?.parish || form.parish) : form.parish,
         orderType: form.orderType,
         paymentMethod: form.paymentMethod,
         note: form.note,
