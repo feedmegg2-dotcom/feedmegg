@@ -55,27 +55,24 @@ export default function WaitingPage() {
 
   function startPolling() {
     pollRef.current = setInterval(async () => {
-      // Poll our API which checks SumUp directly
       const res = await fetch(`/api/sumup/webhook?orderId=${orderId}`)
       const data = await res.json()
       if (data.status === 'paid') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
-        setStatus('accepted')
-        // Redirect to confirmation page
-        setTimeout(() => { window.location.href = `/order/${orderId}/confirmed` }, 1500)
+        window.location.href = `/order/${orderId}/confirmed`
       } else if (data.status === 'rejected' || data.status === 'cancelled') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('rejected')
-      } else if (data.paymentLink && data.status === 'waiting_payment') {
-        // Payment link ready - redirect customer to pay
+      } else if (data.paymentLink && data.status === 'waiting_payment' && status === 'waiting') {
         clearInterval(pollRef.current)
         clearInterval(countdownRef.current)
         setStatus('accepted')
+        // Open payment in same tab - SumUp will try to redirect back
         window.location.href = data.paymentLink
       }
-    }, 3000)
+    }, 5000)
   }
 
   const mins = Math.floor(secondsLeft / 60)
