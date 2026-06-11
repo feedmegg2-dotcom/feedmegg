@@ -18,6 +18,8 @@ export default function ConfirmedPage() {
 
   useEffect(() => {
     if (method === 'cash') { setStatus('cash'); fetchOrder(); return }
+    // Check immediately on load (SumUp may have just redirected here)
+    checkNow()
     startPolling()
     countRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -27,6 +29,21 @@ export default function ConfirmedPage() {
     }, 1000)
     return () => { clearInterval(pollRef.current); clearInterval(countRef.current) }
   }, [])
+
+  async function checkNow() {
+    const res = await fetch('/api/checkout/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: id })
+    })
+    const data = await res.json()
+    if (data.status === 'paid') {
+      clearInterval(pollRef.current)
+      clearInterval(countRef.current)
+      setOrder(data.order)
+      setStatus('paid')
+    }
+  }
 
   async function fetchOrder() {
     const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('id', id).single()
