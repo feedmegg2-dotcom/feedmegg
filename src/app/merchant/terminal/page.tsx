@@ -93,6 +93,7 @@ export default function TerminalPage() {
     // Re-request wake lock when tab becomes visible again
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') requestWakeLock()
+      if (document.visibilityState === 'hidden') stopAlertRepeat()
     })
     // Request fullscreen automatically
     const requestFullscreen = () => {
@@ -361,8 +362,9 @@ export default function TerminalPage() {
         setPrintPendingOrders(prev => [...prev.filter(p => p.id !== o.id), printOrder])
       }
       // If this is the current order on paying screen, move to paid screen
+      stopAlertRepeat()
       setScreen(prev => {
-        if (prev === 'paying' && o.id === currentOrderId) {
+        if (prev === 'paying') {
           setTimeout(() => { setScreen('main'); setCurrentOrderId(null) }, 3000)
           return 'paid'
         }
