@@ -445,7 +445,8 @@ export default function TerminalPage() {
         setTimeout(() => { setScreen('main'); setCurrentOrderId(null); setAccepting(false) }, 3000)
       } else {
         stopAlertRepeat()
-        setScreen('paying')
+        setScreen('main')
+        setCurrentOrderId(null)
         setAccepting(false)
       }
     } catch (e) {
