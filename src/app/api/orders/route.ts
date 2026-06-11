@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Maximum order is £${restaurant.max_order}` }, { status: 400 })
     }
 
-    // Get delivery fee
+    // Get delivery fee from zones
     let deliveryFee = 0
     if (orderType === 'delivery') {
       const { data: zones } = await supabase
@@ -94,14 +94,12 @@ export async function POST(request: NextRequest) {
       const zone = zones?.find(z => z.name === deliveryParish || z.parish === deliveryParish)
 
       if (!zone) {
-        // Fall back to restaurant default delivery fee
-        const { data: rest } = await supabase.from('restaurants').select('delivery_fee').eq('id', restaurantId).single()
-        deliveryFee = parseFloat(rest?.delivery_fee) || 0
-      } else {
-        deliveryFee = parseFloat(zone.fee) || 0
-        if (zone.free_delivery_over && subtotal >= parseFloat(zone.free_delivery_over)) {
-          deliveryFee = 0
-        }
+        return NextResponse.json({ error: `Sorry, we don't deliver to ${deliveryParish}` }, { status: 400 })
+      }
+
+      deliveryFee = parseFloat(zone.fee) || 0
+      if (zone.free_delivery_over && subtotal >= parseFloat(zone.free_delivery_over)) {
+        deliveryFee = 0
       }
     }
 
