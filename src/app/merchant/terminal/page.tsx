@@ -406,7 +406,7 @@ export default function TerminalPage() {
     try {
       stopAlertRepeat()
       setAcceptOpen(false)
-      alertedOrderIds.current.delete(currentOrder.id)
+      // Keep in alertedOrderIds so polling doesn't re-trigger new order screen
       
       const isCash = currentOrder.payment_method === 'cash'
       
