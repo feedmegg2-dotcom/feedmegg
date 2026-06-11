@@ -72,6 +72,10 @@ export async function GET(request: NextRequest) {
         }).eq('id', orderId)
         return NextResponse.json({ status: 'paid', paymentLink: order.sumup_link })
       }
+      if (checkout.status === 'FAILED') {
+        await supabase.from('orders').update({ status: 'cancelled', cancel_reason: 'Payment failed' }).eq('id', orderId)
+        return NextResponse.json({ status: 'cancelled' })
+      }
     } catch (e) {
       console.error('SumUp status check failed:', e)
     }
