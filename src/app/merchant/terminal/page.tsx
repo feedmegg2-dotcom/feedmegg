@@ -437,7 +437,7 @@ export default function TerminalPage() {
       if (isCash) {
         setScreen('paid')
         playAlertSound(paymentSound)
-        if (autoPrint) triggerAutoPrint({
+        if (autoPrint) triggerAutoPrintRef.current({
           id: currentOrder.id,
           orderNumber: currentOrder.order_number,
           restaurantName: restaurant?.name || 'Restaurant',
@@ -476,7 +476,7 @@ export default function TerminalPage() {
     playAlertSound(paymentSound)
     
     // Trigger auto-print
-    triggerAutoPrint({
+    triggerAutoPrintRef.current({
       id: currentOrder.id,
       orderNumber: currentOrder.order_number,
       restaurantName: restaurant?.name || 'Restaurant',
