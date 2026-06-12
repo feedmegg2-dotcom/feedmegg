@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [closedMessage, setClosedMessage] = useState('')
 
   const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
