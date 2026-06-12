@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 export default function RestaurantPage() {
   const { slug } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const reorderId = searchParams.get('reorder')
   const supabase = createClient()
   const [restaurant, setRestaurant] = useState<any>(null)
   const [categories, setCategories] = useState<any[]>([])
@@ -51,6 +53,37 @@ export default function RestaurantPage() {
       .order('sort_order')
     setCategories(cats || [])
     setLoading(false)
+
+    // Handle reorder
+    if (reorderId) {
+      const { data: oldOrder } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('id', reorderId)
+        .single()
+      if (oldOrder?.order_items) {
+        const allItems = (cats || []).flatMap((c: any) => c.menu_items || [])
+        const reorderCart = oldOrder.order_items
+          .map((item: any) => {
+            const menuItem = allItems.find((m: any) => m.id === item.menu_item_id || m.name === item.name)
+            if (!menuItem || !menuItem.is_available) return null
+            return {
+              cartId: Date.now() + Math.random(),
+              id: menuItem.id,
+              name: menuItem.name,
+              price: menuItem.price,
+              qty: item.quantity,
+              note: item.special_instructions || '',
+              options: [],
+            }
+          })
+          .filter(Boolean)
+        if (reorderCart.length > 0) {
+          setCart(reorderCart)
+          setShowBasket(true)
+        }
+      }
+    }
   }
 
   async function openItem(item: any) {
