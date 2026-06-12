@@ -21,7 +21,7 @@ export default function CheckoutPage() {
   const [isOpen, setIsOpen] = useState(true)
   const [closedMessage, setClosedMessage] = useState('')
 
-  const [loading, setLoading] = useState(false)
+  const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
@@ -156,6 +156,9 @@ export default function CheckoutPage() {
         const def = addrs.find(a => a.is_default) || addrs[0]
         setForm(f => ({ ...f, addressMode: 'saved', savedAddressId: def.id, parish: def.parish || f.parish }))
       }
+      // Check if customer has previous paid orders
+      const { data: prevOrders } = await supabase.from('orders').select('id').eq('customer_email', user.email).eq('status', 'paid').limit(1)
+      if (prevOrders && prevOrders.length > 0) setHasPreviousOrder(true)
     }
   }
 
@@ -419,7 +422,7 @@ export default function CheckoutPage() {
           <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Type</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
             {restaurant.accepts_delivery !== false && restaurant.delivery_enabled !== false && deliveryZones.length > 0 && (
-              <button onClick={() => setForm({...form, orderType: 'delivery', isPreOrder: false})}
+              <button onClick={() => setForm({...form, orderType: 'delivery', isPreOrder: false, paymentMethod: 'card'})}
                 style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'delivery' ? '#22c55e' : border}`, background: form.orderType === 'delivery' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
                 🚗 Delivery<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{estTime} mins</span>
               </button>
@@ -585,12 +588,17 @@ export default function CheckoutPage() {
               <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💳 Pay by card</div>
               <div style={{ fontSize: '11px', color: sub }}>Secure online payment via SumUp</div>
             </button>
-            {!form.contactless && (
+            {!form.contactless && (form.orderType !== 'delivery' || hasPreviousOrder) && (
               <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
                 style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💵 Cash {form.orderType === 'pickup' ? 'on collection' : 'on delivery'}</div>
-                <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'pickup' ? 'when you collect' : 'when your order arrives'}</div>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💵 Cash {form.orderType === 'delivery' ? 'on delivery' : 'on collection'}</div>
+                <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'delivery' ? 'when your order arrives' : 'when you collect'}</div>
               </button>
+            )}
+            {form.orderType === 'delivery' && !hasPreviousOrder && (
+              <div style={{ padding: '12px 14px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '10px', fontSize: '12px', color: '#f97316' }}>
+                💡 Cash on delivery is available after your first order. Card payment is required for your first delivery.
+              </div>
             )}
           </div>
         </div>
