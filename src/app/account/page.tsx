@@ -86,7 +86,7 @@ export default function AccountPage() {
     if (!user) return
     const { data } = await supabase
       .from('orders')
-      .select('*, restaurants(name, emoji, logo_url)')
+      .select('*, restaurants(name, emoji, logo_url, slug), order_items(*)')
       .eq('customer_email', user.email)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -433,6 +433,12 @@ export default function AccountPage() {
                         {order.status}
                       </span>
                       <span style={{ fontSize: '16px', fontWeight: 800, color: '#22c55e' }}>GBP{order.total?.toFixed(2)}</span>
+                      {order.restaurants?.slug && (
+                        <Link href={`/restaurant/${order.restaurants.slug}?reorder=${order.id}`}
+                          style={{ padding: '7px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          🔄 Reorder
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ))}
