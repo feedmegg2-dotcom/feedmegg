@@ -287,12 +287,13 @@ export default function TerminalPage() {
       return minsUntilOrder <= leadTimeMins
     })
 
-    // Move due pre-orders to incoming (clear scheduled_for so they appear in INCOMING tab)
+    // Move due pre-orders to incoming (keep scheduled_for for printing, just add note)
     for (const o of preOrdersDue) {
-      await supabase.from('orders').update({ 
-        scheduled_for: null,
-        notes: (o.notes ? o.notes + ' | ' : '') + `PRE-ORDER (was ${new Date(o.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})`
-      }).eq('id', o.id)
+      if (!o.notes?.includes('PRE-ORDER')) {
+        await supabase.from('orders').update({ 
+          notes: (o.notes ? o.notes + ' | ' : '') + `PRE-ORDER (was ${new Date(o.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})`
+        }).eq('id', o.id)
+      }
     }
 
     const prevPendingIds = orders.filter(o => o.status === 'pending').map((o: any) => o.id)
@@ -361,7 +362,7 @@ export default function TerminalPage() {
         deliveryAddress: o.delivery_address,
         isCollection: o.order_type === 'collection' || o.order_type === 'pickup',
         contactlessDelivery: o.contactless_delivery,
-        isPreOrder: !!o.scheduled_for,
+        isPreOrder: !!o.scheduled_for || !!(o.notes?.includes('PRE-ORDER')),
         scheduledFor: o.scheduled_for,
         items: o.order_items || [],
         specialInstructions: o.special_instructions || o.notes,
@@ -418,8 +419,22 @@ export default function TerminalPage() {
   }
 
   const currentOrder = orders.find(o => o.id === currentOrderId)
-  const pendingOrders = orders.filter(o => o.status === 'pending' && !o.scheduled_for)
-  const preOrders = orders.filter(o => o.status === 'pending' && o.scheduled_for)
+  const pendingOrders = orders.filter(o => {
+    if (o.status !== 'pending') return false
+    if (!o.scheduled_for) return true // ASAP orders
+    // Due pre-orders also show in incoming
+    const scheduledTime = new Date(o.scheduled_for)
+    const minsUntil = (scheduledTime.getTime() - new Date().getTime()) / 60000
+    const leadTime = restaurant?.preorder_lead_time_mins || preOrderLeadTime || 30
+    return minsUntil <= leadTime
+  })
+  const preOrders = orders.filter(o => {
+    if (o.status !== 'pending' || !o.scheduled_for) return false
+    const scheduledTime = new Date(o.scheduled_for)
+    const minsUntil = (scheduledTime.getTime() - new Date().getTime()) / 60000
+    const leadTime = restaurant?.preorder_lead_time_mins || preOrderLeadTime || 30
+    return minsUntil > leadTime
+  })
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
   const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.current.has(o.id))
 
