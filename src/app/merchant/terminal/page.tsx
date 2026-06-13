@@ -497,6 +497,7 @@ export default function TerminalPage() {
           deliveryFee: currentOrder.delivery_fee,
           tip: currentOrder.tip,
           total: currentOrder.total,
+          paymentMethod: currentOrder.payment_method,
         }
         if (autoPrint || isCash) {
           triggerAutoPrintRef.current(printOrder, 'paid')
@@ -549,6 +550,7 @@ export default function TerminalPage() {
       deliveryFee: currentOrder.delivery_fee,
       tip: currentOrder.tip,
       total: currentOrder.total,
+      paymentMethod: currentOrder.payment_method,
     }, 'paid')
 
     setTimeout(() => {
@@ -1103,6 +1105,7 @@ export default function TerminalPage() {
                   deliveryFee: currentOrder.delivery_fee,
                   tip: currentOrder.tip,
                   total: currentOrder.total,
+                  paymentMethod: currentOrder.payment_method,
                 })} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', padding: '10px', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>
                   🖨️ Reprint Tickets
                 </button>
@@ -1250,7 +1253,7 @@ export default function TerminalPage() {
                     <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#22c55e' }}><span>Total:</span><span>GBP{o.total?.toFixed(2)}</span></div>
                     </div>
-                    <button onClick={() => manualReprint({ id: o.id, orderNumber: o.order_number, restaurantName: restaurant?.name || 'Restaurant', customerName: o.customer_name, deliveryAddress: o.delivery_address, isCollection: o.order_type === 'collection' || o.order_type === 'pickup', items: o.order_items || [], specialInstructions: o.special_instructions, subtotal: o.subtotal, deliveryFee: o.delivery_fee, tip: o.tip, total: o.total })} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={() => manualReprint({ id: o.id, orderNumber: o.order_number, restaurantName: restaurant?.name || 'Restaurant', customerName: o.customer_name, deliveryAddress: o.delivery_address, isCollection: o.order_type === 'collection' || o.order_type === 'pickup', items: o.order_items || [], specialInstructions: o.special_instructions, subtotal: o.subtotal, deliveryFee: o.delivery_fee, tip: o.tip, total: o.total, paymentMethod: o.payment_method })} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
                       Reprint Tickets
                     </button>
                   </div>
