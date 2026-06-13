@@ -95,6 +95,9 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
         t += LF + ALIGN_CENTER + SIZE_DOUBLE + bold + '*** TIP GBP' + parseFloat(String(order.tip)).toFixed(2) + ' ***' + boldOff + SIZE_NORMAL + ALIGN_LEFT + LF
       }
       break
+    case 'payment_method':
+      t += align + size + (order.paymentMethod === 'cash' ? 'CASH ORDER' : 'CARD ORDER') + SIZE_NORMAL + LF
+      break
     case 'subtotal':
       if (order.deliveryFee && order.deliveryFee > 0) {
         t += ALIGN_LEFT + lr('Subtotal:', 'GBP' + order.subtotal.toFixed(2), cols) + LF
