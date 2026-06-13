@@ -271,8 +271,14 @@ export default function CheckoutPage() {
 
   const deliveryFee = getDeliveryFee()
   const orderTotal = cartTotal + deliveryFee + tip
-    if (form.orderType !== 'delivery' || form.paymentMethod !== 'card') setTip(0)
   const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
+
+  useEffect(() => {
+    if (form.orderType !== 'delivery' || form.paymentMethod !== 'card') {
+      setTip(0)
+      setCustomTip('')
+    }
+  }, [form.orderType, form.paymentMethod])
 
   function getSelectedAddress() {
     if (form.addressMode === 'saved') return savedAddresses.find(a => a.id === form.savedAddressId)
