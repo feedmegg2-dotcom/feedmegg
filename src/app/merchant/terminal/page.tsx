@@ -424,7 +424,14 @@ export default function TerminalPage() {
 
   const [accepting, setAccepting] = useState(false)
 
-  async function acceptOrder() {
+  async function updateRestaurant(updates: any) {
+    if (!restaurant) return
+    await fetch('/api/merchant/restaurant', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurantId: restaurant.id, ...updates })
+    })
+  }
     if (!currentOrder || accepting) return
     setAccepting(true)
     try {
@@ -571,10 +578,10 @@ export default function TerminalPage() {
             <div style={{ fontSize: 'clamp(14px,2.5vw,16px)', fontWeight: 700, color: toggles.delivery_enabled ? '#22c55e' : '#ef4444' }}>{delivTime}m</div>
             <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: colors.textTertiary }}>Slot: {deliverySlotCapacity}/{deliverySlotDuration}m</div>
             <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => { const val = !toggles.delivery_enabled; setToggles({...toggles, delivery_enabled: val}); if (restaurant) supabase.from('restaurants').update({ delivery_enabled: val }).eq('id', restaurant.id) }} style={{ flex: 1, padding: '4px 4px', background: toggles.delivery_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.delivery_enabled ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.delivery_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button onClick={() => { const val = !toggles.delivery_enabled; setToggles({...toggles, delivery_enabled: val}); updateRestaurant({ delivery_enabled: val }) }} style={{ flex: 1, padding: '4px 4px', background: toggles.delivery_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.delivery_enabled ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.delivery_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 {toggles.delivery_enabled ? '🟢 Open' : '🔴 Closed'}
               </button>
-              <button onClick={() => { const val = !toggles.delivery; setToggles({...toggles, delivery: val}); if (restaurant) supabase.from('restaurants').update({ preorder_delivery_enabled: val }).eq('id', restaurant.id) }} style={{ flex: 1, padding: '4px 4px', background: toggles.delivery ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: toggles.delivery ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.delivery ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button onClick={() => { const val = !toggles.delivery; setToggles({...toggles, delivery: val}); updateRestaurant({ preorder_delivery_enabled: val }) }} style={{ flex: 1, padding: '4px 4px', background: toggles.delivery ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: toggles.delivery ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.delivery ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 {toggles.delivery ? '📅 Pre-On' : '📅 Pre-Off'}
               </button>
             </div>
@@ -588,10 +595,10 @@ export default function TerminalPage() {
             <div style={{ fontSize: 'clamp(14px,2.5vw,16px)', fontWeight: 700, color: toggles.pickup_enabled ? '#22c55e' : '#ef4444' }}>{pickTime}m</div>
             <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: colors.textTertiary }}>Slot: {pickupSlotCapacity}/{pickupSlotDuration}m</div>
             <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => { const val = !toggles.pickup_enabled; setToggles({...toggles, pickup_enabled: val}); if (restaurant) supabase.from('restaurants').update({ pickup_enabled: val }).eq('id', restaurant.id) }} style={{ flex: 1, padding: '4px 4px', background: toggles.pickup_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.pickup_enabled ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.pickup_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button onClick={() => { const val = !toggles.pickup_enabled; setToggles({...toggles, pickup_enabled: val}); updateRestaurant({ pickup_enabled: val }) }} style={{ flex: 1, padding: '4px 4px', background: toggles.pickup_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: toggles.pickup_enabled ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.pickup_enabled ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 {toggles.pickup_enabled ? '🟢 Open' : '🔴 Closed'}
               </button>
-              <button onClick={() => { const val = !toggles.pickups; setToggles({...toggles, pickups: val}); if (restaurant) supabase.from('restaurants').update({ preorder_pickup_enabled: val }).eq('id', restaurant.id) }} style={{ flex: 1, padding: '4px 4px', background: toggles.pickups ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: toggles.pickups ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.pickups ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button onClick={() => { const val = !toggles.pickups; setToggles({...toggles, pickups: val}); updateRestaurant({ preorder_pickup_enabled: val }) }} style={{ flex: 1, padding: '4px 4px', background: toggles.pickups ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: toggles.pickups ? '#22c55e' : '#ef4444', border: `0.5px solid ${toggles.pickups ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 {toggles.pickups ? '📅 Pre-On' : '📅 Pre-Off'}
               </button>
             </div>
@@ -687,7 +694,7 @@ export default function TerminalPage() {
                   />
                 </div>
                 <button onClick={async () => {
-                  if (restaurant) await supabase.from('restaurants').update({ printer_ip: printerIp, printer_width: printerWidth }).eq('id', restaurant.id)
+                  await updateRestaurant({ printer_ip: printerIp, printer_width: printerWidth })
                   alert('Printer settings saved!')
                 }} style={{ width: '100%', padding: '5px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, marginBottom: '4px' }}>
                   Save Printer IP
@@ -699,7 +706,7 @@ export default function TerminalPage() {
                 <select value={preOrderLeadTime} onChange={async e => {
                   const val = parseInt(e.target.value)
                   setPreOrderLeadTime(val)
-                  if (restaurant) await supabase.from('restaurants').update({ preorder_lead_time_mins: val }).eq('id', restaurant.id)
+                  await updateRestaurant({ preorder_lead_time_mins: val })
                 }} style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '12px', outline: 'none', marginBottom: '4px' }}>
                   {[10, 15, 20, 30, 45, 60].map(t => (
                     <option key={t} value={t} style={{ background: '#0f172a' }}>{t} mins before</option>
@@ -1254,8 +1261,8 @@ export default function TerminalPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '14px' }}>
             {[10,15,20,25,30,45,60,90].map(t => (
               <button key={t} onClick={async () => {
-                if (timeModal === 'delivery') { setDelivTime(t); if (restaurant) await supabase.from('restaurants').update({ delivery_time_mins: t }).eq('id', restaurant.id) }
-                else { setPickTime(t); if (restaurant) await supabase.from('restaurants').update({ pickup_time_mins: t }).eq('id', restaurant.id) }
+                if (timeModal === 'delivery') { setDelivTime(t); await updateRestaurant({ delivery_time_mins: t }) }
+                else { setPickTime(t); await updateRestaurant({ pickup_time_mins: t }) }
                 setTimeModal(null)
               }} style={{ background: (timeModal === 'delivery' ? delivTime : pickTime) === t ? 'rgba(34,197,94,0.08)' : '#0f172a', border: `1.5px solid ${(timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: 'clamp(10px,2vw,14px)', textAlign: 'center', cursor: 'pointer', fontSize: 'clamp(12px,2vw,15px)', color: (timeModal === 'delivery' ? delivTime : pickTime) === t ? '#22c55e' : '#94a3b8' }}>
                 {t}m
@@ -1300,7 +1307,7 @@ export default function TerminalPage() {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setShowTimeSlotModal(null)} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, fontFamily: 'inherit' }}>Cancel</button>
-            <button onClick={async () => { if (showTimeSlotModal === 'delivery') { setDelivTime(deliveryTime); if (restaurant) await supabase.from('restaurants').update({ delivery_time_mins: deliveryTime, delivery_slot_duration: deliverySlotDuration, delivery_slot_capacity: deliverySlotCapacity }).eq('id', restaurant.id) } else { setPickTime(pickupTime); if (restaurant) await supabase.from('restaurants').update({ pickup_time_mins: pickupTime, pickup_slot_duration: pickupSlotDuration, pickup_slot_capacity: pickupSlotCapacity }).eq('id', restaurant.id) } setShowTimeSlotModal(null) }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+            <button onClick={async () => { if (showTimeSlotModal === 'delivery') { setDelivTime(deliveryTime); await updateRestaurant({ delivery_time_mins: deliveryTime, delivery_slot_duration: deliverySlotDuration, delivery_slot_capacity: deliverySlotCapacity }) } else { setPickTime(pickupTime); await updateRestaurant({ pickup_time_mins: pickupTime, pickup_slot_duration: pickupSlotDuration, pickup_slot_capacity: pickupSlotCapacity }) } setShowTimeSlotModal(null) }} style={{ flex: 2, background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
           </div>
         </Modal>
       )}
