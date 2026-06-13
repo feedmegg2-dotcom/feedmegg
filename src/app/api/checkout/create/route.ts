@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const total = subtotal + deliveryFee + tipAmount
     const tipAmount = parseFloat(tip) || 0
+    const total = subtotal + deliveryFee + tipAmount
     const commission = paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
 
     // Validate customerId exists in auth if provided
