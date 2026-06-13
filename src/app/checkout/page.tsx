@@ -251,6 +251,7 @@ export default function CheckoutPage() {
   }
 
   const [tip, setTip] = useState(0)
+  const [customTip, setCustomTip] = useState('')
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
 
   function getDeliveryFee() {
@@ -436,20 +437,7 @@ export default function CheckoutPage() {
                 <span>Delivery</span><span>GBP{deliveryFee.toFixed(2)}</span>
               </div>
             )}
-            {/* TIP - only for card delivery orders */}
-            {form.orderType === 'delivery' && form.paymentMethod === 'card' && (
-              <div style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: `1px solid ${border}` }}>
-                <div style={{ fontSize: '13px', color: sub, marginBottom: '8px' }}>Add a tip for the driver? 🙏</div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {[0, 0.50, 1, 2, 3].map(t => (
-                    <button key={t} onClick={() => setTip(t)}
-                      style={{ flex: 1, padding: '7px 4px', background: tip === t ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${tip === t ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: tip === t ? '#22c55e' : sub, fontSize: '12px', cursor: 'pointer', fontWeight: tip === t ? 700 : 400, fontFamily: 'inherit' }}>
-                      {t === 0 ? 'None' : `GBP${t.toFixed(2)}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* TIP moved to below payment method */}
             {tip > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#22c55e', marginBottom: '6px' }}>
                 <span>Tip</span><span>GBP{tip.toFixed(2)}</span>
@@ -636,6 +624,27 @@ export default function CheckoutPage() {
             )}
           </div>
         </div>
+
+        {/* TIP - only for card delivery */}
+        {form.orderType === 'delivery' && form.paymentMethod === 'card' && (
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Add a tip for the driver? 🙏</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+              {[0, 1, 2, 3, 4, 5, 10].map(t => (
+                <button key={t} onClick={() => { setTip(t); setCustomTip('') }}
+                  style={{ padding: '10px 4px', background: tip === t && !customTip ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${tip === t && !customTip ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: tip === t && !customTip ? '#22c55e' : text, fontSize: '13px', cursor: 'pointer', fontWeight: tip === t && !customTip ? 700 : 400, fontFamily: 'inherit' }}>
+                  {t === 0 ? 'None' : `£${t}`}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: sub }}>£</span>
+              <input type="number" min="0" step="0.50" placeholder="Custom amount" value={customTip}
+                onChange={e => { setCustomTip(e.target.value); setTip(parseFloat(e.target.value) || 0) }}
+                style={{ flex: 1, padding: '10px 12px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${customTip ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: text, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+            </div>
+          </div>
+        )}
 
         {/* MIN ORDER WARNING */}
         {!meetsMinOrder && (
