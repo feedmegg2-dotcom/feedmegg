@@ -147,7 +147,10 @@ export default function WaitingPage() {
               </div>
               <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>Order sent to the restaurant!</h1>
               <p style={{ fontSize: '15px', color: sub, lineHeight: 1.7, marginBottom: '28px', maxWidth: '380px', margin: '0 auto 28px' }}>
-                Waiting for the restaurant to accept your order...
+                {order?.scheduled_for 
+                  ? `Your pre-order for ${new Date(order.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} has been received. The restaurant will confirm it closer to the time.`
+                  : 'Waiting for the restaurant to accept your order...'
+                }
               </p>
               {order && (
                 <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '16px', textAlign: 'left' }}>
