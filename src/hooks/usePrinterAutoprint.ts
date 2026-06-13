@@ -92,7 +92,7 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
       break
     case 'tip':
       if (order.tip && order.tip > 0) {
-        t += LF + CENTER + SIZE_DOUBLE + bold + '*** TIP GBP' + parseFloat(String(order.tip)).toFixed(2) + ' ***' + boldOff + SIZE_NORMAL + ALIGN_LEFT + LF
+        t += LF + ALIGN_CENTER + SIZE_DOUBLE + bold + '*** TIP GBP' + parseFloat(String(order.tip)).toFixed(2) + ' ***' + boldOff + SIZE_NORMAL + ALIGN_LEFT + LF
       }
       break
     case 'subtotal':
