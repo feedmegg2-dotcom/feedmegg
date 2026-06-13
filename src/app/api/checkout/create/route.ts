@@ -68,6 +68,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check slot capacity for pre-orders
+    if (scheduledFor) {
+      const slotStart = new Date(scheduledFor)
+      const slotDuration = orderType === 'delivery' 
+        ? (restaurant.delivery_slot_duration || 30) 
+        : (restaurant.pickup_slot_duration || 15)
+      const slotCapacity = orderType === 'delivery'
+        ? (restaurant.delivery_slot_capacity || 10)
+        : (restaurant.pickup_slot_capacity || 10)
+      const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000)
+
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact' })
+        .eq('restaurant_id', restaurantId)
+        .eq('order_type', orderType)
+        .gte('scheduled_for', slotStart.toISOString())
+        .lt('scheduled_for', slotEnd.toISOString())
+        .in('status', ['pending', 'accepted', 'waiting_payment', 'paid'])
+
+      if ((count || 0) >= slotCapacity) {
+        return NextResponse.json({ error: `Sorry, this time slot is full. Please choose another time.` }, { status: 400 })
+      }
+    }
+
     // Generate order number
     const orderNumber = 'FM-' + Date.now().toString().slice(-6)
 
