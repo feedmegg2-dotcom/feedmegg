@@ -1,4 +1,4 @@
-'use client'
+use client'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -1339,6 +1339,34 @@ export default function AdminPage() {
                 <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--blue)' }}>{orders.filter(o => o.payment_method === 'card').length}</div>
               </div>
             </div>
+
+            {/* Per restaurant breakdown */}
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '14px' }}>By Restaurant</h3>
+            <div style={{ display: 'grid', gap: '10px', marginBottom: '24px' }}>
+              {restaurants.map(r => {
+                const restOrders = orders.filter(o => o.restaurant_id === r.id && ['paid','complete'].includes(o.status))
+                const restRevenue = restOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0)
+                const restCommission = restOrders.filter(o => o.payment_method === 'card').reduce((s, o) => s + (o.commission_amount || parseFloat(o.subtotal || 0) * ((r.commission_rate || 4) / 100)), 0)
+                const cardOrders = restOrders.filter(o => o.payment_method === 'card').length
+                const cashOrders = restOrders.filter(o => o.payment_method === 'cash').length
+                if (restOrders.length === 0) return null
+                return (
+                  <div key={r.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>{r.emoji} {r.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--sub)' }}>
+                        {restOrders.length} orders • {cardOrders} card • {cashOrders} cash • GBP{restRevenue.toFixed(2)} revenue
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--green)' }}>GBP{restCommission.toFixed(2)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{r.commission_rate || 4}% commission</div>
+                    </div>
+                  </div>
+                )
+              }).filter(Boolean)}
+            </div>
+
             <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '10px', padding: '14px', fontSize: '13px', color: 'var(--sub)', lineHeight: 1.6 }}>
               Commission is charged at 4% on food subtotal for card orders only. Cash orders are excluded. Invoices sent monthly with 7-day payment terms. Trial merchants are not invoiced.
             </div>
