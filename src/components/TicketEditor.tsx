@@ -21,6 +21,7 @@ const ELEMENTS = [
   { type: 'preorder_badge', label: '📅 PRE-ORDER Badge', conditional: true },
   { type: 'preorder_time', label: '🕐 Scheduled Time', conditional: true },
   { type: 'contactless', label: '🚪 Contactless Delivery', conditional: true },
+  { type: 'tip', label: '💰 Driver Tip', conditional: true },
 ]
 
 const SAMPLE_ORDER = {
@@ -183,6 +184,11 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     case 'contactless': return isContactless ? (
       <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
         *** CONTACTLESS DELIVERY ***
+      </div>
+    ) : null
+    case 'tip': return order.tip > 0 ? (
+      <div style={{ ...style, fontSize: el.size === 'xl' ? '18px' : '14px', fontWeight: 'bold', textAlign: 'center', margin: '4px 0', padding: '4px 0', borderTop: '1px dashed #000', borderBottom: '1px dashed #000' }}>
+        *** TIP GBP{order.tip?.toFixed(2)} ***
       </div>
     ) : null
     default: return null
