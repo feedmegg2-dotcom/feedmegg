@@ -90,6 +90,11 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
     case 'total':
       t += align + size + bold + lr('TOTAL:', 'GBP' + order.total.toFixed(2), cols) + boldOff + SIZE_NORMAL + LF
       break
+    case 'tip':
+      if (order.tip && order.tip > 0) {
+        t += LF + CENTER + SIZE_DOUBLE + bold + '*** TIP GBP' + parseFloat(String(order.tip)).toFixed(2) + ' ***' + boldOff + SIZE_NORMAL + ALIGN_LEFT + LF
+      }
+      break
     case 'subtotal':
       if (order.deliveryFee && order.deliveryFee > 0) {
         t += ALIGN_LEFT + lr('Subtotal:', 'GBP' + order.subtotal.toFixed(2), cols) + LF
