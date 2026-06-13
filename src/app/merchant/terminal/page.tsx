@@ -364,6 +364,14 @@ export default function TerminalPage() {
         contactlessDelivery: o.contactless_delivery,
         isPreOrder: !!o.scheduled_for || !!(o.notes?.includes('PRE-ORDER')),
         scheduledFor: o.scheduled_for,
+        preOrderTime: o.scheduled_for ? (() => {
+          const d = new Date(o.scheduled_for)
+          const today = new Date()
+          const isTomorrow = d.toDateString() !== today.toDateString()
+          return isTomorrow
+            ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+            : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        })() : undefined,
         items: o.order_items || [],
         specialInstructions: o.special_instructions || o.notes,
         subtotal: o.subtotal,
@@ -475,7 +483,14 @@ export default function TerminalPage() {
           contactlessDelivery: currentOrder.contactless_delivery,
           isPreOrder: !!currentOrder.scheduled_for,
           scheduledFor: currentOrder.scheduled_for,
-          preOrderTime: currentOrder.scheduled_for ? new Date(currentOrder.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : undefined,
+          preOrderTime: currentOrder.scheduled_for ? (() => {
+            const d = new Date(currentOrder.scheduled_for)
+            const today = new Date()
+            const isTomorrow = d.toDateString() !== today.toDateString()
+            return isTomorrow
+              ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+              : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          })() : undefined,
           items: currentOrder.order_items || [],
           specialInstructions: currentOrder.special_instructions || currentOrder.notes,
           subtotal: currentOrder.subtotal,
@@ -519,7 +534,15 @@ export default function TerminalPage() {
       isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
       contactlessDelivery: currentOrder.contactless_delivery,
       isPreOrder: !!currentOrder.scheduled_for,
-          scheduledFor: currentOrder.scheduled_for,
+      scheduledFor: currentOrder.scheduled_for,
+      preOrderTime: currentOrder.scheduled_for ? (() => {
+        const d = new Date(currentOrder.scheduled_for)
+        const today = new Date()
+        const isTomorrow = d.toDateString() !== today.toDateString()
+        return isTomorrow
+          ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      })() : undefined,
       items: currentOrder.order_items || [],
       specialInstructions: currentOrder.special_instructions || currentOrder.notes,
       subtotal: currentOrder.subtotal,
