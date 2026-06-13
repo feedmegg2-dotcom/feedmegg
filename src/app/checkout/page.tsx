@@ -319,8 +319,10 @@ export default function CheckoutPage() {
     // Cart will be cleared when order is confirmed
     // localStorage.removeItem('feedme-cart')
     if (data.paymentMethod === 'cash') {
+      // Cash orders (including pre-orders) go straight to confirmed
       router.push(`/order/${data.orderId}/confirmed?method=cash`)
     } else {
+      // Card orders wait for merchant acceptance then payment
       router.push(`/order/${data.orderId}/waiting`)
     }
   }
