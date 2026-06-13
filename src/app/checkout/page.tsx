@@ -75,7 +75,7 @@ export default function CheckoutPage() {
       : (restaurant?.pickup_slot_duration || 30)
 
     const now = new Date()
-    const dateStr = form.preOrderDate || now.toISOString().split('T')[0]
+    const dateStr = new Date().toISOString().split('T')[0]
 
     // Compare dates properly
     const todayStr = now.toISOString().split('T')[0]
@@ -268,7 +268,7 @@ export default function CheckoutPage() {
 
   function getScheduledFor() {
     if (!form.isPreOrder || !form.preOrderTime) return null
-    const date = form.preOrderDate || new Date().toISOString().split('T')[0]
+    const date = new Date().toISOString().split('T')[0]
     const time = form.preOrderTime.split(' - ')[0] // Take start time
     return `${date}T${time}:00`
   }
@@ -456,16 +456,6 @@ export default function CheckoutPage() {
             {form.isPreOrder && (
               <div style={{ marginTop: '14px', display: 'grid', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px' }}>Date</label>
-                  <input
-                    type="date"
-                    value={form.preOrderDate || new Date().toISOString().split('T')[0]}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={e => setForm({...form, preOrderDate: e.target.value, preOrderTime: ''})}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
                   <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px' }}>Time Slot</label>
                   {availableSlots.length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
@@ -477,7 +467,7 @@ export default function CheckoutPage() {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ fontSize: '13px', color: sub }}>No slots available for this date</div>
+                    <div style={{ fontSize: '13px', color: sub }}>No slots available today</div>
                   )}
                 </div>
               </div>
