@@ -14,6 +14,7 @@ interface OrderForPrint {
   contactlessDelivery?: boolean
   isPreOrder?: boolean
   preOrderTime?: string
+  scheduledFor?: string
   items: Array<{ name: string; quantity: number; price: number; subtotal?: number; special_instructions?: string }>
   specialInstructions?: string
   subtotal: number
@@ -103,7 +104,18 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
       t += align + new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + LF
       break
     case 'preorder_badge':
-      if (order.isPreOrder) t += align + size + bold + '*** PRE-ORDER ***' + boldOff + SIZE_NORMAL + LF
+      if (order.isPreOrder) {
+        t += align + size + bold + '*** PRE-ORDER ***' + boldOff + SIZE_NORMAL + LF
+        if (order.scheduledFor) {
+          const orderDate = new Date(order.scheduledFor)
+          const today = new Date()
+          const isNextDay = orderDate.toDateString() !== today.toDateString()
+          if (isNextDay) {
+            t += align + SIZE_DOUBLE + bold + '!!! TOMORROW !!!' + boldOff + SIZE_NORMAL + LF
+            t += align + bold + orderDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + boldOff + LF
+          }
+        }
+      }
       break
     case 'preorder_time':
       if (order.isPreOrder && order.preOrderTime) t += align + size + bold + 'For: ' + order.preOrderTime + boldOff + SIZE_NORMAL + LF
