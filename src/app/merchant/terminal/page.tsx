@@ -432,6 +432,8 @@ export default function TerminalPage() {
       body: JSON.stringify({ restaurantId: restaurant.id, ...updates })
     })
   }
+
+  async function acceptOrder() {
     if (!currentOrder || accepting) return
     setAccepting(true)
     try {
