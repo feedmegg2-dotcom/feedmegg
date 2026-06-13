@@ -67,12 +67,15 @@ export default function CheckoutPage() {
     if (form.isPreOrder && restaurant) generateSlots()
   }, [form.isPreOrder, form.preOrderDate, form.orderType, restaurant])
 
-  function generateSlots() {
+  async function generateSlots() {
     if (!restaurant) return
     const slots: string[] = []
     const slotDuration = form.orderType === 'delivery'
       ? (restaurant?.delivery_slot_duration || 30)
       : (restaurant?.pickup_slot_duration || 30)
+    const slotCapacity = form.orderType === 'delivery'
+      ? (restaurant?.delivery_slot_capacity || 10)
+      : (restaurant?.pickup_slot_capacity || 10)
 
     const now = new Date()
     const dateStr = new Date().toISOString().split('T')[0]
@@ -82,7 +85,6 @@ export default function CheckoutPage() {
     const isToday = dateStr === todayStr
 
     // Find today's opening hours
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
     const dayName = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
     const dayHours = restaurantHours.find(h => h.day === dayName)
 
@@ -115,6 +117,16 @@ export default function CheckoutPage() {
 
     const closeMins = closeH * 60 + closeM
 
+    // Get existing orders for today to check capacity
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('scheduled_for')
+      .eq('restaurant_id', restaurant.id)
+      .eq('order_type', form.orderType)
+      .gte('scheduled_for', `${dateStr}T00:00:00`)
+      .lte('scheduled_for', `${dateStr}T23:59:59`)
+      .in('status', ['pending', 'accepted', 'waiting_payment', 'paid'])
+
     for (let h = startH; h <= closeH; h++) {
       const mStart = h === startH ? startM : 0
       for (let m = mStart; m < 60; m += slotDuration) {
@@ -125,6 +137,13 @@ export default function CheckoutPage() {
 
         const endH = Math.floor(slotEndMins / 60)
         const endM = slotEndMins % 60
+        const slotStart = `${dateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`
+        const slotEnd = `${dateStr}T${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}:00`
+
+        // Check capacity
+        const ordersInSlot = (existingOrders || []).filter(o => o.scheduled_for >= slotStart && o.scheduled_for < slotEnd).length
+        if (ordersInSlot >= slotCapacity) continue // Skip full slots
+
         const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`
         slots.push(slot)
       }
