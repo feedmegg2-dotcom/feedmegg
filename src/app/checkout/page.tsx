@@ -250,6 +250,7 @@ export default function CheckoutPage() {
     return 'soon'
   }
 
+  const [tip, setTip] = useState(0)
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
 
   function getDeliveryFee() {
@@ -268,7 +269,8 @@ export default function CheckoutPage() {
   }
 
   const deliveryFee = getDeliveryFee()
-  const orderTotal = cartTotal + deliveryFee
+  const orderTotal = cartTotal + deliveryFee + tip
+    if (form.orderType !== 'delivery' || form.paymentMethod !== 'card') setTip(0)
   const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
 
   function getSelectedAddress() {
@@ -325,6 +327,7 @@ export default function CheckoutPage() {
         orderType: form.orderType,
         paymentMethod: form.paymentMethod,
         note: form.note,
+        tip: tip || 0,
         contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
         scheduledFor: getScheduledFor(),
       })
@@ -431,6 +434,25 @@ export default function CheckoutPage() {
             {form.orderType === 'delivery' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: sub, marginBottom: '6px' }}>
                 <span>Delivery</span><span>GBP{deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            {/* TIP - only for card delivery orders */}
+            {form.orderType === 'delivery' && form.paymentMethod === 'card' && (
+              <div style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: `1px solid ${border}` }}>
+                <div style={{ fontSize: '13px', color: sub, marginBottom: '8px' }}>Add a tip for the driver? 🙏</div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[0, 0.50, 1, 2, 3].map(t => (
+                    <button key={t} onClick={() => setTip(t)}
+                      style={{ flex: 1, padding: '7px 4px', background: tip === t ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${tip === t ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: tip === t ? '#22c55e' : sub, fontSize: '12px', cursor: 'pointer', fontWeight: tip === t ? 700 : 400, fontFamily: 'inherit' }}>
+                      {t === 0 ? 'None' : `GBP${t.toFixed(2)}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tip > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#22c55e', marginBottom: '6px' }}>
+                <span>Tip</span><span>GBP{tip.toFixed(2)}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${border}` }}>
