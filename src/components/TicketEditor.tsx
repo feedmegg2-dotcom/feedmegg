@@ -22,6 +22,7 @@ const ELEMENTS = [
   { type: 'preorder_time', label: '🕐 Scheduled Time', conditional: true },
   { type: 'contactless', label: '🚪 Contactless Delivery', conditional: true },
   { type: 'tip', label: '💰 Driver Tip', conditional: true },
+  { type: 'payment_method', label: '💳 Payment Method', conditional: false },
 ]
 
 const SAMPLE_ORDER = {
@@ -191,6 +192,11 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
         *** TIP GBP{order.tip?.toFixed(2)} ***
       </div>
     ) : null
+    case 'payment_method': return (
+      <div style={{ ...style }}>
+        {order.paymentMethod === 'cash' ? '💵 CASH ORDER' : '💳 CARD ORDER'}
+      </div>
+    )
     default: return null
   }
 }
