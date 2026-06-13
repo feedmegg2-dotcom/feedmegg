@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       orderType, 
       paymentMethod,
       note,
+      tip,
       contactlessDelivery,
       scheduledFor,
     } = await request.json()
@@ -54,7 +55,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const total = subtotal + deliveryFee
+    const total = subtotal + deliveryFee + tipAmount
+    const tipAmount = parseFloat(tip) || 0
     const commission = paymentMethod === 'cash' ? 0 : parseFloat((subtotal * 0.04).toFixed(2))
 
     // Validate customerId exists in auth if provided
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
         order_number: orderNumber,
         subtotal,
         delivery_fee: deliveryFee,
+        tip: tipAmount,
         total,
         commission,
         notes: note || '',
