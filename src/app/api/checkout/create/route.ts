@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
       orderNumber,
       paymentMethod: paymentMethod || 'card',
+      scheduledFor: scheduledFor || null,
     })
 
   } catch (error: any) {
