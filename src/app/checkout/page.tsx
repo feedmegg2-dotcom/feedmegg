@@ -613,20 +613,13 @@ export default function CheckoutPage() {
           <div style={{ display: 'grid', gap: '10px' }}>
             <button onClick={() => setForm({...form, paymentMethod: 'card'})}
               style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <div style={{ background: '#000', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 700, color: '#fff', letterSpacing: '0.5px' }}>Pay</div>
-                <div style={{ background: '#fff', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 700, color: '#000', border: '1px solid #dadce0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ color: '#4285F4', fontWeight: 800 }}>G</span>
-                  <span style={{ color: '#EA4335', fontWeight: 800 }}>o</span>
-                  <span style={{ color: '#FBBC05', fontWeight: 800 }}>o</span>
-                  <span style={{ color: '#4285F4', fontWeight: 800 }}>g</span>
-                  <span style={{ color: '#34A853', fontWeight: 800 }}>l</span>
-                  <span style={{ color: '#EA4335', fontWeight: 800 }}>e</span>
-                  <span style={{ marginLeft: '2px', fontWeight: 700, color: '#000' }}>Pay</span>
-                </div>
-                <span style={{ fontSize: '11px', color: sub }}>or card</span>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>💳 Pay by card</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', color: sub }}>Accepts:</span>
+                <span style={{ background: '#000', color: '#fff', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', fontWeight: 700 }}>Apple Pay</span>
+                <span style={{ background: '#fff', color: '#000', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', fontWeight: 700, border: '1px solid #dadce0' }}>Google Pay</span>
+                <span style={{ fontSize: '11px', color: sub }}>Visa • Mastercard</span>
               </div>
-              <div style={{ fontSize: '11px', color: sub }}>Secure online payment • Google Pay • Apple Pay • Card</div>
             </button>
             {!form.contactless && (form.orderType !== 'delivery' || hasPreviousOrder) && (
               <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
