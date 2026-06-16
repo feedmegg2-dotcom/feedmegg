@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       note,
       tip,
+      what3words,
       contactlessDelivery,
       scheduledFor,
     } = await request.json()
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
         delivery_address: address || '',
         delivery_notes: locationDescription || '',
         delivery_parish: parish || '',
+        delivery_what3words: what3words || null,
         order_type: orderType,
         payment_method: paymentMethod || 'card',
         contactless_delivery: contactlessDelivery || false,
