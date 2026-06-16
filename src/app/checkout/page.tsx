@@ -613,12 +613,14 @@ export default function CheckoutPage() {
           <div style={{ display: 'grid', gap: '10px' }}>
             <button onClick={() => setForm({...form, paymentMethod: 'card'})}
               style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>💳 Pay by card</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '11px', color: sub }}>Accepts:</span>
-                <span style={{ background: '#000', color: '#fff', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', fontWeight: 700 }}>Apple Pay</span>
-                <span style={{ background: '#fff', color: '#000', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', fontWeight: 700, border: '1px solid #dadce0' }}>Google Pay</span>
-                <span style={{ fontSize: '11px', color: sub }}>Visa • Mastercard</span>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>💳 Pay by card</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <img src="https://dl.svgcdn.com/svg/logos/google-pay.svg" alt="Google Pay" style={{ height: '20px', width: 'auto' }} />
+                <svg height="20" viewBox="0 0 50 20" xmlns="http://www.w3.org/2000/svg" aria-label="Apple Pay">
+                  <rect width="50" height="20" rx="3" fill="#000"/>
+                  <text x="25" y="14" textAnchor="middle" fill="white" fontSize="8" fontFamily="-apple-system, sans-serif" fontWeight="500"> Pay</text>
+                </svg>
+                <span style={{ fontSize: '11px', color: sub }}>• Visa • Mastercard</span>
               </div>
             </button>
             {!form.contactless && (form.orderType !== 'delivery' || hasPreviousOrder) && (
