@@ -393,30 +393,6 @@ export default function AccountPage() {
                     <textarea value={addrDesc} onChange={e => setAddrDesc(e.target.value)} placeholder="e.g. Past the big tree, white van in the drive. Ring bell on gate." rows={3}
                       style={{ ...inputStyle, resize: 'none' }} />
                   </div>
-                  {/* What3Words */}
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#dc2626', display: 'block', marginBottom: '6px', fontWeight: 600 }}>What3Words (exact location pin)</label>
-                    <button onClick={async () => {
-                      if (!navigator.geolocation) { alert('Geolocation not supported'); return }
-                      setW3wLoading(true)
-                      navigator.geolocation.getCurrentPosition(async (pos) => {
-                        try {
-                          const { latitude, longitude } = pos.coords
-                          const res = await fetch(`https://api.what3words.com/v3/convert-to-3wa?coordinates=${latitude},${longitude}&language=en&key=${process.env.NEXT_PUBLIC_W3W_API_KEY}`)
-                          const data = await res.json()
-                          if (data.words) setAddrW3W(data.words)
-                        } catch { alert('Could not get What3Words') }
-                        setW3wLoading(false)
-                      }, () => { alert('Location access denied'); setW3wLoading(false) })
-                    }} style={{ width: '100%', padding: '10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', color: '#dc2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
-                      {w3wLoading ? '📍 Getting location...' : '📍 Pin my exact location'}
-                    </button>
-                    {addrW3W && (
-                      <div style={{ padding: '8px 12px', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: '8px', fontSize: '13px', color: '#dc2626', fontWeight: 600 }}>
-                        ///{addrW3W}
-                      </div>
-                    )}
-                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                   <button onClick={saveAddress} disabled={saving}
