@@ -153,18 +153,18 @@ export default function HomePage() {
       </nav>
 
       {/* HERO */}
-      <div style={{ padding: 'clamp(48px, 8vw, 96px) clamp(16px, 4vw, 48px) clamp(32px, 5vw, 64px)', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
-        {/* Background glow */}
-        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '400px', background: `radial-gradient(ellipse, ${t.glow} 0%, transparent 70%)`, pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 10vw, 120px) clamp(16px, 4vw, 48px) clamp(48px, 7vw, 80px)' }}>
+        {/* Food background image */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1600&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.25)', zIndex: 0 }} />
+        {/* Gradient overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(8,12,20,0.3) 0%, rgba(8,12,20,0.95) 100%)', zIndex: 1 }} />
 
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '780px', margin: '0 auto' }}>
-
-
-          <h1 className="hero-title" style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(40px, 7vw, 68px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '20px', color: t.text }}>
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', maxWidth: '780px', margin: '0 auto' }}>
+          <h1 className="hero-title" style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(40px, 7vw, 68px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '20px', color: '#f1f5f9' }}>
             Guernsey food,<br />
             <span style={{ color: '#22c55e' }}>order online.</span>
           </h1>
-          <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: '#64748b', lineHeight: 1.6, marginBottom: '36px', maxWidth: '520px', margin: '0 auto 36px' }}>
+          <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: '#94a3b8', lineHeight: 1.6, marginBottom: '36px', maxWidth: '520px', margin: '0 auto 36px' }}>
             Browse menus from the best local Guernsey restaurants and place your order online in seconds.
           </p>
 
@@ -177,12 +177,12 @@ export default function HomePage() {
           {/* Parish + Cuisine dropdowns */}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '560px', margin: '0 auto' }}>
             <select value={parish} onChange={e => setParish(e.target.value)}
-              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${t.border}`, borderRadius: '10px', color: t.text, fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
-              {PARISHES.map(p => <option key={p} value={p}>{p === 'All' ? 'All parishes' : p}</option>)}
+              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', color: '#f1f5f9', fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backdropFilter: 'blur(10px)' }}>
+              {PARISHES.map(p => <option key={p} value={p} style={{ background: '#0d1321' }}>{p === 'All' ? 'All parishes' : p}</option>)}
             </select>
             <select value={cuisine} onChange={e => setCuisine(e.target.value)}
-              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${t.border}`, borderRadius: '10px', color: t.text, fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
-              {CUISINES.map(c => <option key={c} value={c}>{c === 'All' ? 'All cuisines' : c}</option>)}
+              style={{ flex: 1, minWidth: '160px', padding: '10px 16px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', color: '#f1f5f9', fontSize: '13px', fontWeight: 500, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backdropFilter: 'blur(10px)' }}>
+              {CUISINES.map(c => <option key={c} value={c} style={{ background: '#0d1321' }}>{c === 'All' ? 'All cuisines' : c}</option>)}
             </select>
           </div>
         </div>
