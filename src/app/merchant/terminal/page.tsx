@@ -360,6 +360,7 @@ export default function TerminalPage() {
         customerName: o.customer_name,
         customerPhone: o.customer_phone,
         deliveryAddress: o.delivery_address,
+        what3words: o.delivery_what3words || undefined,
         isCollection: o.order_type === 'collection' || o.order_type === 'pickup',
         contactlessDelivery: o.contactless_delivery,
         isPreOrder: !!o.scheduled_for || !!(o.notes?.includes('PRE-ORDER')),
@@ -479,6 +480,7 @@ export default function TerminalPage() {
           customerName: currentOrder.customer_name,
           customerPhone: currentOrder.customer_phone,
           deliveryAddress: currentOrder.delivery_address,
+          what3words: currentOrder.delivery_what3words || undefined,
           isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
           contactlessDelivery: currentOrder.contactless_delivery,
           isPreOrder: !!currentOrder.scheduled_for,
@@ -532,6 +534,7 @@ export default function TerminalPage() {
       customerName: currentOrder.customer_name,
       customerPhone: currentOrder.customer_phone,
       deliveryAddress: currentOrder.delivery_address,
+          what3words: currentOrder.delivery_what3words || undefined,
       isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
       contactlessDelivery: currentOrder.contactless_delivery,
       isPreOrder: !!currentOrder.scheduled_for,
@@ -1098,6 +1101,7 @@ export default function TerminalPage() {
                   restaurantName: restaurant?.name || 'Restaurant',
                   customerName: currentOrder.customer_name,
                   deliveryAddress: currentOrder.delivery_address,
+          what3words: currentOrder.delivery_what3words || undefined,
                   isCollection: currentOrder.order_type === 'collection' || currentOrder.order_type === 'pickup',
                   items: currentOrder.order_items || [],
                   specialInstructions: currentOrder.special_instructions || currentOrder.notes,
@@ -1253,7 +1257,8 @@ export default function TerminalPage() {
                     <div style={{ paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.08)', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#22c55e' }}><span>Total:</span><span>GBP{o.total?.toFixed(2)}</span></div>
                     </div>
-                    <button onClick={() => manualReprint({ id: o.id, orderNumber: o.order_number, restaurantName: restaurant?.name || 'Restaurant', customerName: o.customer_name, deliveryAddress: o.delivery_address, isCollection: o.order_type === 'collection' || o.order_type === 'pickup', items: o.order_items || [], specialInstructions: o.special_instructions, subtotal: o.subtotal, deliveryFee: o.delivery_fee, tip: o.tip, total: o.total, paymentMethod: o.payment_method })} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={() => manualReprint({ id: o.id, orderNumber: o.order_number, restaurantName: restaurant?.name || 'Restaurant', customerName: o.customer_name, deliveryAddress: o.delivery_address,
+        what3words: o.delivery_what3words || undefined, isCollection: o.order_type === 'collection' || o.order_type === 'pickup', items: o.order_items || [], specialInstructions: o.special_instructions, subtotal: o.subtotal, deliveryFee: o.delivery_fee, tip: o.tip, total: o.total, paymentMethod: o.payment_method })} style={{ width: '100%', padding: '8px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
                       Reprint Tickets
                     </button>
                   </div>
