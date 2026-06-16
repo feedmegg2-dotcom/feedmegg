@@ -155,7 +155,7 @@ export default function HomePage() {
       {/* HERO */}
       <div style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 10vw, 120px) clamp(16px, 4vw, 48px) clamp(48px, 7vw, 80px)' }}>
         {/* Food background image */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1600&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.25)', zIndex: 0 }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=1600)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.25)', zIndex: 0 }} />
         {/* Gradient overlay */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(8,12,20,0.3) 0%, rgba(8,12,20,0.95) 100%)', zIndex: 1 }} />
 
