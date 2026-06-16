@@ -252,6 +252,8 @@ export default function CheckoutPage() {
 
   const [tip, setTip] = useState(0)
   const [customTip, setCustomTip] = useState('')
+  const [w3wAddress, setW3wAddress] = useState('')
+  const [w3wLoading, setW3wLoading] = useState(false)
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
 
   function getDeliveryFee() {
@@ -301,7 +303,27 @@ export default function CheckoutPage() {
     return `${date}T${time}:00`
   }
 
-  async function placeOrder() {
+  async function getW3WFromGPS() {
+    if (!navigator.geolocation) { alert('Geolocation not supported'); return }
+    setW3wLoading(true)
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords
+        const res = await fetch(`https://api.what3words.com/v3/convert-to-3wa?coordinates=${latitude},${longitude}&language=en&key=${process.env.NEXT_PUBLIC_W3W_API_KEY}`)
+        const data = await res.json()
+        if (data.words) {
+          setW3wAddress(data.words)
+          setForm(f => ({ ...f, locationDesc: f.locationDesc ? f.locationDesc : `What3Words: ///${data.words}` }))
+        }
+      } catch (e) {
+        alert('Could not get What3Words address')
+      }
+      setW3wLoading(false)
+    }, () => {
+      alert('Location access denied')
+      setW3wLoading(false)
+    })
+  }
     if (!form.name) { setError('Please enter your name'); return }
     if (!form.phone) { setError('Please enter your phone number'); return }
     if (form.orderType === 'delivery') {
@@ -335,6 +357,7 @@ export default function CheckoutPage() {
         paymentMethod: form.paymentMethod,
         note: form.note,
         tip: tip || 0,
+        what3words: w3wAddress || null,
         contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
         scheduledFor: getScheduledFor(),
       })
@@ -578,6 +601,16 @@ export default function CheckoutPage() {
                 )}
                 <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
                   style={{ ...inputStyle, resize: 'none' }} />
+                {/* What3Words GPS */}
+                <button onClick={getW3WFromGPS} disabled={w3wLoading}
+                  style={{ padding: '10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', color: '#dc2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  {w3wLoading ? '📍 Getting location...' : '📍 Pin my exact location (What3Words)'}
+                </button>
+                {w3wAddress && (
+                  <div style={{ padding: '10px 12px', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: '8px', fontSize: '13px', color: '#dc2626', fontWeight: 600 }}>
+                    ///{w3wAddress}
+                  </div>
+                )}
               </div>
             )}
 
