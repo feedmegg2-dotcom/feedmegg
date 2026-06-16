@@ -10,6 +10,7 @@ interface OrderForPrint {
   customerName: string
   customerPhone?: string
   deliveryAddress?: string
+  what3words?: string
   isCollection: boolean
   contactlessDelivery?: boolean
   isPreOrder?: boolean
@@ -76,7 +77,10 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
       if (order.customerPhone) t += align + size + bold + order.customerPhone + boldOff + SIZE_NORMAL + LF
       break
     case 'delivery_address':
-      if (!order.isCollection && order.deliveryAddress) t += align + size + bold + order.deliveryAddress + boldOff + SIZE_NORMAL + LF
+      if (!order.isCollection && order.deliveryAddress) {
+        t += align + size + bold + order.deliveryAddress + boldOff + SIZE_NORMAL + LF
+        if ((order as any).what3words) t += ALIGN_CENTER + bold + '///' + (order as any).what3words + boldOff + ALIGN_LEFT + LF
+      }
       break
     case 'order_type':
       t += align + size + bold + (order.isCollection ? 'COLLECTION' : 'DELIVERY') + boldOff + SIZE_NORMAL + LF
