@@ -232,36 +232,34 @@ export default function HomePage() {
                 {filtered.filter(r => r.is_open).length} open now
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))', gap: '12px' }}>
               {filtered.map((r, idx) => (
-                <Link key={r.id} href={`/restaurant/${r.slug}`} className={`rest-card${!r.is_open ? ' closed' : ''}`} style={{ animationDelay: `${idx * 0.05}s` }}>
-                  {/* Image / Logo area */}
-                  <div style={{ height: '140px', background: dark ? 'linear-gradient(135deg, #0f1b2d 0%, #162032 100%)' : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <Link key={r.id} href={`/restaurant/${r.slug}`} className={`rest-card${!r.is_open ? ' closed' : ''}`} style={{ animationDelay: `${idx * 0.05}s`, display: 'flex', alignItems: 'center', gap: '0', borderRadius: '14px', overflow: 'hidden', background: t.card, border: `1px solid ${t.border}`, textDecoration: 'none' }}>
+                  {/* Square image */}
+                  <div style={{ width: '110px', height: '110px', flexShrink: 0, background: dark ? '#0f1b2d' : '#e2e8f0', position: 'relative', overflow: 'hidden' }}>
                     {r.logo_url
                       ? <img src={r.logo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: '52px' }}>{r.emoji || 'food'}</span>
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '42px' }}>{r.emoji || '🍽️'}</div>
                     }
-                    {/* Open/closed badge */}
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', background: r.is_open ? 'rgba(34,197,94,0.9)' : 'rgba(0,0,0,0.6)', color: r.is_open ? '#080c14' : '#64748b', backdropFilter: 'blur(4px)' }}>
-                      {r.is_open ? 'OPEN' : 'CLOSED'}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, padding: '14px 16px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', fontWeight: 700, color: t.text, letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                      <div style={{ flexShrink: 0, marginLeft: '8px', padding: '3px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, background: r.is_open ? 'rgba(34,197,94,0.15)' : 'rgba(100,116,139,0.15)', color: r.is_open ? '#22c55e' : '#64748b' }}>
+                        {r.is_open ? 'OPEN' : 'CLOSED'}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '12px', color: t.sub, marginBottom: '10px' }}>{r.cuisine_type} • {r.parish}</div>
+                    <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: t.muted }}>
+                      <span>🕐 {r.delivery_time_mins || 45} min</span>
+                      <span>🚗 GBP{parseFloat(r.delivery_fee || 2.50).toFixed(2)}</span>
+                      <span>Min GBP{parseFloat(r.min_order || 10).toFixed(2)}</span>
                     </div>
                   </div>
-
-                  {/* Info */}
-                  <div style={{ padding: '14px 16px 16px' }}>
-                    <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', fontWeight: 700, color: '#f1f5f9', marginBottom: '4px', letterSpacing: '-0.3px' }}>{r.name}</div>
-                    <div style={{ fontSize: '12px', color: '#475569', marginBottom: '12px' }}>{r.cuisine_type}</div>
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        {r.delivery_time_mins} min
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                        GBP{r.delivery_fee?.toFixed(2) || '2.50'} delivery
-                      </span>
-                      <span style={{ marginLeft: 'auto', color: '#334155' }}>GBP{r.min_order?.toFixed(2)} min</span>
-                    </div>
+                  {/* Arrow */}
+                  <div style={{ paddingRight: '14px', color: t.muted, flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
                   </div>
                 </Link>
               ))}
