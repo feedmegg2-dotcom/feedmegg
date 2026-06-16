@@ -354,7 +354,7 @@ export default function AdminPage() {
 
   async function saveRestaurant() {
     if (!editRestaurant) return
-    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, address: editRestaurant.address || null, phone: editRestaurant.phone || null, min_order: parseFloat(editRestaurant.min_order), delivery_fee: parseFloat(editRestaurant.delivery_fee) || 0, delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), opening_time: editRestaurant.opening_time || null, closing_time: editRestaurant.closing_time || null, custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null, sumup_api_key: editRestaurant.sumup_api_key || null, sumup_email: editRestaurant.sumup_email || null, sumup_merchant_code: editRestaurant.sumup_merchant_code || null }).eq('id', editRestaurant.id)
+    const { error } = await supabase.from('restaurants').update({ name: editRestaurant.name, cuisine_type: editRestaurant.cuisine_type, emoji: editRestaurant.emoji, description: editRestaurant.description, parish: editRestaurant.parish, postcode: editRestaurant.postcode, address: editRestaurant.address || null, phone: editRestaurant.phone || null, lat: editRestaurant.lat ? parseFloat(editRestaurant.lat) : null, lng: editRestaurant.lng ? parseFloat(editRestaurant.lng) : null, min_order: parseFloat(editRestaurant.min_order), delivery_fee: parseFloat(editRestaurant.delivery_fee) || 0, delivery_time_mins: parseInt(editRestaurant.delivery_time_mins), pickup_time_mins: parseInt(editRestaurant.pickup_time_mins), opening_time: editRestaurant.opening_time || null, closing_time: editRestaurant.closing_time || null, custom_message: editRestaurant.custom_message, is_open: editRestaurant.is_open, is_active: editRestaurant.is_active, accepts_delivery: editRestaurant.accepts_delivery, accepts_pickup: editRestaurant.accepts_pickup, foodgg_url: editRestaurant.foodgg_url || null, sumup_api_key: editRestaurant.sumup_api_key || null, sumup_email: editRestaurant.sumup_email || null, sumup_merchant_code: editRestaurant.sumup_merchant_code || null }).eq('id', editRestaurant.id)
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg('Restaurant saved!'); setEditRestaurant(null); fetchAll()
   }
@@ -778,6 +778,31 @@ export default function AdminPage() {
                     <div><label>Opens (e.g. 11:00)</label><input className="input" type="time" value={editRestaurant.opening_time || ''} onChange={e => setEditRestaurant({...editRestaurant, opening_time: e.target.value})} /></div>
                     <div><label>Closes (e.g. 22:00)</label><input className="input" type="time" value={editRestaurant.closing_time || ''} onChange={e => setEditRestaurant({...editRestaurant, closing_time: e.target.value})} /></div>
                     <div style={{ gridColumn: 'span 2' }}><label>food.gg URL (for sync)</label><input className="input" placeholder="https://www.food.gg/restaurantname" value={editRestaurant.foodgg_url || ''} onChange={e => setEditRestaurant({...editRestaurant, foodgg_url: e.target.value})} /></div>
+                    {/* Location Map */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label>Location Pin (click map to set)</label>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>
+                        {editRestaurant.lat && editRestaurant.lng ? `📍 ${parseFloat(editRestaurant.lat).toFixed(5)}, ${parseFloat(editRestaurant.lng).toFixed(5)}` : 'No location set - click the map to pin'}
+                      </div>
+                      <iframe
+                        key={`map-${editRestaurant.id}`}
+                        style={{ width: '100%', height: '220px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=-2.7,-2.4,49.3,49.6&layer=mapnik&marker=${editRestaurant.lat || 49.455},${editRestaurant.lng || -2.536}`}
+                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                        <div><label style={{ fontSize: '11px' }}>Latitude</label><input className="input" placeholder="e.g. 49.455" value={editRestaurant.lat || ''} onChange={e => setEditRestaurant({...editRestaurant, lat: e.target.value})} /></div>
+                        <div><label style={{ fontSize: '11px' }}>Longitude</label><input className="input" placeholder="e.g. -2.536" value={editRestaurant.lng || ''} onChange={e => setEditRestaurant({...editRestaurant, lng: e.target.value})} /></div>
+                      </div>
+                      <button onClick={async () => {
+                        const addr = `${editRestaurant.address || editRestaurant.name}, ${editRestaurant.parish}, Guernsey`
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
+                        const data = await res.json()
+                        if (data[0]) setEditRestaurant({...editRestaurant, lat: parseFloat(data[0].lat).toFixed(6), lng: parseFloat(data[0].lon).toFixed(6)})
+                        else alert('Address not found - enter coordinates manually')
+                      }} style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                        📍 Auto-detect from address
+                      </button>
+                    </div>
                     <div style={{ gridColumn: 'span 2', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '10px', padding: '14px' }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#22c55e', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SumUp Payment Settings</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
