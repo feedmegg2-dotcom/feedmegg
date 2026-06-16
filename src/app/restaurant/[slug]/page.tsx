@@ -296,7 +296,10 @@ export default function RestaurantPage() {
                       height="200"
                       frameBorder="0"
                       style={{ display: 'block' }}
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(restaurant.address + ', Guernsey')}&output=embed&z=15`}
+                      src={restaurant.lat && restaurant.lng
+                        ? `https://www.openstreetmap.org/export/embed.html?bbox=${restaurant.lng - 0.01},${restaurant.lat - 0.01},${restaurant.lng + 0.01},${restaurant.lat + 0.01}&layer=mapnik&marker=${restaurant.lat},${restaurant.lng}`
+                        : `https://maps.google.com/maps?q=${encodeURIComponent(restaurant.address + ', Guernsey')}&output=embed&z=15`
+                      }
                     />
                     <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8' }}>
