@@ -181,6 +181,23 @@ export default function WaitingPage() {
                 <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: '#22c55e' }}>Order accepted!</h1>
                 <p style={{ fontSize: '14px', color: sub }}>Complete your payment below</p>
               </div>
+              {/* Apple Pay & Google Pay buttons */}
+              {checkoutId && (
+                <div style={{ display: 'grid', gap: '10px', marginBottom: '16px' }}>
+                  <button id="apple-pay-btn" style={{ display: 'none', width: '100%', height: '48px', background: '#000', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '17px', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                     Pay with  Apple Pay
+                  </button>
+                  <button id="google-pay-btn" style={{ display: 'none', width: '100%', height: '48px', background: '#fff', borderRadius: '10px', border: '1px solid #dadce0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 500 }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24"><text y="20" fontSize="20">G</text></svg>
+                    Pay with Google Pay
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ flex: 1, height: '1px', background: border }} />
+                    <span style={{ fontSize: '12px', color: sub }}>or pay by card</span>
+                    <div style={{ flex: 1, height: '1px', background: border }} />
+                  </div>
+                </div>
+              )}
               {/* SumUp Payment Widget */}
               <div id="sumup-card" style={{ background: card, borderRadius: '14px', padding: '16px', border: `1px solid ${border}` }}></div>
             </div>
