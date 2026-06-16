@@ -187,7 +187,7 @@ export default function WaitingPage() {
                   <button id="apple-pay-btn" style={{ display: 'none', width: '100%', height: '48px', background: '#000', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '17px', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
                      Pay with  Apple Pay
                   </button>
-                  <button id="google-pay-btn" style={{ display: 'none', width: '100%', height: '48px', background: '#fff', borderRadius: '10px', border: '1px solid #dadce0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 500 }}>
+                  <button id="google-pay-btn" style={{ width: '100%', height: '48px', background: '#fff', borderRadius: '10px', border: '1px solid #dadce0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 500 }}>
                     <svg width="24" height="24" viewBox="0 0 24 24"><text y="20" fontSize="20">G</text></svg>
                     Pay with Google Pay
                   </button>
