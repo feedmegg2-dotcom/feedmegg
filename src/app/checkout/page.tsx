@@ -324,6 +324,8 @@ export default function CheckoutPage() {
       setW3wLoading(false)
     })
   }
+
+  async function placeOrder() {
     if (!form.name) { setError('Please enter your name'); return }
     if (!form.phone) { setError('Please enter your phone number'); return }
     if (form.orderType === 'delivery') {
