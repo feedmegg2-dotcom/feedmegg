@@ -603,16 +603,6 @@ export default function CheckoutPage() {
                 )}
                 <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
                   style={{ ...inputStyle, resize: 'none' }} />
-                {/* What3Words GPS */}
-                <button onClick={getW3WFromGPS} disabled={w3wLoading}
-                  style={{ padding: '10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', color: '#dc2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  {w3wLoading ? '📍 Getting location...' : '📍 Pin my exact location (What3Words)'}
-                </button>
-                {w3wAddress && (
-                  <div style={{ padding: '10px 12px', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: '8px', fontSize: '13px', color: '#dc2626', fontWeight: 600 }}>
-                    ///{w3wAddress}
-                  </div>
-                )}
               </div>
             )}
 
