@@ -117,7 +117,7 @@ export default function HomePage() {
       {/* NAV */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: t.navBg, backdropFilter: 'blur(20px)', borderBottom: `1px solid ${t.border}`, padding: '0 clamp(16px, 4vw, 48px)', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(20px, 3vw, 26px)', fontWeight: 800, textDecoration: 'none', letterSpacing: '-0.5px' }}>
-          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: t.text }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 2vw, 28px)' }}>
           <a href="#how-it-works" className="nav-link hide-mobile">How it works</a>
@@ -336,7 +336,7 @@ export default function HomePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px', marginBottom: '32px' }}>
             <div style={{ maxWidth: '280px' }}>
               <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>
-                <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
+                <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: t.text }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
               </div>
               <p style={{ fontSize: '13px', color: '#334155', lineHeight: 1.6 }}>Guernsey's local food ordering platform. Supporting independent restaurants across the island.</p>
             </div>
