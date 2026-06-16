@@ -286,6 +286,33 @@ export default function RestaurantPage() {
               </div>
             )}
 
+            {/* Map & Info */}
+            {(restaurant.address || restaurant.phone) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                {restaurant.address && (
+                  <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <iframe
+                      width="100%"
+                      height="200"
+                      frameBorder="0"
+                      style={{ display: 'block' }}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(restaurant.address + ', Guernsey')}&output=embed&z=15`}
+                    />
+                    <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8' }}>
+                        <span>📍</span><span>{restaurant.address}, {restaurant.parish}</span>
+                      </div>
+                      {restaurant.phone && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8' }}>
+                          <span>📞</span><a href={`tel:${restaurant.phone}`} style={{ color: '#22c55e', textDecoration: 'none' }}>{restaurant.phone}</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
 
               {/* Opening Hours */}
@@ -496,48 +523,68 @@ export default function RestaurantPage() {
       )}
 
       {/* BASKET MODAL */}
+      {/* BASKET SIDEBAR */}
       {showBasket && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowBasket(false)}>
-          <div style={{ width: '100%', background: '#0f172a', borderRadius: '16px 16px 0 0', padding: '24px', maxHeight: '85vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px' }}>Your Basket</h2>
-            {cart.length === 0 ? (
-              <p style={{ color: '#475569', textAlign: 'center', padding: '20px 0' }}>Your basket is empty</p>
-            ) : (
-              <>
-                {cart.map(item => (
-                  <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                    <div style={{ flex: 1, marginRight: '12px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.qty}x {item.name}</div>
-                      {item.note && <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>{item.note}</div>}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button onClick={() => updateQty(item.cartId, -1)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#f8fafc', width: '28px', height: '28px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>-</button>
-                      <button onClick={() => updateQty(item.cartId, 1)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#f8fafc', width: '28px', height: '28px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>+</button>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#22c55e', minWidth: '50px', textAlign: 'right' }}>GBP{(item.price * item.qty).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
-                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: hasFreeDeliveryThreshold ? '4px' : '12px' }}>
-                    <span>Delivery</span><span>{deliveryFeeLabel}</span>
-                  </div>
-                  {hasFreeDeliveryThreshold && (
-                    <div style={{ fontSize: '11px', color: '#22c55e', marginBottom: '12px', textAlign: 'right' }}>
-                      🎉 Free delivery over GBP{freeDeliveryOver!.toFixed(2)}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
-                    <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}+</span>
-                  </div>
-                  <button onClick={() => { if (!restaurant?.id) return; localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
-                    style={{ width: '100%', padding: '14px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
-                    Proceed to Checkout
-                  </button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200 }} onClick={() => setShowBasket(false)}>
+          {/* Overlay */}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} />
+          {/* Sidebar */}
+          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 'min(380px, 100vw)', background: dark ? '#0f172a' : '#ffffff', borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: dark ? '#f1f5f9' : '#0f172a' }}>Your Order</h2>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{restaurant?.name}</div>
+              </div>
+              <button onClick={() => setShowBasket(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+            {/* Items */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
+              {cart.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: '#475569' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>🛒</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>Your basket is empty</div>
+                  <div style={{ fontSize: '12px', marginTop: '6px' }}>Add items from the menu</div>
                 </div>
-              </>
+              ) : (
+                cart.map(item => (
+                  <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                    <div style={{ flex: 1, marginRight: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: dark ? '#f1f5f9' : '#0f172a' }}>{item.name}</div>
+                      {item.note && <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{item.note}</div>}
+                      <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '2px', fontWeight: 600 }}>GBP{(item.price * item.qty).toFixed(2)}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: '8px', padding: '4px' }}>
+                      <button onClick={() => updateQty(item.cartId, -1)} style={{ background: 'none', border: 'none', color: dark ? '#f8fafc' : '#0f172a', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', fontWeight: 700 }}>-</button>
+                      <span style={{ fontSize: '13px', fontWeight: 700, minWidth: '16px', textAlign: 'center', color: dark ? '#f8fafc' : '#0f172a' }}>{item.qty}</span>
+                      <button onClick={() => updateQty(item.cartId, 1)} style={{ background: 'none', border: 'none', color: dark ? '#f8fafc' : '#0f172a', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', fontWeight: 700 }}>+</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {/* Footer */}
+            {cart.length > 0 && (
+              <div style={{ padding: '16px 24px', borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, flexShrink: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>
+                  <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: hasFreeDeliveryThreshold ? '4px' : '12px' }}>
+                  <span>Delivery</span><span>{deliveryFeeLabel}</span>
+                </div>
+                {hasFreeDeliveryThreshold && (
+                  <div style={{ fontSize: '11px', color: '#22c55e', marginBottom: '12px', textAlign: 'right' }}>
+                    🎉 Free delivery over GBP{freeDeliveryOver!.toFixed(2)}
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '17px', fontWeight: 800, marginBottom: '16px', color: dark ? '#f1f5f9' : '#0f172a' }}>
+                  <span>Total</span><span style={{ color: '#22c55e' }}>GBP{(cartTotal + deliveryFee).toFixed(2)}+</span>
+                </div>
+                <button onClick={() => { if (!restaurant?.id) return; localStorage.setItem('feedme-cart', JSON.stringify({ cart, restaurantId: restaurant.id, restaurantName: restaurant.name })); router.push('/checkout') }}
+                  style={{ width: '100%', padding: '16px', background: '#22c55e', color: '#0a0f1e', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Proceed to Checkout →
+                </button>
+              </div>
             )}
           </div>
         </div>
