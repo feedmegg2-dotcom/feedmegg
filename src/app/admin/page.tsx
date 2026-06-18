@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 
-const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions']
+const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers']
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
@@ -1399,7 +1399,242 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {tab === 'offers' && <OffersTab restaurants={restaurants} supabase={supabase} />}
+
       </div>
+    </div>
+  )
+}
+
+function OffersTab({ restaurants, supabase }: { restaurants: any[], supabase: any }) {
+  const [promoCodes, setPromoCodes] = useState<any[]>([])
+  const [offers, setOffers] = useState<any[]>([])
+  const [activeSection, setActiveSection] = useState<'promos' | 'offers'>('promos')
+  const [showPromoForm, setShowPromoForm] = useState(false)
+  const [showOfferForm, setShowOfferForm] = useState(false)
+  const [newPromo, setNewPromo] = useState({ code: '', description: '', discount_type: 'percent', discount_value: '10', min_order: '0', max_uses: '', first_order_only: false, restaurant_id: '', expires_at: '' })
+  const [newOffer, setNewOffer] = useState({ restaurant_id: '', title: '', description: '', offer_type: 'deal_of_day', discount_type: 'percent', discount_value: '10', min_order: '0', free_delivery_over: '' })
+
+  useEffect(() => { fetchAll() }, [])
+
+  async function fetchAll() {
+    const { data: p } = await supabase.from('promo_codes').select('*, restaurants(name)').order('created_at', { ascending: false })
+    const { data: o } = await supabase.from('offers').select('*, restaurants(name)').order('created_at', { ascending: false })
+    setPromoCodes(p || [])
+    setOffers(o || [])
+  }
+
+  async function savePromo() {
+    await supabase.from('promo_codes').insert({
+      code: newPromo.code.toUpperCase(),
+      description: newPromo.description,
+      discount_type: newPromo.discount_type,
+      discount_value: parseFloat(newPromo.discount_value),
+      min_order: parseFloat(newPromo.min_order) || 0,
+      max_uses: newPromo.max_uses ? parseInt(newPromo.max_uses) : null,
+      first_order_only: newPromo.first_order_only,
+      restaurant_id: newPromo.restaurant_id || null,
+      expires_at: newPromo.expires_at || null,
+    })
+    setShowPromoForm(false)
+    setNewPromo({ code: '', description: '', discount_type: 'percent', discount_value: '10', min_order: '0', max_uses: '', first_order_only: false, restaurant_id: '', expires_at: '' })
+    fetchAll()
+  }
+
+  async function saveOffer() {
+    await supabase.from('offers').insert({
+      restaurant_id: newOffer.restaurant_id || null,
+      title: newOffer.title,
+      description: newOffer.description,
+      offer_type: newOffer.offer_type,
+      discount_type: newOffer.discount_type,
+      discount_value: parseFloat(newOffer.discount_value) || 0,
+      min_order: parseFloat(newOffer.min_order) || 0,
+      free_delivery_over: newOffer.free_delivery_over ? parseFloat(newOffer.free_delivery_over) : null,
+    })
+    setShowOfferForm(false)
+    fetchAll()
+  }
+
+  async function togglePromo(id: string, current: boolean) {
+    await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id)
+    fetchAll()
+  }
+
+  async function toggleOffer(id: string, current: boolean) {
+    await supabase.from('offers').update({ is_active: !current }).eq('id', id)
+    fetchAll()
+  }
+
+  async function deletePromo(id: string) {
+    if (!confirm('Delete this promo code?')) return
+    await supabase.from('promo_codes').delete().eq('id', id)
+    fetchAll()
+  }
+
+  async function deleteOffer(id: string) {
+    if (!confirm('Delete this offer?')) return
+    await supabase.from('offers').delete().eq('id', id)
+    fetchAll()
+  }
+
+  const inputStyle = { width: '100%', padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Offers & Promotions</h2>
+
+      {/* Section Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        {(['promos', 'offers'] as const).map(s => (
+          <button key={s} onClick={() => setActiveSection(s)}
+            style={{ padding: '8px 18px', borderRadius: '8px', border: `1px solid ${activeSection === s ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, background: activeSection === s ? 'rgba(34,197,94,0.1)' : 'transparent', color: activeSection === s ? '#22c55e' : 'var(--sub)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {s === 'promos' ? '🎟️ Promo Codes' : '🎁 Offers & Deals'}
+          </button>
+        ))}
+      </div>
+
+      {/* PROMO CODES */}
+      {activeSection === 'promos' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Promo Codes ({promoCodes.length})</div>
+            <button onClick={() => setShowPromoForm(!showPromoForm)} className="btn-primary" style={{ fontSize: '13px' }}>+ New Code</button>
+          </div>
+
+          {showPromoForm && (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Create Promo Code</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Code *</label><input style={inputStyle} placeholder="e.g. SAVE10" value={newPromo.code} onChange={e => setNewPromo({...newPromo, code: e.target.value.toUpperCase()})} /></div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Restaurant (leave blank for all)</label>
+                  <select style={inputStyle} value={newPromo.restaurant_id} onChange={e => setNewPromo({...newPromo, restaurant_id: e.target.value})}>
+                    <option value="">All restaurants</option>
+                    {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Discount Type</label>
+                  <select style={inputStyle} value={newPromo.discount_type} onChange={e => setNewPromo({...newPromo, discount_type: e.target.value})}>
+                    <option value="percent">Percentage (%)</option>
+                    <option value="fixed">Fixed amount (£)</option>
+                  </select>
+                </div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Discount Value</label><input style={inputStyle} type="number" value={newPromo.discount_value} onChange={e => setNewPromo({...newPromo, discount_value: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Min Order (£)</label><input style={inputStyle} type="number" value={newPromo.min_order} onChange={e => setNewPromo({...newPromo, min_order: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Max Uses (blank = unlimited)</label><input style={inputStyle} type="number" placeholder="Unlimited" value={newPromo.max_uses} onChange={e => setNewPromo({...newPromo, max_uses: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Expires At (optional)</label><input style={inputStyle} type="date" value={newPromo.expires_at} onChange={e => setNewPromo({...newPromo, expires_at: e.target.value})} /></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '18px' }}>
+                  <input type="checkbox" id="first-order" checked={newPromo.first_order_only} onChange={e => setNewPromo({...newPromo, first_order_only: e.target.checked})} />
+                  <label htmlFor="first-order" style={{ fontSize: '13px', cursor: 'pointer' }}>First order only</label>
+                </div>
+              </div>
+              <div style={{ marginBottom: '14px' }}><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Description (shown to customer)</label><input style={inputStyle} placeholder="e.g. 10% off your order" value={newPromo.description} onChange={e => setNewPromo({...newPromo, description: e.target.value})} /></div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowPromoForm(false)} className="btn-ghost" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={savePromo} className="btn-primary" style={{ flex: 2 }}>Create Code</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {promoCodes.map(p => (
+              <div key={p.id} style={{ background: 'var(--bg2)', border: `1px solid ${p.is_active ? 'var(--border)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', opacity: p.is_active ? 1 : 0.6 }}>
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', fontSize: '15px', fontWeight: 800, color: '#22c55e', fontFamily: 'monospace', letterSpacing: '1px' }}>{p.code}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '2px' }}>{p.description || 'No description'}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>
+                    {p.discount_type === 'percent' ? `${p.discount_value}% off` : `£${p.discount_value} off`}
+                    {p.min_order > 0 ? ` • Min £${p.min_order}` : ''}
+                    {p.first_order_only ? ' • First order only' : ''}
+                    {p.max_uses ? ` • ${p.uses_count}/${p.max_uses} uses` : ` • ${p.uses_count} uses`}
+                    {p.restaurants?.name ? ` • ${p.restaurants.name}` : ' • All restaurants'}
+                    {p.expires_at ? ` • Expires ${new Date(p.expires_at).toLocaleDateString()}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => togglePromo(p.id, p.is_active)} style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${p.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, background: p.is_active ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: p.is_active ? '#22c55e' : '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>{p.is_active ? 'Active' : 'Disabled'}</button>
+                  <button onClick={() => deletePromo(p.id)} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
+                </div>
+              </div>
+            ))}
+            {promoCodes.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)', fontSize: '14px' }}>No promo codes yet</div>}
+          </div>
+        </div>
+      )}
+
+      {/* OFFERS */}
+      {activeSection === 'offers' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Offers & Deals ({offers.length})</div>
+            <button onClick={() => setShowOfferForm(!showOfferForm)} className="btn-primary" style={{ fontSize: '13px' }}>+ New Offer</button>
+          </div>
+
+          {showOfferForm && (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Create Offer</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Restaurant</label>
+                  <select style={inputStyle} value={newOffer.restaurant_id} onChange={e => setNewOffer({...newOffer, restaurant_id: e.target.value})}>
+                    <option value="">All restaurants</option>
+                    {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Offer Type</label>
+                  <select style={inputStyle} value={newOffer.offer_type} onChange={e => setNewOffer({...newOffer, offer_type: e.target.value})}>
+                    <option value="deal_of_day">Deal of the Day</option>
+                    <option value="free_delivery">Free Delivery</option>
+                    <option value="meal_deal">Meal Deal</option>
+                    <option value="first_order">First Order Discount</option>
+                  </select>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Title *</label><input style={inputStyle} placeholder="e.g. 20% off all pizzas today!" value={newOffer.title} onChange={e => setNewOffer({...newOffer, title: e.target.value})} /></div>
+                <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Description</label><input style={inputStyle} placeholder="e.g. Valid today only. Use at checkout." value={newOffer.description} onChange={e => setNewOffer({...newOffer, description: e.target.value})} /></div>
+                {newOffer.offer_type !== 'free_delivery' && <>
+                  <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Discount Type</label>
+                    <select style={inputStyle} value={newOffer.discount_type} onChange={e => setNewOffer({...newOffer, discount_type: e.target.value})}>
+                      <option value="percent">Percentage (%)</option>
+                      <option value="fixed">Fixed amount (£)</option>
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Discount Value</label><input style={inputStyle} type="number" value={newOffer.discount_value} onChange={e => setNewOffer({...newOffer, discount_value: e.target.value})} /></div>
+                </>}
+                {newOffer.offer_type === 'free_delivery' && (
+                  <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Free delivery over (£)</label><input style={inputStyle} type="number" placeholder="0 = always free" value={newOffer.free_delivery_over} onChange={e => setNewOffer({...newOffer, free_delivery_over: e.target.value})} /></div>
+                )}
+                <div><label style={{ fontSize: '11px', color: 'var(--sub)', display: 'block', marginBottom: '4px' }}>Min Order (£)</label><input style={inputStyle} type="number" value={newOffer.min_order} onChange={e => setNewOffer({...newOffer, min_order: e.target.value})} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowOfferForm(false)} className="btn-ghost" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={saveOffer} className="btn-primary" style={{ flex: 2 }}>Create Offer</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {offers.map(o => (
+              <div key={o.id} style={{ background: 'var(--bg2)', border: `1px solid ${o.is_active ? 'rgba(34,197,94,0.2)' : 'var(--border)'}`, borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', opacity: o.is_active ? 1 : 0.6 }}>
+                <div style={{ fontSize: '24px' }}>{o.offer_type === 'deal_of_day' ? '🔥' : o.offer_type === 'free_delivery' ? '🚗' : o.offer_type === 'meal_deal' ? '🍱' : '🎁'}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>{o.title}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--sub)' }}>
+                    {o.offer_type.replace('_', ' ')}
+                    {o.discount_value > 0 ? ` • ${o.discount_type === 'percent' ? `${o.discount_value}%` : `£${o.discount_value}`} off` : ''}
+                    {o.free_delivery_over ? ` • Free delivery over £${o.free_delivery_over}` : ''}
+                    {o.restaurants?.name ? ` • ${o.restaurants.name}` : ' • All restaurants'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => toggleOffer(o.id, o.is_active)} style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${o.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, background: o.is_active ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: o.is_active ? '#22c55e' : '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>{o.is_active ? 'Active' : 'Disabled'}</button>
+                  <button onClick={() => deleteOffer(o.id)} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
+                </div>
+              </div>
+            ))}
+            {offers.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)', fontSize: '14px' }}>No offers yet</div>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
