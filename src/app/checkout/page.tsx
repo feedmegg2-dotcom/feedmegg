@@ -252,6 +252,9 @@ export default function CheckoutPage() {
 
   const [tip, setTip] = useState(0)
   const [customTip, setCustomTip] = useState('')
+  const [promoCode, setPromoCode] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<any>(null)
+  const [promoError, setPromoError] = useState('')
   const [w3wAddress, setW3wAddress] = useState('')
   const [w3wLoading, setW3wLoading] = useState(false)
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
@@ -272,8 +275,26 @@ export default function CheckoutPage() {
   }
 
   const deliveryFee = getDeliveryFee()
-  const orderTotal = cartTotal + deliveryFee + tip
+  const promoDiscount = appliedPromo ? (appliedPromo.discount_type === 'percent' ? cartTotal * (appliedPromo.discount_value / 100) : appliedPromo.discount_value) : 0
+  const orderTotal = cartTotal + deliveryFee + tip - promoDiscount
   const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
+
+  async function applyPromoCode() {
+    setPromoError('')
+    if (!promoCode) return
+    const { data: promo } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('code', promoCode.toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!promo) { setPromoError('Invalid or expired promo code'); return }
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) { setPromoError('This promo code has expired'); return }
+    if (promo.max_uses && promo.uses_count >= promo.max_uses) { setPromoError('This promo code has reached its maximum uses'); return }
+    if (promo.min_order && cartTotal < promo.min_order) { setPromoError(`Minimum order of £${promo.min_order} required for this code`); return }
+    if (promo.restaurant_id && promo.restaurant_id !== restaurant?.id) { setPromoError('This code is not valid for this restaurant'); return }
+    setAppliedPromo(promo)
+  }
 
   useEffect(() => {
     if (form.orderType !== 'delivery' || form.paymentMethod !== 'card') {
@@ -359,6 +380,8 @@ export default function CheckoutPage() {
         paymentMethod: form.paymentMethod,
         note: form.note,
         tip: tip || 0,
+        promoCode: appliedPromo?.code || null,
+        promoDiscount: promoDiscount || 0,
         what3words: w3wAddress || null,
         contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
         scheduledFor: getScheduledFor(),
@@ -474,8 +497,13 @@ export default function CheckoutPage() {
                 <span>Tip</span><span>GBP{tip.toFixed(2)}</span>
               </div>
             )}
+            {promoDiscount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#22c55e', marginBottom: '6px' }}>
+                <span>Promo ({promoCode})</span><span>-GBP{promoDiscount.toFixed(2)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${border}` }}>
-              <span>Total</span><span style={{ color: '#22c55e' }}>GBP{orderTotal.toFixed(2)}</span>
+              <span>Total</span><span style={{ color: '#22c55e' }}>GBP{Math.max(0, orderTotal).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -676,6 +704,20 @@ export default function CheckoutPage() {
             </div>
           </div>
         )}
+
+        {/* PROMO CODE */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Promo Code 🎟️</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input placeholder="Enter promo code" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setAppliedPromo(null); setPromoError('') }}
+              style={{ flex: 1, padding: '10px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${appliedPromo ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+            <button onClick={applyPromoCode} style={{ padding: '10px 16px', background: appliedPromo ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${appliedPromo ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: appliedPromo ? '#22c55e' : text, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {appliedPromo ? '✓ Applied' : 'Apply'}
+            </button>
+          </div>
+          {promoError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>{promoError}</div>}
+          {appliedPromo && <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '6px' }}>🎉 {appliedPromo.description || `${appliedPromo.discount_type === 'percent' ? appliedPromo.discount_value + '%' : '£' + appliedPromo.discount_value} off applied!`}</div>}
+        </div>
 
         {/* MIN ORDER WARNING */}
         {!meetsMinOrder && (
