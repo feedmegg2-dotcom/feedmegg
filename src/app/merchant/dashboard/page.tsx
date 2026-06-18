@@ -10,7 +10,7 @@ export default function MerchantDashboard() {
   const supabase = createClient()
   const [merchant, setMerchant] = useState<any>(null)
   const [restaurants, setRestaurants] = useState<any[]>([])
-  const [tab, setTab] = useState<'dashboard'|'restaurants'>('dashboard')
+  const [tab, setTab] = useState<'dashboard'|'restaurants'|'offers'>('dashboard')
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
 
@@ -218,9 +218,9 @@ export default function MerchantDashboard() {
 
         {/* TABS */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '4px' }}>
-          {(['dashboard','restaurants'] as const).map(t => (
+          {(['dashboard','restaurants','offers'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', background: tab === t ? '#22c55e' : 'transparent', color: tab === t ? '#080c14' : '#64748b', textTransform: 'capitalize' }}>
-              {t === 'dashboard' ? 'Dashboard' : 'Restaurants'}
+              {t === 'dashboard' ? 'Dashboard' : t === 'restaurants' ? 'Restaurants' : '🎁 Offers'}
             </button>
           ))}
         </div>
@@ -516,6 +516,151 @@ export default function MerchantDashboard() {
         </div>
       )}
 
+        {tab === 'offers' && merchantRestaurants.length > 0 && (
+          <MerchantOffersTab restaurant={merchantRestaurants[0]} supabase={supabase} />
+        )}
+
+    </div>
+  )
+}
+
+function MerchantOffersTab({ restaurant, supabase }: { restaurant: any, supabase: any }) {
+  const [promoCodes, setPromoCodes] = useState<any[]>([])
+  const [offers, setOffers] = useState<any[]>([])
+  const [activeSection, setActiveSection] = useState<'promos' | 'offers'>('promos')
+  const [showPromoForm, setShowPromoForm] = useState(false)
+  const [showOfferForm, setShowOfferForm] = useState(false)
+  const [newPromo, setNewPromo] = useState({ code: '', description: '', discount_type: 'percent', discount_value: '10', min_order: '0', max_uses: '', first_order_only: false, expires_at: '' })
+  const [newOffer, setNewOffer] = useState({ title: '', description: '', offer_type: 'deal_of_day', discount_type: 'percent', discount_value: '10', min_order: '0', free_delivery_over: '' })
+
+  useEffect(() => { fetchAll() }, [])
+
+  async function fetchAll() {
+    const { data: p } = await supabase.from('promo_codes').select('*').eq('restaurant_id', restaurant.id).order('created_at', { ascending: false })
+    const { data: o } = await supabase.from('offers').select('*').eq('restaurant_id', restaurant.id).order('created_at', { ascending: false })
+    setPromoCodes(p || [])
+    setOffers(o || [])
+  }
+
+  async function savePromo() {
+    await supabase.from('promo_codes').insert({ code: newPromo.code.toUpperCase(), description: newPromo.description, discount_type: newPromo.discount_type, discount_value: parseFloat(newPromo.discount_value), min_order: parseFloat(newPromo.min_order) || 0, max_uses: newPromo.max_uses ? parseInt(newPromo.max_uses) : null, first_order_only: newPromo.first_order_only, restaurant_id: restaurant.id, expires_at: newPromo.expires_at || null })
+    setShowPromoForm(false)
+    setNewPromo({ code: '', description: '', discount_type: 'percent', discount_value: '10', min_order: '0', max_uses: '', first_order_only: false, expires_at: '' })
+    fetchAll()
+  }
+
+  async function saveOffer() {
+    await supabase.from('offers').insert({ restaurant_id: restaurant.id, title: newOffer.title, description: newOffer.description, offer_type: newOffer.offer_type, discount_type: newOffer.discount_type, discount_value: parseFloat(newOffer.discount_value) || 0, min_order: parseFloat(newOffer.min_order) || 0, free_delivery_over: newOffer.free_delivery_over ? parseFloat(newOffer.free_delivery_over) : null })
+    setShowOfferForm(false)
+    fetchAll()
+  }
+
+  async function togglePromo(id: string, current: boolean) { await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id); fetchAll() }
+  async function toggleOffer(id: string, current: boolean) { await supabase.from('offers').update({ is_active: !current }).eq('id', id); fetchAll() }
+  async function deletePromo(id: string) { if (!confirm('Delete this promo code?')) return; await supabase.from('promo_codes').delete().eq('id', id); fetchAll() }
+  async function deleteOffer(id: string) { if (!confirm('Delete this offer?')) return; await supabase.from('offers').delete().eq('id', id); fetchAll() }
+
+  const inputStyle: any = { width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '20px' }}>Offers & Promotions</h2>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        {(['promos', 'offers'] as const).map(s => (
+          <button key={s} onClick={() => setActiveSection(s)} style={{ padding: '8px 18px', borderRadius: '8px', border: `1px solid ${activeSection === s ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, background: activeSection === s ? 'rgba(34,197,94,0.1)' : 'transparent', color: activeSection === s ? '#22c55e' : '#64748b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {s === 'promos' ? '🎟️ Promo Codes' : '🎁 Offers & Deals'}
+          </button>
+        ))}
+      </div>
+
+      {activeSection === 'promos' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Promo Codes ({promoCodes.length})</div>
+            <button onClick={() => setShowPromoForm(!showPromoForm)} style={{ padding: '8px 16px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>+ New Code</button>
+          </div>
+          {showPromoForm && (
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f1f5f9' }}>Create Promo Code</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Code *</label><input style={inputStyle} placeholder="e.g. SAVE10" value={newPromo.code} onChange={e => setNewPromo({...newPromo, code: e.target.value.toUpperCase()})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Discount Type</label><select style={inputStyle} value={newPromo.discount_type} onChange={e => setNewPromo({...newPromo, discount_type: e.target.value})}><option value="percent">Percentage (%)</option><option value="fixed">Fixed (£)</option></select></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Value</label><input style={inputStyle} type="number" value={newPromo.discount_value} onChange={e => setNewPromo({...newPromo, discount_value: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Min Order (£)</label><input style={inputStyle} type="number" value={newPromo.min_order} onChange={e => setNewPromo({...newPromo, min_order: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Max Uses</label><input style={inputStyle} type="number" placeholder="Unlimited" value={newPromo.max_uses} onChange={e => setNewPromo({...newPromo, max_uses: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Expires</label><input style={inputStyle} type="date" value={newPromo.expires_at} onChange={e => setNewPromo({...newPromo, expires_at: e.target.value})} /></div>
+              </div>
+              <div style={{ marginBottom: '10px' }}><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Description</label><input style={inputStyle} placeholder="e.g. 10% off your order" value={newPromo.description} onChange={e => setNewPromo({...newPromo, description: e.target.value})} /></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <input type="checkbox" id="m-first-order" checked={newPromo.first_order_only} onChange={e => setNewPromo({...newPromo, first_order_only: e.target.checked})} />
+                <label htmlFor="m-first-order" style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}>First order only</label>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowPromoForm(false)} style={{ flex: 1, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px' }}>Cancel</button>
+                <button onClick={savePromo} style={{ flex: 2, padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>Create Code</button>
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {promoCodes.map(p => (
+              <div key={p.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.is_active ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', opacity: p.is_active ? 1 : 0.6 }}>
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '8px 14px', fontSize: '14px', fontWeight: 800, color: '#22c55e', fontFamily: 'monospace' }}>{p.code}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#f1f5f9', marginBottom: '2px' }}>{p.description || 'No description'}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{p.discount_type === 'percent' ? `${p.discount_value}% off` : `£${p.discount_value} off`}{p.min_order > 0 ? ` • Min £${p.min_order}` : ''}{p.first_order_only ? ' • First order only' : ''}{p.max_uses ? ` • ${p.uses_count}/${p.max_uses} uses` : ` • ${p.uses_count} uses`}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => togglePromo(p.id, p.is_active)} style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${p.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, background: p.is_active ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: p.is_active ? '#22c55e' : '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>{p.is_active ? 'Active' : 'Off'}</button>
+                  <button onClick={() => deletePromo(p.id)} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>✕</button>
+                </div>
+              </div>
+            ))}
+            {promoCodes.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: '#475569', fontSize: '14px' }}>No promo codes yet</div>}
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'offers' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700 }}>Offers & Deals ({offers.length})</div>
+            <button onClick={() => setShowOfferForm(!showOfferForm)} style={{ padding: '8px 16px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>+ New Offer</button>
+          </div>
+          {showOfferForm && (
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', color: '#f1f5f9' }}>Create Offer</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Offer Type</label><select style={inputStyle} value={newOffer.offer_type} onChange={e => setNewOffer({...newOffer, offer_type: e.target.value})}><option value="deal_of_day">Deal of the Day</option><option value="free_delivery">Free Delivery</option><option value="meal_deal">Meal Deal</option><option value="first_order">First Order Discount</option></select></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Discount Type</label><select style={inputStyle} value={newOffer.discount_type} onChange={e => setNewOffer({...newOffer, discount_type: e.target.value})}><option value="percent">Percentage (%)</option><option value="fixed">Fixed (£)</option></select></div>
+                <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Title *</label><input style={inputStyle} placeholder="e.g. 20% off all pizzas today!" value={newOffer.title} onChange={e => setNewOffer({...newOffer, title: e.target.value})} /></div>
+                <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Description</label><input style={inputStyle} placeholder="Valid today only" value={newOffer.description} onChange={e => setNewOffer({...newOffer, description: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Discount Value</label><input style={inputStyle} type="number" value={newOffer.discount_value} onChange={e => setNewOffer({...newOffer, discount_value: e.target.value})} /></div>
+                <div><label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Min Order (£)</label><input style={inputStyle} type="number" value={newOffer.min_order} onChange={e => setNewOffer({...newOffer, min_order: e.target.value})} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowOfferForm(false)} style={{ flex: 1, padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px' }}>Cancel</button>
+                <button onClick={saveOffer} style={{ flex: 2, padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>Create Offer</button>
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {offers.map(o => (
+              <div key={o.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${o.is_active ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', opacity: o.is_active ? 1 : 0.6 }}>
+                <div style={{ fontSize: '24px' }}>{o.offer_type === 'deal_of_day' ? '🔥' : o.offer_type === 'free_delivery' ? '🚗' : o.offer_type === 'meal_deal' ? '🍱' : '🎁'}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', marginBottom: '2px' }}>{o.title}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{o.offer_type.replace('_', ' ')}{o.discount_value > 0 ? ` • ${o.discount_type === 'percent' ? `${o.discount_value}%` : `£${o.discount_value}`} off` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => toggleOffer(o.id, o.is_active)} style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${o.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, background: o.is_active ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: o.is_active ? '#22c55e' : '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>{o.is_active ? 'Active' : 'Off'}</button>
+                  <button onClick={() => deleteOffer(o.id)} style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>✕</button>
+                </div>
+              </div>
+            ))}
+            {offers.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: '#475569', fontSize: '14px' }}>No offers yet</div>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
