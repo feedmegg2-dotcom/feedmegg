@@ -516,8 +516,8 @@ export default function MerchantDashboard() {
         </div>
       )}
 
-        {tab === 'offers' && merchantRestaurants.length > 0 && (
-          <MerchantOffersTab restaurant={merchantRestaurants[0]} supabase={supabase} />
+        {tab === 'offers' && restaurants.length > 0 && (
+          <MerchantOffersTab restaurant={restaurants[0]} supabase={supabase} />
         )}
 
     </div>
