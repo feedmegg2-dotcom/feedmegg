@@ -356,13 +356,13 @@ export default function HomePage() {
                   { label: 'Privacy policy', href: '/privacy' },
                   { label: 'Cookie policy', href: '/cookies' },
                 ].map(l => (
-                  <Link key={l.label} href={l.href} style={{ color: '#475569', textDecoration: 'none', fontSize: '13px', transition: 'color 0.2s' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#22c55e')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
-                    {l.label}
-                  </Link>
-                ))}
-                  <div key={l} style={{ marginBottom: '10px' }}><a href="#" style={{ fontSize: '13px', color: '#475569', textDecoration: 'none' }}>{l}</a></div>
+                  <div key={l.label} style={{ marginBottom: '10px' }}>
+                    <Link href={l.href} style={{ color: '#475569', textDecoration: 'none', fontSize: '13px' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#22c55e')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
+                      {l.label}
+                    </Link>
+                  </div>
                 ))}
               </div>
             </div>
