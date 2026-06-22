@@ -379,8 +379,8 @@ export default function HomePage() {
 }
 
 function CookieBanner() {
-  const [show, setShow] = React.useState(false)
-  React.useEffect(() => {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
     const accepted = localStorage.getItem('feedme-cookies-accepted')
     if (!accepted) setShow(true)
   }, [])
