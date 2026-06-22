@@ -329,6 +329,9 @@ export default function HomePage() {
       </div>
 
       {/* FOOTER */}
+      {/* COOKIE CONSENT BANNER */}
+      <CookieBanner />
+
       <footer style={{ borderTop: `1px solid ${t.footerBorder}`, padding: 'clamp(32px, 5vw, 48px) clamp(16px, 4vw, 48px)', marginTop: 'clamp(16px, 3vw, 32px)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px', marginBottom: '32px' }}>
@@ -348,7 +351,17 @@ export default function HomePage() {
               </div>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>Legal</div>
-                {['Terms of service','Privacy policy','Cookie policy'].map(l => (
+                {[
+                  { label: 'Terms of service', href: '/terms' },
+                  { label: 'Privacy policy', href: '/privacy' },
+                  { label: 'Cookie policy', href: '/cookies' },
+                ].map(l => (
+                  <Link key={l.label} href={l.href} style={{ color: '#475569', textDecoration: 'none', fontSize: '13px', transition: 'color 0.2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#22c55e')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
+                    {l.label}
+                  </Link>
+                ))}
                   <div key={l} style={{ marginBottom: '10px' }}><a href="#" style={{ fontSize: '13px', color: '#475569', textDecoration: 'none' }}>{l}</a></div>
                 ))}
               </div>
@@ -361,6 +374,31 @@ export default function HomePage() {
         </div>
       </footer>
 
+    </div>
+  )
+}
+
+function CookieBanner() {
+  const [show, setShow] = React.useState(false)
+  React.useEffect(() => {
+    const accepted = localStorage.getItem('feedme-cookies-accepted')
+    if (!accepted) setShow(true)
+  }, [])
+  if (!show) return null
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000, padding: '16px', background: 'rgba(6,11,24,0.98)', borderTop: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+      <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', flex: 1, minWidth: '200px' }}>
+        We use essential cookies to keep feedme.gg working. By continuing you agree to our{' '}
+        <a href="/cookies" style={{ color: '#22c55e', textDecoration: 'none' }}>Cookie Policy</a> and{' '}
+        <a href="/privacy" style={{ color: '#22c55e', textDecoration: 'none' }}>Privacy Policy</a>.
+      </p>
+      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+        <a href="/cookies" style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: '13px', textDecoration: 'none', cursor: 'pointer' }}>Learn more</a>
+        <button onClick={() => { localStorage.setItem('feedme-cookies-accepted', 'true'); setShow(false) }}
+          style={{ padding: '8px 20px', borderRadius: '8px', background: '#22c55e', border: 'none', color: '#080c14', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Accept
+        </button>
+      </div>
     </div>
   )
 }
