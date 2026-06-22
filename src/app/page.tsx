@@ -329,6 +329,10 @@ export default function HomePage() {
       </div>
 
       {/* FOOTER */}
+      {/* INSTALL PROMPT */}
+      <InstallPrompt />
+      <IOSInstallPrompt />
+
       {/* COOKIE CONSENT BANNER */}
       <CookieBanner />
 
@@ -374,6 +378,95 @@ export default function HomePage() {
         </div>
       </footer>
 
+    </div>
+  )
+}
+
+function IOSInstallPrompt() {
+  const [show, setShow] = useState(false)
+  const [showSteps, setShowSteps] = useState(false)
+
+  useEffect(() => {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const isStandalone = (window.navigator as any).standalone === true
+    const dismissed = localStorage.getItem('feedme-ios-install-dismissed')
+    if (isIOS && !isStandalone && !dismissed) setShow(true)
+  }, [])
+
+  if (!show) return null
+
+  return (
+    <div style={{ position: 'fixed', bottom: '80px', left: '16px', right: '16px', zIndex: 999, background: '#0d1321', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '16px', padding: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: showSteps ? '14px' : '0' }}>
+        <div style={{ fontSize: '32px', flexShrink: 0 }}>📱</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '2px' }}>Add feedme.gg to your iPhone</div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Order faster - add us to your home screen!</div>
+        </div>
+        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+          <button onClick={() => { localStorage.setItem('feedme-ios-install-dismissed', 'true'); setShow(false) }}
+            style={{ padding: '6px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Not now
+          </button>
+          <button onClick={() => setShowSteps(!showSteps)}
+            style={{ padding: '6px 14px', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#080c14', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            How?
+          </button>
+        </div>
+      </div>
+      {showSteps && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', display: 'grid', gap: '10px' }}>
+          {[
+            { step: '1', icon: '⬆️', text: 'Tap the Share button at the bottom of Safari (the box with an arrow pointing up)' },
+            { step: '2', icon: '📋', text: 'Scroll down in the menu and tap "Add to Home Screen"' },
+            { step: '3', icon: '✅', text: 'Tap "Add" in the top right corner' },
+          ].map(s => (
+            <div key={s.step} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: '#22c55e', flexShrink: 0 }}>{s.step}</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.5, paddingTop: '4px' }}>{s.icon} {s.text}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: '12px', color: '#475569', textAlign: 'center', marginTop: '4px' }}>feedme.gg will appear on your home screen like a normal app!</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InstallPrompt() {
+  const [prompt, setPrompt] = useState<any>(null)
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setPrompt(e)
+      const dismissed = localStorage.getItem('feedme-install-dismissed')
+      if (!dismissed) setShow(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  if (!show || !prompt) return null
+
+  return (
+    <div style={{ position: 'fixed', bottom: '80px', left: '16px', right: '16px', zIndex: 999, background: '#0d1321', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '16px', padding: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ fontSize: '32px', flexShrink: 0 }}>📱</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '2px' }}>Add feedme.gg to your phone</div>
+        <div style={{ fontSize: '12px', color: '#64748b' }}>Order faster with our app - no App Store needed!</div>
+      </div>
+      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+        <button onClick={() => { localStorage.setItem('feedme-install-dismissed', 'true'); setShow(false) }}
+          style={{ padding: '6px 10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+          Not now
+        </button>
+        <button onClick={async () => { prompt.prompt(); const { outcome } = await prompt.userChoice; if (outcome === 'accepted') setShow(false) }}
+          style={{ padding: '6px 14px', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#080c14', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Install
+        </button>
+      </div>
     </div>
   )
 }
