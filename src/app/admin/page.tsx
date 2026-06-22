@@ -1441,9 +1441,13 @@ export default function AdminPage() {
                         {restOrders.length} orders • {cardOrders} card • {cashOrders} cash • GBP{restRevenue.toFixed(2)} revenue
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
                       <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--green)' }}>GBP{restCommission.toFixed(2)}</div>
                       <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{r.commission_rate || 4}% commission</div>
+                      <a href={`/api/invoice/merchant?restaurantId=${r.id}&month=${new Date().toISOString().slice(0,7)}`} target="_blank"
+                        style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>
+                        Download Invoice
+                      </a>
                     </div>
                   </div>
                 )
