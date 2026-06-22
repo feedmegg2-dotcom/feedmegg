@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 
-const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers']
+const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers', 'customers']
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
@@ -1402,6 +1402,8 @@ export default function AdminPage() {
 
         {tab === 'offers' && <OffersTab restaurants={restaurants} supabase={supabase} />}
 
+        {tab === 'customers' && <CustomersTab supabase={supabase} />}
+
       </div>
     </div>
   )
@@ -1632,6 +1634,196 @@ function OffersTab({ restaurants, supabase }: { restaurants: any[], supabase: an
               </div>
             ))}
             {offers.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)', fontSize: '14px' }}>No offers yet</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CustomersTab({ supabase }: { supabase: any }) {
+  const [customers, setCustomers] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<any>(null)
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [banReason, setBanReason] = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailBody, setEmailBody] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [notes, setNotes] = useState('')
+
+  useEffect(() => { fetchCustomers() }, [])
+
+  async function fetchCustomers() {
+    setLoading(true)
+    const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false })
+    setCustomers(data || [])
+    setLoading(false)
+  }
+
+  async function selectCustomer(c: any) {
+    setSelected(c)
+    setNotes(c.notes || '')
+    setBanReason(c.ban_reason || '')
+    setEmailSent(false)
+    const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('customer_phone', c.phone).order('created_at', { ascending: false }).limit(20)
+    setOrders(data || [])
+  }
+
+  async function toggleBan() {
+    if (!selected) return
+    const newBanned = !selected.is_banned
+    await supabase.from('customers').update({ is_banned: newBanned, ban_reason: newBanned ? banReason : null }).eq('id', selected.id)
+    setSelected({ ...selected, is_banned: newBanned })
+    fetchCustomers()
+  }
+
+  async function saveNotes() {
+    if (!selected) return
+    await supabase.from('customers').update({ notes }).eq('id', selected.id)
+    alert('Notes saved!')
+  }
+
+  async function sendEmail() {
+    if (!selected?.email || !emailSubject || !emailBody) { alert('Please fill in subject and message'); return }
+    setSendingEmail(true)
+    await fetch('/api/admin/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: selected.email, subject: emailSubject, body: emailBody, name: selected.name || selected.first_name })
+    })
+    setSendingEmail(false)
+    setEmailSent(true)
+    setEmailSubject('')
+    setEmailBody('')
+  }
+
+  const filtered = customers.filter(c =>
+    !search || c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.email?.toLowerCase().includes(search.toLowerCase()) ||
+    c.phone?.includes(search)
+  )
+
+  const inputStyle: any = { width: '100%', padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: '20px' }}>
+      {/* Customer list */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Customers ({customers.length})</h2>
+        </div>
+        <input placeholder="Search by name, email or phone..." value={search} onChange={e => setSearch(e.target.value)}
+          style={{ ...inputStyle, marginBottom: '14px' }} />
+        {loading ? <div style={{ color: 'var(--sub)', textAlign: 'center', padding: '40px' }}>Loading...</div> : (
+          <div style={{ display: 'grid', gap: '8px', maxHeight: '70vh', overflowY: 'auto' }}>
+            {filtered.map(c => (
+              <div key={c.id} onClick={() => selectCustomer(c)}
+                style={{ background: selected?.id === c.id ? 'rgba(34,197,94,0.08)' : 'var(--bg2)', border: `1px solid ${selected?.id === c.id ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px', cursor: 'pointer', opacity: c.is_banned ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Guest'}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--sub)', marginTop: '2px' }}>{c.email || 'No email'} • {c.phone || 'No phone'}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                    {c.is_banned && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontWeight: 700 }}>BANNED</span>}
+                    <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>No customers found</div>}
+          </div>
+        )}
+      </div>
+
+      {/* Customer detail */}
+      {selected && (
+        <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800 }}>{selected.name || `${selected.first_name || ''} ${selected.last_name || ''}`.trim() || 'Guest'}</h3>
+            <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+          </div>
+
+          {/* Info */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Email</span><span>{selected.email || '-'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Phone</span><span>{selected.phone || '-'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Parish</span><span>{selected.parish || '-'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Joined</span><span>{new Date(selected.created_at).toLocaleDateString()}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Orders</span><span style={{ fontWeight: 700, color: '#22c55e' }}>{orders.length}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Total spent</span><span style={{ fontWeight: 700, color: '#22c55e' }}>GBP{orders.reduce((s, o) => s + (o.total || 0), 0).toFixed(2)}</span></div>
+            </div>
+          </div>
+
+          {/* Ban */}
+          <div style={{ background: 'var(--bg2)', border: `1px solid ${selected.is_banned ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`, borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: selected.is_banned ? '#ef4444' : 'var(--text)' }}>
+              {selected.is_banned ? '🚫 Customer is BANNED' : '✅ Customer is active'}
+            </div>
+            {!selected.is_banned && (
+              <input placeholder="Ban reason (required to ban)" value={banReason} onChange={e => setBanReason(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '8px' }} />
+            )}
+            {selected.is_banned && selected.ban_reason && (
+              <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', fontStyle: 'italic' }}>Reason: {selected.ban_reason}</div>
+            )}
+            <button onClick={toggleBan} disabled={!selected.is_banned && !banReason}
+              style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: selected.is_banned ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: selected.is_banned ? '#22c55e' : '#ef4444', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {selected.is_banned ? 'Unban Customer' : 'Ban Customer'}
+            </button>
+          </div>
+
+          {/* Notes */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Internal Notes</div>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Add notes about this customer..."
+              style={{ ...inputStyle, resize: 'none', marginBottom: '8px' }} />
+            <button onClick={saveNotes} style={{ padding: '6px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Save Notes</button>
+          </div>
+
+          {/* Send Email */}
+          {selected.email && (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Send Email</div>
+              {emailSent ? (
+                <div style={{ color: '#22c55e', fontSize: '13px', fontWeight: 600 }}>Email sent successfully!</div>
+              ) : (
+                <>
+                  <input placeholder="Subject" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={{ ...inputStyle, marginBottom: '8px' }} />
+                  <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder="Message..."
+                    style={{ ...inputStyle, resize: 'none', marginBottom: '8px' }} />
+                  <button onClick={sendEmail} disabled={sendingEmail}
+                    style={{ width: '100%', padding: '8px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {sendingEmail ? 'Sending...' : 'Send Email'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Order history */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>Order History ({orders.length})</div>
+            {orders.length === 0 ? <div style={{ color: 'var(--sub)', fontSize: '13px' }}>No orders found</div> : (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {orders.map(o => (
+                  <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '8px', background: 'var(--bg)', borderRadius: '6px' }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{o.order_number}</div>
+                      <div style={{ color: 'var(--sub)' }}>{o.restaurants?.name} • {new Date(o.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, color: '#22c55e' }}>GBP{o.total?.toFixed(2)}</div>
+                      <div style={{ color: o.status === 'paid' || o.status === 'complete' ? '#22c55e' : o.status === 'rejected' ? '#ef4444' : 'var(--sub)' }}>{o.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
