@@ -444,6 +444,10 @@ export default function AccountPage() {
                           🔄 Reorder
                         </Link>
                       )}
+                      <a href={`/api/invoice/order?orderId=${order.id}`} target="_blank"
+                        style={{ padding: '7px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        🧾 Receipt
+                      </a>
                     </div>
                   </div>
                 ))}
