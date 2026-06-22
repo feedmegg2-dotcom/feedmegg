@@ -1,35 +1,57 @@
-// Terms & Conditions Page
 'use client'
 import Link from 'next/link'
 
-export default function TermsPage() {
+export default function CookiePolicy() {
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      <nav style={{ background: 'rgba(15,23,42,0.97)', borderBottom: '1px solid var(--border)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center' }}>
-        <Link href="/" style={{ fontFamily: 'Syne', fontSize: '22px', fontWeight: 800, letterSpacing: '-1px', textDecoration: 'none' }}>
-          <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
+    <div style={{ fontFamily: 'system-ui,sans-serif', background: '#080c14', minHeight: '100vh', color: '#f1f5f9' }}>
+      <nav style={{ background: '#060b18', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
         </Link>
+        <Link href="/" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }}>Back to home</Link>
       </nav>
-      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '40px 20px' }}>
-        <Link href="/" className="btn-ghost" style={{ marginBottom: '24px', display: 'inline-block' }}>← Back</Link>
-        <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>Terms & Conditions</h1>
-        <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '32px' }}>Last updated: January 2026</p>
+
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '48px 24px' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>Cookie Policy</h1>
+        <p style={{ color: '#64748b', marginBottom: '40px' }}>Last updated: June 2026</p>
+
         {[
-          { title: '1. About feedme.gg', content: 'feedme.gg is a food ordering platform based in Guernsey that connects customers with local restaurants. We facilitate orders but do not prepare or deliver food ourselves.' },
-          { title: '2. Allergen Information', content: 'Allergen information provided on this platform is AI-assisted and is provided as a guide only. Customers with food allergies or intolerances must contact the restaurant directly to verify allergen information before ordering. feedme.gg accepts no liability for allergic reactions resulting from orders placed through this platform.' },
-          { title: '3. Age Verification for Alcohol', content: 'Restaurants are solely responsible for verifying customer age at the point of delivery or collection for orders containing alcohol. feedme.gg accepts no liability in this regard.' },
-          { title: '4. Orders & Cancellations', content: 'Orders cannot be cancelled by the customer once placed. All refund requests must be directed to the individual restaurant. Refunds are at the sole discretion of the restaurant.' },
-          { title: '5. Payments', content: 'All payments are processed securely through SumUp. Payment links expire 2 minutes after generation. feedme.gg processes payments on behalf of merchants using their own SumUp accounts.' },
-          { title: '6. Calorie Information', content: 'Calorie estimates displayed on menu items are AI-generated approximations only. Actual calorie content may vary significantly. feedme.gg makes no warranty as to the accuracy of calorie information.' },
-          { title: '7. Limitation of Liability', content: 'feedme.gg acts as an intermediary platform. We are not liable for the quality, safety, or legality of food prepared by restaurants, delivery delays, or disputes between customers and restaurants.' },
-          { title: '8. Data & Privacy', content: 'Your use of feedme.gg is subject to our Privacy Policy. We collect and process personal data in accordance with GDPR.' },
+          {
+            title: 'What are cookies?',
+            content: `Cookies are small text files stored on your device when you visit a website. They help websites remember information about your visit.`
+          },
+          {
+            title: 'Essential cookies',
+            content: `These cookies are necessary for feedme.gg to work and cannot be switched off.\n\n• Authentication - keeps you logged in to your account\n• Cart - remembers items in your basket\n• Theme preference - remembers your light/dark mode setting\n• Session - maintains your session securely\n\nThese cookies do not track you across other websites.`
+          },
+          {
+            title: 'Analytics cookies',
+            content: `We use anonymous analytics to understand how visitors use our site. This helps us improve feedme.gg.\n\n• We do not use Google Analytics\n• No personally identifiable information is collected\n• Data is aggregated and anonymous`
+          },
+          {
+            title: 'Third party cookies',
+            content: `Some features of feedme.gg use third party services which may set their own cookies:\n\n• SumUp - payment processing\n• Supabase - authentication and data storage\n• Vercel - hosting and performance\n\nThese services have their own privacy policies.`
+          },
+          {
+            title: 'Managing cookies',
+            content: `You can control cookies through your browser settings. Disabling essential cookies may prevent feedme.gg from working correctly.\n\nMost browsers allow you to:\n• View what cookies are stored\n• Delete individual cookies\n• Block all or certain cookies\n\nFor more information, visit your browser's help section.`
+          },
+          {
+            title: 'Contact',
+            content: `If you have questions about our use of cookies:\n\nfeedme.gg@mail.com`
+          },
         ].map(section => (
-          <div key={section.title} style={{ marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>{section.title}</h2>
-            <p style={{ fontSize: '14px', color: 'var(--sub)', lineHeight: 1.7 }}>{section.content}</p>
+          <div key={section.title} style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '12px', color: '#22c55e' }}>{section.title}</h2>
+            <div style={{ color: '#94a3b8', lineHeight: 1.8, whiteSpace: 'pre-line' }}>{section.content}</div>
           </div>
         ))}
       </div>
+
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '24px', textAlign: 'center', color: '#475569', fontSize: '13px' }}>
+        <Link href="/privacy" style={{ color: '#64748b', textDecoration: 'none', marginRight: '16px' }}>Privacy Policy</Link>
+        <Link href="/terms" style={{ color: '#64748b', textDecoration: 'none' }}>Terms & Conditions</Link>
+      </footer>
     </div>
   )
 }
