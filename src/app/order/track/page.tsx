@@ -108,6 +108,10 @@ export default function TrackOrder() {
                   <span>Total</span>
                   <span style={{ color: '#22c55e' }}>GBP{order.total?.toFixed(2)}</span>
                 </div>
+                <a href={`/api/invoice/order?orderId=${order.id}&phone=${encodeURIComponent(phone)}`} target="_blank"
+                  style={{ display: 'block', textAlign: 'center', marginTop: '16px', padding: '12px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '10px', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>
+                  Download Receipt
+                </a>
               </div>
             </div>
           )
