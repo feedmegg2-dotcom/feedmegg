@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { sendOrderConfirmation } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
@@ -35,6 +36,29 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+
+    // Check restaurant is open (skip for pre-orders)
+    if (!scheduledFor) {
+      if (restaurant.is_open === false) {
+        return NextResponse.json({ error: 'Sorry, this restaurant is currently closed.' }, { status: 400 })
+      }
+      // Check opening hours
+      const now = new Date()
+      const dayName = now.toLocaleDateString('en-US', { weekday: 'long' })
+      const { data: hours } = await supabase.from('opening_hours').select('*').eq('restaurant_id', restaurantId).eq('day', dayName).maybeSingle()
+      if (hours && !hours.is_closed) {
+        const [openH, openM] = hours.open_time.split(':').map(Number)
+        const [closeH, closeM] = hours.close_time.split(':').map(Number)
+        const currentMins = now.getHours() * 60 + now.getMinutes()
+        const openMins = openH * 60 + openM
+        const closeMins = closeH * 60 + closeM
+        if (currentMins < openMins || currentMins >= closeMins) {
+          return NextResponse.json({ error: `Sorry, this restaurant is closed right now. Opening hours: ${hours.open_time} - ${hours.close_time}` }, { status: 400 })
+        }
+      } else if (hours?.is_closed) {
+        return NextResponse.json({ error: 'Sorry, this restaurant is closed today.' }, { status: 400 })
+      }
+    }
 
     // Calculate totals
     const subtotal = items.reduce((s: number, i: any) => s + (i.price * i.qty), 0)
@@ -160,6 +184,25 @@ export async function POST(request: NextRequest) {
         const { error: e2 } = await supabase.from('order_items').insert(itemsMinimal)
         if (e2) console.error('Order items retry error:', e2.message)
       }
+    }
+
+    // Send confirmation email (fire and forget)
+    if (customerEmail) {
+      sendOrderConfirmation({
+        customerName,
+        customerEmail,
+        orderNumber,
+        restaurantName: restaurant.name,
+        items,
+        subtotal,
+        deliveryFee,
+        tip: tipAmount,
+        total,
+        orderType,
+        deliveryAddress: address,
+        scheduledFor: scheduledFor || undefined,
+        paymentMethod: paymentMethod || 'card',
+      }).catch(err => console.error('Email error:', err))
     }
 
     return NextResponse.json({ 
