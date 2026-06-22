@@ -64,6 +64,10 @@ export async function sendOrderConfirmation(order: {
         </tfoot>
       </table>
       <p style="color:#64748b;font-size:13px;text-align:center;">Thank you for ordering with feedme.gg!</p>
+      <div style="text-align:center;margin-top:20px;">
+        <a href="https://feedme.gg/order/track" style="display:inline-block;padding:12px 28px;background:#22c55e;color:#080c14;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;">Track Your Order</a>
+      </div>
+      <p style="color:#94a3b8;font-size:12px;text-align:center;margin-top:16px;">Your order number is <strong>${order.orderNumber}</strong> - you will need this to track your order.</p>
     </body>
     </html>
   `
