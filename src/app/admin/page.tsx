@@ -19,6 +19,10 @@ export default function AdminPage() {
   const [merchantNewPassword, setMerchantNewPassword] = useState('')
   const [orders, setOrders] = useState<any[]>([])
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderStatusFilter, setOrderStatusFilter] = useState('')
+  const [orderTypeFilter, setOrderTypeFilter] = useState('')
+  const [orderPayFilter, setOrderPayFilter] = useState('')
   const [categories, setCategories] = useState<any[]>([])
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
@@ -76,7 +80,7 @@ export default function AdminPage() {
   async function fetchAll() {
     const { data: r } = await supabase.from('restaurants').select('*, merchants(name,email)').order('name')
     const { data: m } = await supabase.from('merchants').select('*').order('name')
-    const { data: o } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100)
+    const { data: o } = await supabase.from('orders').select('*, restaurants(name), order_items(*)').order('created_at', { ascending: false }).limit(200)
     setRestaurants(r || [])
     setMerchants(m || [])
     setOrders(o || [])
@@ -1300,51 +1304,103 @@ export default function AdminPage() {
         {/* ORDERS */}
         {tab === 'orders' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>All Orders</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800 }}>All Orders ({orders.length})</h2>
               <button onClick={fetchAll} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 16px' }}>Refresh</button>
             </div>
-            {orders.map(o => (
-              <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '8px', overflow: 'hidden' }}>
-                <div onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}
-                  style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', cursor: 'pointer' }}>
+            {/* Search & filters */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', marginBottom: '16px' }}>
+              <input placeholder="Search by name, phone, order number..." value={orderSearch || ''} onChange={e => setOrderSearch(e.target.value)}
+                style={{ padding: '8px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+              <select value={orderStatusFilter || ''} onChange={e => setOrderStatusFilter(e.target.value)}
+                style={{ padding: '8px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}>
+                <option value="">All statuses</option>
+                {['pending','accepted','waiting_payment','paid','complete','rejected','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={orderTypeFilter || ''} onChange={e => setOrderTypeFilter(e.target.value)}
+                style={{ padding: '8px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}>
+                <option value="">All types</option>
+                <option value="delivery">Delivery</option>
+                <option value="pickup">Collection</option>
+              </select>
+              <select value={orderPayFilter || ''} onChange={e => setOrderPayFilter(e.target.value)}
+                style={{ padding: '8px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}>
+                <option value="">All payments</option>
+                <option value="card">Card</option>
+                <option value="cash">Cash</option>
+              </select>
+            </div>
+            {/* Summary bar */}
+            {(() => {
+              const filtered = orders.filter(o =>
+                (!orderSearch || o.customer_name?.toLowerCase().includes(orderSearch.toLowerCase()) || o.customer_phone?.includes(orderSearch) || o.order_number?.toLowerCase().includes(orderSearch.toLowerCase())) &&
+                (!orderStatusFilter || o.status === orderStatusFilter) &&
+                (!orderTypeFilter || o.order_type === orderTypeFilter) &&
+                (!orderPayFilter || o.payment_method === orderPayFilter)
+              )
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--sub)', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <span>{filtered.length} orders</span>
+                    <span>GBP{filtered.reduce((s, o) => s + parseFloat(o.total || 0), 0).toFixed(2)} total</span>
+                    <span>GBP{filtered.filter(o => o.payment_method === 'card').reduce((s, o) => s + parseFloat(o.commission || 0), 0).toFixed(2)} commission</span>
+                  </div>
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: 700 }}>#{o.id?.slice(0,8).toUpperCase()} {expandedOrder === o.id ? 'v' : '>'}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} {o.customer_phone ? '- ' + o.customer_phone : ''}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} - {o.order_type || 'delivery'} - {o.payment_method || 'card'}</div>
-                    {o.delivery_address && <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.parish} - {o.delivery_address}</div>}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{parseFloat(o.commission || 0).toFixed(2)}</div>
-                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
-                  </div>
-                </div>
-                {expandedOrder === o.id && (
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '14px', background: 'var(--bg3)' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Order Items</div>
-                    {o.items ? (
-                      (typeof o.items === 'string' ? JSON.parse(o.items) : o.items).map((item: any, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                          <span>{item.qty}x {item.name}{item.note ? <span style={{ color: 'var(--sub)', fontSize: '11px' }}> ({item.note})</span> : ''}</span>
-                          <span style={{ fontWeight: 600 }}>GBP{(item.price * item.qty).toFixed(2)}</span>
+                    {filtered.map(o => (
+                      <div key={o.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '8px', overflow: 'hidden' }}>
+                        <div onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}
+                          style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', cursor: 'pointer' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700 }}>{o.order_number || '#' + o.id?.slice(0,8).toUpperCase()} {expandedOrder === o.id ? '▼' : '▶'}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{o.customer_name} {o.customer_phone ? '• ' + o.customer_phone : ''}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{new Date(o.created_at).toLocaleString('en-GB')} • {o.order_type || 'delivery'} • {o.payment_method || 'card'}</div>
+                            {o.delivery_address && <div style={{ fontSize: '11px', color: 'var(--sub)' }}>{o.delivery_address}</div>}
+                            {o.restaurants?.name && <div style={{ fontSize: '11px', color: '#22c55e' }}>{o.restaurants.name}</div>}
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--green)' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--sub)' }}>Commission: GBP{parseFloat(o.commission || 0).toFixed(2)}</div>
+                            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: ['paid','complete'].includes(o.status) ? 'rgba(34,197,94,0.15)' : o.status === 'cancelled' || o.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: ['paid','complete'].includes(o.status) ? 'var(--green)' : o.status === 'cancelled' || o.status === 'rejected' ? 'var(--red)' : 'var(--orange)' }}>{o.status}</span>
+                          </div>
                         </div>
-                      ))
-                    ) : <div style={{ fontSize: '12px', color: 'var(--sub)' }}>No item details available</div>}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
-                      <span style={{ color: 'var(--sub)' }}>Subtotal</span><span>GBP{parseFloat(o.subtotal || 0).toFixed(2)}</span>
-                    </div>
-                    {o.delivery_fee > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '4px' }}>
-                        <span style={{ color: 'var(--sub)' }}>Delivery</span><span>GBP{parseFloat(o.delivery_fee || 0).toFixed(2)}</span>
+                        {expandedOrder === o.id && (
+                          <div style={{ borderTop: '1px solid var(--border)', padding: '14px', background: 'var(--bg3)' }}>
+                            {/* Order items */}
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Items</div>
+                            {o.order_items?.length > 0 ? o.order_items.map((item: any) => (
+                              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                <div>
+                                  <span>{item.quantity}x {item.name}</span>
+                                  {item.special_instructions && <div style={{ fontSize: '11px', color: 'var(--sub)', fontStyle: 'italic' }}>→ {item.special_instructions}</div>}
+                                </div>
+                                <span style={{ fontWeight: 600 }}>GBP{parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                              </div>
+                            )) : o.items ? (
+                              (typeof o.items === 'string' ? JSON.parse(o.items) : o.items).map((item: any, idx: number) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <span>{item.qty}x {item.name}</span>
+                                  <span style={{ fontWeight: 600 }}>GBP{(item.price * item.qty).toFixed(2)}</span>
+                                </div>
+                              ))
+                            ) : <div style={{ fontSize: '12px', color: 'var(--sub)' }}>No item details</div>}
+                            {/* Totals */}
+                            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)', display: 'grid', gap: '4px', fontSize: '13px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Subtotal</span><span>GBP{parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
+                              {o.delivery_fee > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Delivery</span><span>GBP{parseFloat(o.delivery_fee || 0).toFixed(2)}</span></div>}
+                              {o.tip > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--sub)' }}>Tip</span><span>GBP{parseFloat(o.tip || 0).toFixed(2)}</span></div>}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '14px', paddingTop: '4px', borderTop: '1px solid var(--border)' }}><span>Total</span><span style={{ color: '#22c55e' }}>GBP{parseFloat(o.total || 0).toFixed(2)}</span></div>
+                            </div>
+                            {o.notes && <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic', padding: '8px', background: 'rgba(249,115,22,0.06)', borderRadius: '6px' }}>Note: {o.notes}</div>}
+                            {o.special_instructions && <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic' }}>Instructions: {o.special_instructions}</div>}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {o.notes && <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic' }}>Note: {o.notes}</div>}
+                    ))}
+                    {filtered.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>No orders match your filters</div>}
                   </div>
-                )}
-              </div>
-            ))}
-            {orders.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--sub)' }}>No orders yet</div>}
+                </>
+              )
+            })()}
           </div>
         )}
 
