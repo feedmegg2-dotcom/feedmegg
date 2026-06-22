@@ -290,23 +290,6 @@ export default function RestaurantPage() {
               </div>
             )}
 
-            {/* OFFERS BANNER */}
-            {offers.length > 0 && (
-              <div style={{ display: 'grid', gap: '8px', marginBottom: '20px' }}>
-                {offers.map(offer => (
-                  <div key={offer.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: offer.offer_type === 'deal_of_day' ? 'rgba(249,115,22,0.08)' : offer.offer_type === 'free_delivery' ? 'rgba(34,197,94,0.08)' : offer.offer_type === 'first_order' ? 'rgba(168,85,247,0.08)' : 'rgba(59,130,246,0.08)', border: `1px solid ${offer.offer_type === 'deal_of_day' ? 'rgba(249,115,22,0.25)' : offer.offer_type === 'free_delivery' ? 'rgba(34,197,94,0.25)' : offer.offer_type === 'first_order' ? 'rgba(168,85,247,0.25)' : 'rgba(59,130,246,0.25)'}`, borderRadius: '12px' }}>
-                    <span style={{ fontSize: '22px', flexShrink: 0 }}>
-                      {offer.offer_type === 'deal_of_day' ? '🔥' : offer.offer_type === 'free_delivery' ? '🚗' : offer.offer_type === 'meal_deal' ? '🍱' : '🎁'}
-                    </span>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', marginBottom: '2px' }}>{offer.title}</div>
-                      {offer.description && <div style={{ fontSize: '12px', color: '#94a3b8' }}>{offer.description}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Map & Info */}
             {(restaurant.address || restaurant.phone) && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
@@ -388,6 +371,24 @@ export default function RestaurantPage() {
 
       {/* MENU */}
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '16px 20px' }}>
+
+        {/* OFFERS BANNER */}
+        {offers.length > 0 && (
+          <div style={{ display: 'grid', gap: '8px', marginBottom: '20px' }}>
+            {offers.map(offer => (
+              <div key={offer.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: offer.offer_type === 'deal_of_day' ? 'rgba(249,115,22,0.08)' : offer.offer_type === 'free_delivery' ? 'rgba(34,197,94,0.08)' : offer.offer_type === 'first_order' ? 'rgba(168,85,247,0.08)' : 'rgba(59,130,246,0.08)', border: `1px solid ${offer.offer_type === 'deal_of_day' ? 'rgba(249,115,22,0.25)' : offer.offer_type === 'free_delivery' ? 'rgba(34,197,94,0.25)' : offer.offer_type === 'first_order' ? 'rgba(168,85,247,0.25)' : 'rgba(59,130,246,0.25)'}`, borderRadius: '12px' }}>
+                <span style={{ fontSize: '22px', flexShrink: 0 }}>
+                  {offer.offer_type === 'deal_of_day' ? '🔥' : offer.offer_type === 'free_delivery' ? '🚗' : offer.offer_type === 'meal_deal' ? '🍱' : '🎁'}
+                </span>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', marginBottom: '2px' }}>{offer.title}</div>
+                  {offer.description && <div style={{ fontSize: '12px', color: '#94a3b8' }}>{offer.description}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {filteredCategories.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>
             {searchQuery ? `No items found for "${searchQuery}"` : 'Menu coming soon...'}
