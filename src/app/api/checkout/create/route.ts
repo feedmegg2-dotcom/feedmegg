@@ -28,6 +28,18 @@ export async function POST(request: NextRequest) {
     if (!customerName) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     if (!items || items.length === 0) return NextResponse.json({ error: 'No items in cart' }, { status: 400 })
 
+    // Check if customer is banned
+    if (customerPhone) {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('is_banned, ban_reason')
+        .eq('phone', customerPhone)
+        .maybeSingle()
+      if (customer?.is_banned) {
+        return NextResponse.json({ error: 'Your account has been suspended. Please contact feedme.gg@mail.com for assistance.' }, { status: 403 })
+      }
+    }
+
     // Get restaurant
     const { data: restaurant } = await supabase
       .from('restaurants')
