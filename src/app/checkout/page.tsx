@@ -730,12 +730,28 @@ export default function CheckoutPage() {
           <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>{error}</div>
         )}
 
-        {/* PLACE ORDER */}
-        <button onClick={placeOrder} disabled={loading || !meetsMinOrder || (!isOpen && !form.isPreOrder)}
-          style={{ width: '100%', padding: '16px', background: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: '8px' }}>
-          {(!isOpen && !form.isPreOrder) ? 'Restaurant Closed' : loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order'}
-        </button>
+        {/* SPACER for sticky bar */}
+        <div style={{ height: '90px' }} />
 
+      </div>
+
+      {/* STICKY BOTTOM BAR */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: dark ? 'rgba(6,11,24,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: `1px solid ${border}`, padding: '12px 16px' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ fontSize: '13px', color: sub }}>
+              {cartData?.cart?.length || 0} items
+              {promoDiscount > 0 && <span style={{ color: '#22c55e', marginLeft: '8px' }}>• Promo applied</span>}
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#22c55e' }}>
+              GBP{Math.max(0, orderTotal).toFixed(2)}
+            </div>
+          </div>
+          <button onClick={placeOrder} disabled={loading || !meetsMinOrder || (!isOpen && !form.isPreOrder)}
+            style={{ width: '100%', padding: '15px', background: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {(!isOpen && !form.isPreOrder) ? 'Restaurant Closed' : loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order • GBP' + Math.max(0, orderTotal).toFixed(2)}
+          </button>
+        </div>
       </div>
 
       <style>{`
