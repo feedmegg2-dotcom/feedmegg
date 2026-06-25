@@ -2,7 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendOrderConfirmation } from '@/lib/email'
 
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number, resetAt: number }>()
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const windowMs = 60 * 60 * 1000 // 1 hour
+  const maxRequests = 10 // max 10 orders per IP per hour
+
+  const current = rateLimitMap.get(ip)
+  if (!current || now > current.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (current.count >= maxRequests) return false
+  current.count++
+  return true
+}
+
 export async function POST(request: NextRequest) {
+  // Rate limiting
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || 'unknown'
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: 'Too many orders placed. Please try again later.' }, { status: 429 })
+  }
+
   const supabase = createAdminClient()
 
   try {
@@ -27,6 +51,8 @@ export async function POST(request: NextRequest) {
 
     if (!customerName) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     if (!items || items.length === 0) return NextResponse.json({ error: 'No items in cart' }, { status: 400 })
+    if (!customerPhone) return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
+    if (!/^\+?[\d\s\-()]{7,}$/.test(customerPhone)) return NextResponse.json({ error: 'Please enter a valid phone number' }, { status: 400 })
 
     // Check if customer is banned
     if (customerPhone) {
