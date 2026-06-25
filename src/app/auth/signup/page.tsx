@@ -9,12 +9,14 @@ const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St 
 
 export default function SignupPage() {
   const router = useRouter()
+  const supabase = createClient()
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: '', phone: '',
     addressLine1: '', addressLine2: '', parish: 'St Peter Port', postcode: '', directions: ''
   })
   const [dark, setDark] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [socialLoading, setSocialLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
@@ -22,6 +24,19 @@ export default function SignupPage() {
     const saved = localStorage.getItem('feedme-theme')
     if (saved) setDark(saved === 'dark')
   }, [])
+
+  async function handleGoogleSignup() {
+    setSocialLoading(true)
+    setError('')
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+      }
+    })
+    if (error) { setError('Could not sign in with Google'); setSocialLoading(false) }
+  }
 
   async function handleSignup() {
     if (!form.name || !form.email || !form.password || !form.phone) { setError('Please fill in all required fields'); return }
@@ -41,7 +56,6 @@ export default function SignupPage() {
     if (!data.success) { setError(data.error || 'Something went wrong'); return }
 
     // Auto login
-    const supabase = createClient()
     const { error: loginError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
     if (loginError) { router.push('/auth/login'); return }
 
@@ -49,19 +63,23 @@ export default function SignupPage() {
     router.push(redirect)
   }
 
-  const inputStyle = { width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: dark ? '#f1f5f9' : '#0f172a', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const bg = dark ? '#080c14' : '#f8fafc'
+  const card = dark ? '#0d1321' : '#ffffff'
+  const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
+  const text = dark ? '#f1f5f9' : '#0f172a'
+  const inputStyle = { width: '100%', padding: '12px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
 
   if (success) {
     return (
-      <div style={{ background: dark ? '#080c14' : '#f8fafc', minHeight: '100vh', color: dark ? '#f1f5f9' : '#0f172a', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '24px', fontWeight: 800, textDecoration: 'none', marginBottom: '32px' }}>
-          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
         </Link>
-        <div style={{ background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '460px', textAlign: 'center' }}>
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '460px', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📧</div>
           <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '12px' }}>Check your email!</h1>
           <p style={{ fontSize: '15px', color: '#64748b', lineHeight: 1.7, marginBottom: '24px' }}>
-            We've sent a verification link to <strong style={{ color: '#f8fafc' }}>{form.email}</strong>
+            We've sent a verification link to <strong style={{ color: text }}>{form.email}</strong>
             <br />Click the link to verify your account.
           </p>
           <Link href="/auth/login" style={{ display: 'inline-block', padding: '12px 32px', background: '#22c55e', color: '#080c14', borderRadius: '10px', fontWeight: 700, fontSize: '15px', textDecoration: 'none' }}>
@@ -73,14 +91,32 @@ export default function SignupPage() {
   }
 
   return (
-    <div style={{ background: dark ? '#080c14' : '#f8fafc', minHeight: '100vh', color: dark ? '#f1f5f9' : '#0f172a', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+    <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '24px', fontWeight: 800, textDecoration: 'none', marginBottom: '32px' }}>
-        <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f8fafc' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
+        <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
       </Link>
 
-      <div style={{ background: dark ? '#0d1321' : '#ffffff', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '20px', padding: 'clamp(24px,5vw,40px)', width: '100%', maxWidth: '460px' }}>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '20px', padding: 'clamp(24px,5vw,40px)', width: '100%', maxWidth: '460px' }}>
         <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '6px' }}>Create account</h1>
         <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>Already have one? <Link href="/auth/login" style={{ color: '#22c55e', textDecoration: 'none' }}>Sign in</Link></p>
+
+        {/* GOOGLE SIGNUP */}
+        <button onClick={handleGoogleSignup} disabled={socialLoading}
+          style={{ width: '100%', padding: '12px', background: dark ? 'rgba(255,255,255,0.06)' : '#ffffff', border: `1px solid ${border}`, borderRadius: '10px', color: text, fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+          {socialLoading ? 'Connecting...' : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Continue with Google
+            </>
+          )}
+        </button>
+
+        {/* DIVIDER */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ flex: 1, height: '1px', background: border }} />
+          <span style={{ fontSize: '12px', color: '#64748b' }}>or create with email</span>
+          <div style={{ flex: 1, height: '1px', background: border }} />
+        </div>
 
         <div style={{ display: 'grid', gap: '12px' }}>
           {/* PERSONAL DETAILS */}
@@ -91,7 +127,7 @@ export default function SignupPage() {
           <input placeholder="Confirm password *" type="password" value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} style={inputStyle} />
 
           {/* DELIVERY ADDRESS */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '16px' }}>
+          <div style={{ borderTop: `1px solid ${border}`, paddingTop: '16px' }}>
             <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px', fontWeight: 600 }}>Default delivery address <span style={{ color: '#475569', fontWeight: 400 }}>(optional - saves time at checkout)</span></div>
             <div style={{ display: 'grid', gap: '10px' }}>
               <input placeholder="House number and street" value={form.addressLine1} onChange={e => setForm({...form, addressLine1: e.target.value})} style={inputStyle} />
@@ -115,7 +151,7 @@ export default function SignupPage() {
         </button>
 
         <p style={{ fontSize: '11px', color: '#334155', textAlign: 'center', marginTop: '14px', lineHeight: 1.5 }}>
-          By creating an account you agree to our Terms of Service and Privacy Policy
+          By creating an account you agree to our <Link href="/terms" style={{ color: '#64748b', textDecoration: 'none' }}>Terms of Service</Link> and <Link href="/privacy" style={{ color: '#64748b', textDecoration: 'none' }}>Privacy Policy</Link>
         </p>
       </div>
       <style>{`
