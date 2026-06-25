@@ -9,9 +9,24 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/auth/login'); return }
+
+      // Check if customer profile has phone number
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('phone, name')
+        .eq('auth_id', session.user.id)
+        .maybeSingle()
+
       const redirect = new URLSearchParams(window.location.search).get('redirect') || '/account'
-      router.push(redirect)
+
+      // If no phone number redirect to complete profile
+      if (!customer?.phone) {
+        router.push(`/auth/complete-profile?redirect=${redirect}`)
+      } else {
+        router.push(redirect)
+      }
     }
     handleCallback()
   }, [])
