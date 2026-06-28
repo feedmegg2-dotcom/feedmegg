@@ -7,6 +7,7 @@ const ELEMENTS = [
   { type: 'order_number', label: '# Order Number', conditional: false },
   { type: 'customer_name', label: '👤 Customer Name', conditional: false },
   { type: 'items_list', label: '📦 Items + Extras', conditional: false },
+  { type: 'items_list_with_numbers', label: '📦 Items + Kitchen Numbers', conditional: false },
   { type: 'total', label: '💷 Total', conditional: false },
   { type: 'subtotal', label: '💷 Subtotal + Fees', conditional: false },
   { type: 'restaurant_name', label: '🏪 Restaurant Name', conditional: false },
@@ -40,9 +41,9 @@ const SAMPLE_ORDER = {
   tip: 2.00,
   total: 29.00,
   items: [
-    { quantity: 2, name: 'Margherita Pizza', price: 10.00, special_instructions: 'Extra cheese, thin crust' },
-    { quantity: 1, name: 'Garlic Bread', price: 3.50, special_instructions: '' },
-    { quantity: 1, name: 'Coca Cola', price: 1.50, special_instructions: '' },
+    { quantity: 2, name: 'Margherita Pizza', price: 10.00, kitchen_number: 42, special_instructions: 'Extra cheese, thin crust' },
+    { quantity: 1, name: 'Garlic Bread', price: 3.50, kitchen_number: 17, special_instructions: '' },
+    { quantity: 1, name: 'Coca Cola', price: 1.50, kitchen_number: null, special_instructions: '' },
   ]
 }
 
@@ -167,6 +168,18 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
         {order.items?.map((item: any, i: number) => (
           <div key={i} style={{ marginBottom: '6px' }}>
             <div style={{ ...style, fontWeight: 700 }}>{item.quantity}x {item.name}</div>
+            {item.special_instructions && <div style={{ ...style, fontSize: Math.round(10 * scale) + 'px', paddingLeft: '10px', fontStyle: 'italic' }}>→ {item.special_instructions}</div>}
+          </div>
+        ))}
+      </div>
+    )
+    case 'items_list_with_numbers': return (
+      <div style={{ width: '100%' }}>
+        {order.items?.map((item: any, i: number) => (
+          <div key={i} style={{ marginBottom: '6px' }}>
+            <div style={{ ...style, fontWeight: 700 }}>
+              {item.quantity}x {item.kitchen_number ? `[${item.kitchen_number}] ` : ''}{item.name}
+            </div>
             {item.special_instructions && <div style={{ ...style, fontSize: Math.round(10 * scale) + 'px', paddingLeft: '10px', fontStyle: 'italic' }}>→ {item.special_instructions}</div>}
           </div>
         ))}
@@ -376,7 +389,7 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
         </div>
 
         {/* MIDDLE - CANVAS */}
-        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           {/* Template name */}
           <div style={{ width: canvasWidth + 32, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input value={selectedTemplate?.name || ''} onChange={e => updateTemplate({ name: e.target.value })} style={{ flex: 1, background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '16px', fontWeight: 700, outline: 'none' }} />
@@ -386,7 +399,7 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
           <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>🖱️ Drag elements to reorder • Click to edit</div>
 
           {/* TICKET CANVAS */}
-          <div style={{ background: 'white', borderRadius: '4px', padding: '16px', width: canvasWidth, minHeight: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', transition: 'width 0.3s' }}>
+          <div style={{ background: 'white', borderRadius: '4px', padding: '16px', width: canvasWidth, minHeight: '200px', height: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', transition: 'width 0.3s' }}>
             <div style={{ fontSize: '9px', color: '#999', textAlign: 'center', marginBottom: '8px', fontFamily: 'monospace', letterSpacing: '2px' }}>{'─'.repeat(printerWidth === 80 ? 32 : 24)}</div>
             {selectedTemplate?.elements?.length === 0 && (
               <div style={{ textAlign: 'center', color: '#ccc', fontSize: '12px', padding: '40px 0' }}>← Add elements from the right panel</div>
