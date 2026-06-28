@@ -232,7 +232,6 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
 
-  // Canvas width based on printer
   const canvasWidth = printerWidth === 80 ? 300 : 220
 
   React.useEffect(() => { loadTemplates() }, [])
@@ -295,7 +294,6 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
     setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
   }
 
-  // DRAG AND DROP
   function handleDragStart(idx: number) { dragItem.current = idx }
   function handleDragEnter(idx: number) { dragOverItem.current = idx }
   function handleDragEnd() {
@@ -339,18 +337,14 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>🎫 Ticket Editor — {restaurantName}</div>
         </div>
-
-        {/* PRINTER WIDTH */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Printer:</span>
           {([58, 80] as const).map(w => (
-            <button key={w} onClick={async () => { setPrinterWidth(w) }} style={{ padding: '5px 10px', background: printerWidth === w ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${printerWidth === w ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: printerWidth === w ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+            <button key={w} onClick={() => setPrinterWidth(w)} style={{ padding: '5px 10px', background: printerWidth === w ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${printerWidth === w ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: printerWidth === w ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
               {w}mm
             </button>
           ))}
         </div>
-
-        {/* PREVIEW TOGGLES */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Preview:</span>
           <button onClick={() => setShowPreOrder(!showPreOrder)} style={{ padding: '5px 10px', background: showPreOrder ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showPreOrder ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'}`, color: showPreOrder ? '#3b82f6' : '#94a3b8', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
@@ -360,14 +354,14 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
             🚪 Contactless
           </button>
         </div>
-
         <button onClick={saveAll} disabled={saving} style={{ padding: '8px 20px', background: '#22c55e', border: 'none', color: '#0a0f1e', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
           {saving ? 'Saving...' : '💾 Save All'}
         </button>
         <button onClick={onClose} style={{ padding: '8px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>✕ Close</button>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '200px 1fr 260px', overflow: 'hidden' }}>
+      {/* MAIN - fixed height columns all scroll independently */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '200px 1fr 260px', minHeight: 0 }}>
 
         {/* LEFT - TEMPLATES */}
         <div style={{ background: '#0a0f1e', borderRight: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '12px' }}>
@@ -388,18 +382,17 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
           <button onClick={addTemplate} style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)', color: '#64748b', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>+ New Template</button>
         </div>
 
-        {/* MIDDLE - CANVAS */}
-        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          {/* Template name */}
+        {/* MIDDLE - CANVAS - scrollable, ticket grows naturally */}
+        <div style={{ background: '#060b18', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: canvasWidth + 32, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input value={selectedTemplate?.name || ''} onChange={e => updateTemplate({ name: e.target.value })} style={{ flex: 1, background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '16px', fontWeight: 700, outline: 'none' }} />
             <span style={{ fontSize: '11px', color: '#64748b' }}>{printerWidth}mm • {selectedTemplate?.copies} cop{selectedTemplate?.copies === 1 ? 'y' : 'ies'}</span>
           </div>
 
-          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>🖱️ Drag elements to reorder • Click to edit</div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '12px' }}>🖱️ Drag elements to reorder • Click to edit</div>
 
-          {/* TICKET CANVAS */}
-          <div style={{ background: 'white', borderRadius: '4px', padding: '16px', width: canvasWidth, minHeight: '200px', height: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', transition: 'width 0.3s' }}>
+          {/* WHITE TICKET - grows with content, never clips */}
+          <div style={{ background: 'white', borderRadius: '4px', padding: '16px', width: canvasWidth, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', transition: 'width 0.3s', marginBottom: '40px' }}>
             <div style={{ fontSize: '9px', color: '#999', textAlign: 'center', marginBottom: '8px', fontFamily: 'monospace', letterSpacing: '2px' }}>{'─'.repeat(printerWidth === 80 ? 32 : 24)}</div>
             {selectedTemplate?.elements?.length === 0 && (
               <div style={{ textAlign: 'center', color: '#ccc', fontSize: '12px', padding: '40px 0' }}>← Add elements from the right panel</div>
@@ -438,21 +431,17 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
 
         {/* RIGHT - ELEMENTS + PROPERTIES */}
         <div style={{ background: '#0a0f1e', borderLeft: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '14px' }}>
-
-          {/* ELEMENT PROPERTIES */}
           {selectedElement && (
             <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Edit: {ELEMENTS.find(e => e.type === selectedElement.type)?.label || selectedElement.type}
               </div>
-
               {selectedElement.type === 'custom_text' && (
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Text</label>
                   <textarea value={selectedElement.text || ''} onChange={e => updateElement(selectedElement.id, { text: e.target.value })} rows={2} style={{ width: '100%', padding: '6px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
                 </div>
               )}
-
               {!['divider','spacer'].includes(selectedElement.type) && (
                 <>
                   <div style={{ marginBottom: '10px' }}>
@@ -463,7 +452,6 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                       ))}
                     </div>
                   </div>
-
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Align</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
@@ -472,7 +460,6 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                       ))}
                     </div>
                   </div>
-
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
                     <button onClick={() => updateElement(selectedElement.id, { bold: !selectedElement.bold })} style={{ padding: '8px', background: selectedElement.bold ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.bold ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.bold ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
                       Bold {selectedElement.bold ? '✓' : ''}
@@ -483,16 +470,13 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                   </div>
                 </>
               )}
-
               <button onClick={() => { removeElement(selectedElement.id); setSelectedElement(null) }} style={{ width: '100%', padding: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
                 Remove Element
               </button>
             </div>
           )}
 
-          {/* ADD ELEMENTS */}
           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Add Elements</div>
-
           <div style={{ marginBottom: '12px' }}>
             <div style={{ fontSize: '10px', color: '#475569', fontWeight: 600, marginBottom: '6px' }}>STANDARD</div>
             {ELEMENTS.filter(e => !e.conditional).map(el => (
@@ -504,7 +488,6 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
               </button>
             ))}
           </div>
-
           <div>
             <div style={{ fontSize: '10px', color: '#f97316', fontWeight: 600, marginBottom: '6px' }}>CONDITIONAL</div>
             <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px' }}>Only prints when applicable</div>
