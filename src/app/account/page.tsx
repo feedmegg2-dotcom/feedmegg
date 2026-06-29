@@ -486,7 +486,6 @@ export default function AccountPage() {
         )}
       </div>
       <style>{`input::placeholder, textarea::placeholder { color: #334155; } select option { background: ${dark ? '#0d1321' : '#fff'}; }`}</style>
-    </div>
 
       {/* ADDRESS MAP MODAL */}
       {showAddrMap && (
