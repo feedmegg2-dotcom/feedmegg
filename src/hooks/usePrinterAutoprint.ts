@@ -152,6 +152,19 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
     case 'contactless':
       if (order.contactlessDelivery) t += align + size + bold + 'CONTACTLESS DELIVERY' + boldOff + SIZE_NORMAL + LF
       break
+    case 'delivery_qr':
+      if (!order.isCollection && (order as any).deliveryLat && (order as any).deliveryLng) {
+        const mapsUrl = `https://maps.google.com/maps?daddr=${(order as any).deliveryLat},${(order as any).deliveryLng}`
+        const urlLen = mapsUrl.length
+        t += ALIGN_CENTER + LF
+        t += GS + '(k' + String.fromCharCode(4, 0) + '\x31\x41\x32\x00'
+        t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x43\x08'
+        t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x45\x31'
+        t += GS + '(k' + String.fromCharCode((urlLen + 3) & 0xff, ((urlLen + 3) >> 8) & 0xff) + '\x31\x50\x30' + mapsUrl
+        t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x51\x30'
+        t += SIZE_NORMAL + ALIGN_CENTER + 'Scan for Google Maps directions' + LF + ALIGN_LEFT
+      }
+      break
     case 'divider':
       t += ALIGN_LEFT + divider + LF
       break
