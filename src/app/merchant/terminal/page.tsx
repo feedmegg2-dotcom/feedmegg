@@ -40,6 +40,9 @@ export default function TerminalPage() {
   const [acceptOpen, setAcceptOpen] = useState(false)
   const [countdown, setCountdown] = useState(120)
   const [restaurant, setRestaurant] = useState<any>(null)
+  const [showRestaurantSelector, setShowRestaurantSelector] = useState(false)
+  const [restaurantList, setRestaurantList] = useState<any[]>([])
+  const [merchantData, setMerchantData] = useState<any>(null)
   const [aiTagging, setAiTagging] = useState(false)
   const [selectedSound, setSelectedSound] = useState('chime')
   const [paymentSound, setPaymentSound] = useState('bell')
@@ -134,14 +137,45 @@ export default function TerminalPage() {
     }
     if (!merchant) { router.push('/merchant/login'); return }
 
-    // Get restaurant directly
-    const { data: rest } = await supabase.from('restaurants').select('*').eq('merchant_id', merchant.id).maybeSingle()
+    // Check if a restaurant is saved for this terminal
+    const savedRestId = localStorage.getItem('feedme-terminal-restaurant')
     
-    if (!rest) { 
-      console.error('No restaurant found for merchant', merchant.id)
-      router.push('/merchant/login')
-      return 
+    // Get all restaurants for this merchant
+    const { data: allRests } = await supabase.from('restaurants').select('*').eq('merchant_id', merchant.id)
+    if (!allRests || allRests.length === 0) { router.push('/merchant/login'); return }
+
+    // If only one restaurant, use it directly
+    if (allRests.length === 1) {
+      initRestaurant(allRests[0], merchant)
+      return
     }
+
+    // If saved restaurant exists, use it
+    if (savedRestId) {
+      const saved = allRests.find(r => r.id === savedRestId)
+      if (saved) { initRestaurant(saved, merchant); return }
+    }
+
+    // Show restaurant selector
+    setRestaurantList(allRests)
+    setMerchantData(merchant)
+    setShowRestaurantSelector(true)
+  }
+
+  async function initRestaurant(rest: any, merchant: any) {
+    // Register/update terminal last_seen
+    const deviceInfo = navigator.userAgent.includes('Android') ? 'Android tablet' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Browser'
+    await supabase.from('terminals').upsert({
+      merchant_id: merchant.id,
+      restaurant_id: rest.id,
+      device_info: deviceInfo,
+      last_seen: new Date().toISOString(),
+    }, { onConflict: 'merchant_id,restaurant_id' }).select().maybeSingle()
+    
+    // Update last_seen every 2 minutes
+    setInterval(async () => {
+      await supabase.from('terminals').update({ last_seen: new Date().toISOString() }).eq('merchant_id', merchant.id).eq('restaurant_id', rest.id)
+    }, 2 * 60 * 1000)
 
     setRestaurant(rest)
     setDelivTime(rest.delivery_time_mins || 25)
@@ -606,6 +640,38 @@ export default function TerminalPage() {
 
   const colors = themeColors[theme]
 
+  // Restaurant selector screen
+  if (showRestaurantSelector) {
+    return (
+      <div style={{ background: '#080c14', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui,sans-serif', padding: '24px' }}>
+        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: '28px', fontWeight: 800, marginBottom: '8px' }}>
+          <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
+        </div>
+        <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '40px' }}>Select your restaurant</div>
+        <div style={{ width: '100%', maxWidth: '400px', display: 'grid', gap: '12px' }}>
+          {restaurantList.map(r => (
+            <button key={r.id} onClick={() => {
+              localStorage.setItem('feedme-terminal-restaurant', r.id)
+              setShowRestaurantSelector(false)
+              initRestaurant(r, merchantData)
+            }} style={{ padding: '20px', background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: '#f1f5f9', fontSize: '16px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '32px' }}>{r.emoji || '🍽️'}</span>
+              <div>
+                <div>{r.name}</div>
+                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>{r.parish}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => {
+          localStorage.removeItem('feedme-terminal-restaurant')
+        }} style={{ marginTop: '24px', fontSize: '13px', color: '#475569', background: 'none', border: 'none', cursor: 'pointer' }}>
+          Clear saved selection
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div style={{ background: colors.background, height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui,sans-serif', position: 'relative', overflow: 'hidden', touchAction: 'manipulation', transition: 'background 0.3s' }}>
 
@@ -703,6 +769,16 @@ export default function TerminalPage() {
                 </div>
               </button>
             ))}
+            <button onClick={() => { localStorage.removeItem('feedme-terminal-restaurant'); setCogOpen(false); setShowRestaurantSelector(true); setRestaurantList(restaurantList) }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f97316', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.08)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >
+              <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }}>🔄</span>
+              <div>
+                <div style={{ fontWeight: 600 }}>Switch restaurant</div>
+                <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: '#64748b' }}>Change this terminal</div>
+              </div>
+            </button>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0', padding: '10px 14px' }}>
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Order Sound</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
