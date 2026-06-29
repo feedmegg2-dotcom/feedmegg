@@ -11,6 +11,8 @@ interface OrderForPrint {
   customerPhone?: string
   deliveryAddress?: string
   what3words?: string
+  deliveryLat?: number | null
+  deliveryLng?: number | null
   isCollection: boolean
   contactlessDelivery?: boolean
   isPreOrder?: boolean
@@ -80,6 +82,21 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
       if (!order.isCollection && order.deliveryAddress) {
         t += align + size + bold + order.deliveryAddress + boldOff + SIZE_NORMAL + LF
         if ((order as any).what3words) t += ALIGN_CENTER + bold + '///' + (order as any).what3words + boldOff + ALIGN_LEFT + LF
+        // QR code for Google Maps navigation
+        if (!order.isCollection && (order as any).deliveryLat && (order as any).deliveryLng) {
+          const mapsUrl = `https://maps.google.com/maps?daddr=${(order as any).deliveryLat},${(order as any).deliveryLng}`
+          const urlLen = mapsUrl.length
+          // QR Code: Model 2, Size 6, Error correction L
+          t += ALIGN_CENTER + LF
+          t += GS + '(k' + String.fromCharCode(4, 0) + '\x31\x41\x32\x00' // Model 2
+          t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x43\x06' // Size 6
+          t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x45\x31' // Error L
+          t += GS + '(k' + String.fromCharCode((urlLen + 3) & 0xff, ((urlLen + 3) >> 8) & 0xff) + '\x31\x50\x30' + mapsUrl
+          t += GS + '(k' + String.fromCharCode(3, 0) + '\x31\x51\x30'
+          t += SIZE_NORMAL + '\x1Ba\x01'
+          t += 'Scan for directions\n'
+          t += ALIGN_LEFT
+        }
       }
       break
     case 'order_type':
