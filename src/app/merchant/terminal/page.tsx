@@ -143,18 +143,29 @@ export default function TerminalPage() {
 
     if (savedTerminalId) {
       // Load the claimed terminal
-      const { data: terminal } = await supabase.from('terminals').select('*, restaurants(*)').eq('id', savedTerminalId).maybeSingle()
-      if (terminal?.restaurants) {
-        initRestaurant(terminal.restaurants, merchant, terminal.id)
-        return
+      const { data: terminal } = await supabase.from('terminals').select('*').eq('id', savedTerminalId).maybeSingle()
+      if (terminal?.restaurant_id) {
+        const { data: rest } = await supabase.from('restaurants').select('*').eq('id', terminal.restaurant_id).maybeSingle()
+        if (rest) {
+          initRestaurant(rest, merchant, terminal.id)
+          return
+        }
       }
-      // Terminal was deleted - clear and show selector
+      // Terminal was deleted or has no restaurant - clear and show selector
       localStorage.removeItem('feedme-terminal-id')
     }
 
     // Show terminal selector - only unclaimed terminals
-    const { data: allTerminals } = await supabase.from('terminals').select('*, restaurants(name, emoji, parish)').eq('merchant_id', merchant.id).is('claimed_at', null)
-    setRestaurantList(allTerminals || [])
+    const { data: allTerminals } = await supabase.from('terminals').select('*').eq('merchant_id', merchant.id).is('claimed_at', null)
+    
+    // Fetch restaurant details separately
+    const terminalsWithRests = await Promise.all((allTerminals || []).map(async (t: any) => {
+      if (!t.restaurant_id) return { ...t, restaurants: null }
+      const { data: rest } = await supabase.from('restaurants').select('name, emoji, parish').eq('id', t.restaurant_id).maybeSingle()
+      return { ...t, restaurants: rest }
+    }))
+    
+    setRestaurantList(terminalsWithRests)
     setShowRestaurantSelector(true)
   }
 
