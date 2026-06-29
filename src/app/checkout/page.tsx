@@ -7,216 +7,422 @@ import { createClient } from '@/lib/supabase'
 
 const PARISHES = ['Castel','Forest','St Andrew','St Martin','St Peter Port','St Pierre du Bois','St Sampson','St Saviour','Torteval','Vale']
 
-export default function AccountPage() {
+export default function CheckoutPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
-  const [customer, setCustomer] = useState<any>(null)
-  const [addresses, setAddresses] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [tab, setTab] = useState<'profile'|'addresses'|'orders'>('profile')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
   const [dark, setDark] = useState(true)
+  const [cartData, setCartData] = useState<any>(null)
+  const [customer, setCustomer] = useState<any>(null)
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([])
+  const [restaurant, setRestaurant] = useState<any>(null)
+  const [restaurantHours, setRestaurantHours] = useState<any[]>([])
+  const [isOpen, setIsOpen] = useState(true)
+  const [closedMessage, setClosedMessage] = useState('')
 
-  // Profile
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('')
+  const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // Password
-  const [newPassword, setNewPassword] = useState('')
-  const [isGoogleUser, setIsGoogleUser] = useState(false)
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [pwMsg, setPwMsg] = useState('')
+  const [form, setForm] = useState({
+    name: '', phone: '', email: '',
+    orderType: 'delivery',
+    paymentMethod: 'card',
+    addressMode: 'new',
 
-  // Address form
-  const [showAddressForm, setShowAddressForm] = useState(false)
-  const [editingAddress, setEditingAddress] = useState<any>(null)
-  const [addrName, setAddrName] = useState('Home')
-  const [addrLine1, setAddrLine1] = useState('')
-  const [addrLine2, setAddrLine2] = useState('')
-  const [addrParish, setAddrParish] = useState('St Peter Port')
-  const [addrPostcode, setAddrPostcode] = useState('')
-  const [addrDesc, setAddrDesc] = useState('')
-  const [addrLat, setAddrLat] = useState<number | null>(null)
-  const [addrLng, setAddrLng] = useState<number | null>(null)
-  const [showAddrMap, setShowAddrMap] = useState(false)
-  const [addrMapPin, setAddrMapPin] = useState<{lat: number, lng: number} | null>(null)
-  const [addrW3W, setAddrW3W] = useState('')
-  const [w3wLoading, setW3wLoading] = useState(false)
+    savedAddressId: '',
+    addressLine1: '',
+    addressLine2: '',
+    parish: 'St Peter Port',
+    postcode: '',
+    locationDesc: '',
+    note: '',
+    contactless: false,
+    // Pre-order
+    isPreOrder: false,
+    preOrderDate: '',
+    preOrderTime: '',
+  })
+
+  // Generate available time slots
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
 
   useEffect(() => {
     const saved = localStorage.getItem('feedme-theme')
     if (saved) setDark(saved === 'dark')
+    const cartSaved = localStorage.getItem('feedme-cart')
+    if (!cartSaved) { router.push('/'); return }
+    const data = JSON.parse(cartSaved)
+    setCartData(data)
+    fetchRestaurant(data.restaurantId)
+    fetchCustomer()
+    // Prefill guest details from previous order
+    const guestSaved = localStorage.getItem('feedme-guest')
+    if (guestSaved) {
+      try {
+        const g = JSON.parse(guestSaved)
+        setForm(f => ({
+          ...f,
+          name: f.name || g.name || '',
+          phone: f.phone || g.phone || '',
+          email: f.email || g.email || '',
+        }))
+      } catch (e) {}
+    }
+    // Auto-select pre-order if coming from timeout/rejected page
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('preorder') === 'true') {
+      setForm(f => ({...f, isPreOrder: true}))
+    }
   }, [])
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    if (form.isPreOrder && restaurant) generateSlots()
+  }, [form.isPreOrder, form.preOrderDate, form.orderType, restaurant])
 
-  async function init() {
+  async function generateSlots() {
+    if (!restaurant) return
+    const slots: string[] = []
+    const slotDuration = form.orderType === 'delivery'
+      ? (restaurant?.delivery_slot_duration || 30)
+      : (restaurant?.pickup_slot_duration || 30)
+    const slotCapacity = form.orderType === 'delivery'
+      ? (restaurant?.delivery_slot_capacity || 10)
+      : (restaurant?.pickup_slot_capacity || 10)
+
+    const now = new Date()
+    const dateStr = new Date().toISOString().split('T')[0]
+
+    // Compare dates properly
+    const todayStr = now.toISOString().split('T')[0]
+    const isToday = dateStr === todayStr
+
+    // Find today's opening hours
+    const dayName = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })
+    const dayHours = restaurantHours.find(h => h.day === dayName)
+
+    // Default open/close times
+    let openH = 10, openM = 0
+    let closeH = 22, closeM = 0
+
+    if (dayHours && !dayHours.is_closed) {
+      const [oh, om] = dayHours.open_time.split(':').map(Number)
+      const [ch, cm] = dayHours.close_time.split(':').map(Number)
+      openH = oh; openM = om
+      closeH = ch; closeM = cm
+    }
+
+    let startH = openH
+    let startM = openM
+
+    if (isToday) {
+      // Start from 30 mins from now minimum
+      const minTime = new Date(now.getTime() + 30 * 60000)
+      const minH = minTime.getHours()
+      const minM = Math.ceil(minTime.getMinutes() / slotDuration) * slotDuration
+
+      if (minH > startH || (minH === startH && minM > startM)) {
+        startH = minH
+        startM = minM >= 60 ? 0 : minM
+        if (minM >= 60) startH += 1
+      }
+    }
+
+    const closeMins = closeH * 60 + closeM
+
+    // Get existing orders for today to check capacity
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('scheduled_for')
+      .eq('restaurant_id', restaurant.id)
+      .eq('order_type', form.orderType)
+      .gte('scheduled_for', `${dateStr}T00:00:00`)
+      .lte('scheduled_for', `${dateStr}T23:59:59`)
+      .in('status', ['pending', 'accepted', 'waiting_payment', 'paid'])
+
+    for (let h = startH; h <= closeH; h++) {
+      const mStart = h === startH ? startM : 0
+      for (let m = mStart; m < 60; m += slotDuration) {
+        const slotStartMins = h * 60 + m
+        const slotEndMins = slotStartMins + slotDuration
+
+        if (slotEndMins > closeMins) break
+
+        const endH = Math.floor(slotEndMins / 60)
+        const endM = slotEndMins % 60
+        const slotStart = `${dateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`
+        const slotEnd = `${dateStr}T${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}:00`
+
+        // Check capacity
+        const ordersInSlot = (existingOrders || []).filter(o => o.scheduled_for >= slotStart && o.scheduled_for < slotEnd).length
+        if (ordersInSlot >= slotCapacity) continue // Skip full slots
+
+        const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} - ${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`
+        slots.push(slot)
+      }
+    }
+
+    setAvailableSlots(slots)
+    if (slots.length > 0) setForm(f => ({...f, preOrderTime: f.preOrderTime && slots.includes(f.preOrderTime) ? f.preOrderTime : slots[0]}))
+  }
+
+  async function fetchCustomer() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth/login'); return }
-    setUser(user)
-    // Detect if logged in with Google
-    const provider = user.app_metadata?.provider
-    setIsGoogleUser(provider === 'google')
-    // Try auth_id first, then id (both should work now), then email
+    if (!user) return
+    setAuthUserId(user.id)
     let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
     if (!cust) {
-      const res2 = await supabase.from('customers').select('*').eq('id', user.id).single()
-      cust = res2.data
-    }
-    if (!cust && user.email) {
-      const res3 = await supabase.from('customers').select('*').ilike('email', user.email).single()
-      cust = res3.data
-      if (cust) {
-        // Fix both id and auth_id for future lookups
-        await supabase.from('customers').update({ auth_id: user.id }).eq('id', cust.id)
-      }
+      const r2 = await supabase.from('customers').select('*').eq('id', user.id).single()
+      cust = r2.data
     }
     if (cust) {
       setCustomer(cust)
-      setFirstName(cust.first_name || '')
-      setLastName(cust.last_name || '')
-      setPhone(cust.phone || '')
-      await fetchAddresses(cust.id)
-      await fetchOrders(cust.id)
+      setForm(f => ({
+        ...f,
+        name: cust.name || `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || f.name,
+        phone: cust.phone || f.phone,
+        email: user.email || f.email,
+      }))
+      const { data: addrs } = await supabase.from('customer_addresses').select('*').eq('customer_id', cust.id).order('is_default', { ascending: false })
+      if (addrs && addrs.length > 0) {
+        setSavedAddresses(addrs)
+        const def = addrs.find(a => a.is_default) || addrs[0]
+        setForm(f => ({ ...f, addressMode: 'saved', savedAddressId: def.id, parish: def.parish || f.parish }))
+      }
+      // Check if customer has previous paid orders
+      const { data: prevOrders } = await supabase.from('orders').select('id').eq('customer_email', user.email).eq('status', 'paid').limit(1)
+      if (prevOrders && prevOrders.length > 0) setHasPreviousOrder(true)
     }
+  }
+
+  async function fetchRestaurant(id: string) {
+    const { data } = await supabase.from('restaurants').select('*').eq('id', id).single()
+    setRestaurant(data)
+    const { data: zones } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', id).eq('is_active', true)
+    setDeliveryZones(zones || [])
+    
+    // Fetch and check opening hours
+    const { data: hours } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', id)
+    if (hours && hours.length > 0) {
+      setRestaurantHours(hours)
+      checkIfOpen(hours, data)
+    }
+  }
+
+  function checkIfOpen(hours: any[], rest: any) {
+    // Check if restaurant is marked as open
+    if (rest?.is_open === false) {
+      setIsOpen(false)
+      setClosedMessage('This restaurant is currently closed')
+      return
+    }
+
+    const now = new Date()
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    const todayName = days[now.getDay()]
+    const todayHours = hours.find(h => h.day === todayName)
+
+    if (!todayHours || todayHours.is_closed) {
+      setIsOpen(false)
+      setClosedMessage(`Closed today (${todayName})`)
+      return
+    }
+
+    // Check current time is within opening hours
+    const [openH, openM] = todayHours.open_time.split(':').map(Number)
+    const [closeH, closeM] = todayHours.close_time.split(':').map(Number)
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const openMins = openH * 60 + openM
+    const closeMins = closeH * 60 + closeM
+
+    if (nowMins < openMins) {
+      setIsOpen(false)
+      setClosedMessage(`Opens at ${todayHours.open_time}`)
+      return
+    }
+
+    if (nowMins >= closeMins) {
+      setIsOpen(false)
+      setClosedMessage(`Closed - reopens ${getNextOpenDay(hours, days, now.getDay())}`)
+      return
+    }
+
+    setIsOpen(true)
+    setClosedMessage('')
+  }
+
+  function getNextOpenDay(hours: any[], days: string[], todayIdx: number) {
+    for (let i = 1; i <= 7; i++) {
+      const nextIdx = (todayIdx + i) % 7
+      const nextDay = days[nextIdx]
+      const nextHours = hours.find(h => h.day === nextDay)
+      if (nextHours && !nextHours.is_closed) {
+        return i === 1 ? `tomorrow at ${nextHours.open_time}` : `${nextDay} at ${nextHours.open_time}`
+      }
+    }
+    return 'soon'
+  }
+
+  const [tip, setTip] = useState(0)
+  const [customTip, setCustomTip] = useState('')
+  const [promoCode, setPromoCode] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<any>(null)
+  const [promoError, setPromoError] = useState('')
+  const [w3wAddress, setW3wAddress] = useState('')
+
+  const [w3wLoading, setW3wLoading] = useState(false)
+  const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
+
+  function getDeliveryFee() {
+    if (form.orderType !== 'delivery') return 0
+    const parish = form.addressMode === 'saved' ? (getSelectedAddress()?.parish || form.parish) : form.parish
+    if (deliveryZones.length > 0) {
+      const zone = deliveryZones.find((z: any) => z.parish === parish || z.name === parish)
+      if (zone) {
+        const fee = parseFloat(zone.fee) || 0
+        const freeOver = zone.free_delivery_over ? parseFloat(zone.free_delivery_over) : null
+        if (freeOver && cartTotal >= freeOver) return 0
+        return fee
+      }
+    }
+    return 0
+  }
+
+  const deliveryFee = getDeliveryFee()
+  const promoDiscount = appliedPromo ? (appliedPromo.discount_type === 'percent' ? cartTotal * (appliedPromo.discount_value / 100) : appliedPromo.discount_value) : 0
+  const orderTotal = cartTotal + deliveryFee + tip - promoDiscount
+  const meetsMinOrder = cartTotal >= (parseFloat(restaurant?.min_order) || 10)
+
+  async function applyPromoCode() {
+    setPromoError('')
+    if (!promoCode) return
+    const { data: promo } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('code', promoCode.toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!promo) { setPromoError('Invalid or expired promo code'); return }
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) { setPromoError('This promo code has expired'); return }
+    if (promo.max_uses && promo.uses_count >= promo.max_uses) { setPromoError('This promo code has reached its maximum uses'); return }
+    if (promo.min_order && cartTotal < promo.min_order) { setPromoError(`Minimum order of £${promo.min_order} required for this code`); return }
+    if (promo.restaurant_id && promo.restaurant_id !== restaurant?.id) { setPromoError('This code is not valid for this restaurant'); return }
+    setAppliedPromo(promo)
+  }
+
+  useEffect(() => {
+    if (form.orderType !== 'delivery' || form.paymentMethod !== 'card') {
+      setTip(0)
+      setCustomTip('')
+    }
+  }, [form.orderType, form.paymentMethod])
+
+  function getSelectedAddress() {
+    if (form.addressMode === 'saved') return savedAddresses.find(a => a.id === form.savedAddressId)
+    return null
+  }
+
+  function getDeliveryAddressText() {
+    if (form.addressMode === 'saved') {
+      const addr = getSelectedAddress()
+      if (!addr) return ''
+      return [addr.address_line1, addr.address_line2, addr.parish, addr.postcode].filter(Boolean).join(', ')
+    }
+    return [form.addressLine1, form.addressLine2, form.parish, form.postcode].filter(Boolean).join(', ')
+  }
+
+  function getScheduledFor() {
+    if (!form.isPreOrder || !form.preOrderTime) return null
+    const date = new Date().toISOString().split('T')[0]
+    const time = form.preOrderTime.split(' - ')[0] // Take start time
+    return `${date}T${time}:00`
+  }
+
+  async function getW3WFromGPS() {
+    if (!navigator.geolocation) { alert('Geolocation not supported'); return }
+    setW3wLoading(true)
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords
+        const res = await fetch(`https://api.what3words.com/v3/convert-to-3wa?coordinates=${latitude},${longitude}&language=en&key=${process.env.NEXT_PUBLIC_W3W_API_KEY}`)
+        const data = await res.json()
+        if (data.words) {
+          setW3wAddress(data.words)
+          setForm(f => ({ ...f, locationDesc: f.locationDesc ? f.locationDesc : `What3Words: ///${data.words}` }))
+        }
+      } catch (e) {
+        alert('Could not get What3Words address')
+      }
+      setW3wLoading(false)
+    }, () => {
+      alert('Location access denied')
+      setW3wLoading(false)
+    })
+  }
+
+  async function placeOrder() {
+    if (!form.name) { setError('Please enter your name'); return }
+    if (!form.phone) { setError('Please enter your phone number'); return }
+    if (form.orderType === 'delivery') {
+      if (form.addressMode === 'saved' && !form.savedAddressId) { setError('Please select a delivery address'); return }
+      if (form.addressMode !== 'saved' && !form.addressLine1) { setError('Please enter your delivery address'); return }
+    }
+    if (form.isPreOrder && !form.preOrderTime) { setError('Please select a time slot'); return }
+    if (!meetsMinOrder) { setError(`Minimum order is GBP${(parseFloat(restaurant?.min_order) || 10).toFixed(2)}`); return }
+    setError('')
+    setLoading(true)
+
+    const selectedAddr = getSelectedAddress()
+    const addressText = getDeliveryAddressText()
+    const locationDesc = form.addressMode === 'saved' ? selectedAddr?.location_description : form.locationDesc
+
+    const res = await fetch('/api/checkout/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        restaurantId: cartData.restaurantId,
+        items: cartData.cart,
+        customerId: authUserId || null,
+        customerName: form.name,
+        customerPhone: form.phone,
+        customerEmail: form.email,
+        address: addressText,
+        locationDescription: locationDesc,
+        parish: form.addressMode === 'saved' ? (selectedAddr?.parish || form.parish) : form.parish,
+        deliveryParish: form.addressMode === 'saved' ? (selectedAddr?.parish || form.parish) : form.parish,
+        orderType: form.orderType,
+        paymentMethod: form.paymentMethod,
+        note: form.note,
+        tip: tip || 0,
+        promoCode: appliedPromo?.code || null,
+        promoDiscount: promoDiscount || 0,
+        what3words: w3wAddress || null,
+        deliveryLat: selectedAddr?.lat || null,
+        deliveryLng: selectedAddr?.lng || null,
+
+        contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
+        scheduledFor: getScheduledFor(),
+      })
+    })
+
+    const data = await res.json()
     setLoading(false)
-  }
 
-  async function fetchAddresses(customerId: string) {
-    const { data } = await supabase.from('customer_addresses').select('*').eq('customer_id', customerId).order('is_default', { ascending: false })
-    setAddresses(data || [])
-  }
+    if (!data.success) { setError(data.error || 'Something went wrong'); return }
+    // Don't clear cart yet - keep it in case order is rejected/times out
+    // Cart will be cleared when order is confirmed
+    // localStorage.removeItem('feedme-cart')
+    // Save guest details for next order
+    localStorage.setItem('feedme-guest', JSON.stringify({ name: form.name, phone: form.phone, email: form.email }))
 
-  async function fetchOrders(customerId: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data } = await supabase
-      .from('orders')
-      .select('*, restaurants(name, emoji, logo_url, slug), order_items(*)')
-      .eq('customer_email', user.email)
-      .order('created_at', { ascending: false })
-      .limit(20)
-    setOrders(data || [])
-  }
-
-  async function saveProfile() {
-    if (!customer) {
-      setMsg('Error: Could not find your account. Please log out and back in.')
-      return
-    }
-    setSaving(true)
-    const { error } = await supabase.from('customers').update({
-      first_name: firstName,
-      last_name: lastName,
-      phone,
-      name: (firstName + ' ' + lastName).trim()
-    }).eq('id', customer.id)
-    setSaving(false)
-    if (error) {
-      setMsg('Error saving: ' + error.message)
+    if (data.paymentMethod === 'cash') {
+      // Cash orders (including pre-orders) go straight to confirmed
+      router.push(`/order/${data.orderId}/confirmed?method=cash`)
     } else {
-      setMsg('Profile updated! ✓')
+      // Card orders wait for merchant acceptance then payment
+      router.push(`/order/${data.orderId}/waiting`)
     }
-    setTimeout(() => setMsg(''), 4000)
-  }
-
-  async function changePassword() {
-    if (!newPassword) { setPwMsg('Please enter a new password'); return }
-    if (newPassword !== confirmPassword) { setPwMsg('Passwords do not match'); return }
-    if (newPassword.length < 6) { setPwMsg('Password must be at least 6 characters'); return }
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) { setPwMsg('Error: ' + error.message); return }
-    setPwMsg('Password updated!')
-    setNewPassword('')
-    setConfirmPassword('')
-    setTimeout(() => setPwMsg(''), 3000)
-  }
-
-  function openAddressForm(addr?: any) {
-    if (addr) {
-      setEditingAddress(addr)
-      setAddrName(addr.name || 'Home')
-      setAddrLine1(addr.address_line1 || '')
-      setAddrLine2(addr.address_line2 || '')
-      setAddrParish(addr.parish || 'St Peter Port')
-      setAddrPostcode(addr.postcode || '')
-      setAddrDesc(addr.location_description || '')
-      setAddrLat(addr.lat || null)
-      setAddrLng(addr.lng || null)
-      setAddrMapPin(addr.lat ? { lat: addr.lat, lng: addr.lng } : null)
-      setAddrW3W(addr.what3words || '')
-    } else {
-      setEditingAddress(null)
-      setAddrLat(null)
-      setAddrLng(null)
-      setAddrMapPin(null)
-      setAddrName('Home')
-      setAddrLine1('')
-      setAddrLine2('')
-      setAddrParish('St Peter Port')
-      setAddrPostcode('')
-      setAddrDesc('')
-    }
-    setShowAddressForm(true)
-  }
-
-  async function saveAddress() {
-    if (!customer) { setMsg('Not logged in — please refresh'); return }
-    if (!addrLine1) { setMsg('Please enter your house number and street'); return }
-    setSaving(true)
-    setMsg('')
-    const payload = {
-      customer_id: customer.id,
-      name: addrName || 'Home',
-      address_line1: addrLine1,
-      address_line2: addrLine2 || null,
-      parish: addrParish || 'St Peter Port',
-      postcode: addrPostcode || null,
-      location_description: addrDesc || null,
-      lat: addrLat || null,
-      lng: addrLng || null,
-      what3words: addrW3W || null,
-      is_default: addresses.length === 0
-    }
-    let error = null
-    if (editingAddress) {
-      const res = await supabase.from('customer_addresses').update(payload).eq('id', editingAddress.id)
-      error = res.error
-    } else {
-      const res = await supabase.from('customer_addresses').insert(payload)
-      error = res.error
-    }
-    setSaving(false)
-    if (error) {
-      setMsg('Error saving: ' + error.message)
-      return
-    }
-    await fetchAddresses(customer.id)
-    setShowAddressForm(false)
-    setTab('addresses')
-    setMsg('Address saved! You can add another address below.')
-    setTimeout(() => setMsg(''), 5000)
-  }
-
-  async function setDefaultAddress(addrId: string) {
-    await supabase.from('customer_addresses').update({ is_default: false }).eq('customer_id', customer.id)
-    await supabase.from('customer_addresses').update({ is_default: true }).eq('id', addrId)
-    await fetchAddresses(customer.id)
-  }
-
-  async function deleteAddress(addrId: string) {
-    if (!confirm('Delete this address?')) return
-    await supabase.from('customer_addresses').delete().eq('id', addrId)
-    await fetchAddresses(customer.id)
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut()
-    router.push('/')
   }
 
   const bg = dark ? '#080c14' : '#f8fafc'
@@ -224,9 +430,21 @@ export default function AccountPage() {
   const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
   const text = dark ? '#f1f5f9' : '#0f172a'
   const sub = dark ? '#64748b' : '#94a3b8'
-  const inputStyle: any = { width: '100%', padding: '10px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const inputStyle: any = { width: '100%', padding: '12px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 
-  if (loading) return <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub }}>Loading...</div>
+  if (!cartData || !restaurant) return (
+    <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub }}>Loading...</div>
+  )
+
+  // Check if pre-orders enabled
+  const preOrderEnabled = form.orderType === 'delivery'
+    ? restaurant?.preorder_delivery_enabled !== false
+    : restaurant?.preorder_pickup_enabled !== false
+
+  // Get estimated time
+  const estTime = form.orderType === 'delivery'
+    ? restaurant?.delivery_time_mins || 45
+    : restaurant?.pickup_time_mins || 30
 
   return (
     <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif' }}>
@@ -236,331 +454,339 @@ export default function AccountPage() {
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me.gg</span>
         </Link>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button onClick={() => { const n = !dark; setDark(n); localStorage.setItem('feedme-theme', n ? 'dark' : 'light') }}
-            style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${border}`, color: sub, padding: '6px 12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
-            {dark ? 'Light' : 'Dark'}
-          </button>
-          <Link href="/" style={{ padding: '8px 16px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Order Food</Link>
-        </div>
+        <button onClick={() => router.back()} style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${border}`, color: sub, padding: '6px 14px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>Back</button>
       </nav>
 
-      <div style={{ maxWidth: '860px', margin: '0 auto', padding: '28px 20px' }}>
+      <div style={{ maxWidth: '560px', margin: '0 auto', padding: '20px 16px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Checkout</h1>
 
-        {/* HEADER */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 800, margin: 0, marginBottom: '4px' }}>My Account</h1>
-            <div style={{ fontSize: '13px', color: sub }}>{user?.email}</div>
-          </div>
-          <button onClick={signOut} style={{ padding: '8px 16px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Sign out
-          </button>
-        </div>
-
-        {/* SUCCESS MESSAGE */}
-        {msg && (
-          <div style={{ marginBottom: '16px', padding: '12px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', fontSize: '14px', color: '#22c55e', fontWeight: 600 }}>
-            {msg}
+        {/* CLOSED BANNER */}
+        {!isOpen && !form.isPreOrder && (
+          <div style={{ padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', marginBottom: '14px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔴</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>Restaurant Closed</div>
+            <div style={{ fontSize: '13px', color: sub, marginBottom: '12px' }}>{closedMessage}</div>
+            {preOrderEnabled && (
+              <button onClick={() => setForm({...form, isPreOrder: true})} style={{ padding: '10px 24px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                📅 Schedule a Pre-Order instead
+              </button>
+            )}
+            {restaurantHours.length > 0 && (
+              <div style={{ marginTop: '12px', display: 'grid', gap: '4px' }}>
+                {restaurantHours.filter(h => !h.is_closed).map(h => (
+                  <div key={h.day} style={{ fontSize: '12px', color: sub, display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 600, width: '90px', textAlign: 'right' }}>{h.day}</span>
+                    <span>{h.open_time} - {h.close_time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* TABS */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderRadius: '10px', padding: '4px' }}>
-          {(['profile','addresses','orders'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', background: tab === t ? '#22c55e' : 'transparent', color: tab === t ? '#080c14' : sub, textTransform: 'capitalize' }}>
-              {t === 'profile' ? 'Your Info' : t === 'addresses' ? 'Addresses' : 'Order History'}
-            </button>
+        {!isOpen && form.isPreOrder && (
+          <div style={{ padding: '12px 16px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', marginBottom: '14px', fontSize: '13px', color: '#22c55e' }}>
+            📅 Restaurant is closed now but you can still pre-order for a future time
+          </div>
+        )}
+
+        {/* ORDER SUMMARY */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Summary</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>{restaurant.name?.replace(/&amp;/g, '&')}</div>
+          {cartData.cart.map((item: any) => (
+            <div key={item.cartId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px', gap: '12px' }}>
+              <div style={{ color: dark ? '#94a3b8' : '#64748b', flex: 1 }}>
+                <span style={{ fontWeight: 600, color: text }}>{item.qty}x</span> {item.name}
+                {item.note && <div style={{ fontSize: '11px', color: sub, marginTop: '2px' }}>{item.note}</div>}
+              </div>
+              <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>GBP{(item.price * item.qty).toFixed(2)}</span>
+            </div>
           ))}
+          <div style={{ borderTop: `1px solid ${border}`, marginTop: '12px', paddingTop: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: sub, marginBottom: '6px' }}>
+              <span>Subtotal</span><span>GBP{cartTotal.toFixed(2)}</span>
+            </div>
+            {form.orderType === 'delivery' && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: sub, marginBottom: '6px' }}>
+                <span>Delivery</span><span>GBP{deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            {/* TIP moved to below payment method */}
+            {tip > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#22c55e', marginBottom: '6px' }}>
+                <span>Tip</span><span>GBP{tip.toFixed(2)}</span>
+              </div>
+            )}
+            {promoDiscount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#22c55e', marginBottom: '6px' }}>
+                <span>Promo ({promoCode})</span><span>-GBP{promoDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${border}` }}>
+              <span>Total</span><span style={{ color: '#22c55e' }}>GBP{Math.max(0, orderTotal).toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
-        {/* PROFILE TAB - two column like food.gg */}
-        {tab === 'profile' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+        {/* ORDER TYPE */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Order Type</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+            {restaurant.accepts_delivery !== false && restaurant.delivery_enabled !== false && deliveryZones.length > 0 && (
+              <button onClick={() => setForm({...form, orderType: 'delivery', isPreOrder: false, paymentMethod: 'card'})}
+                style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'delivery' ? '#22c55e' : border}`, background: form.orderType === 'delivery' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                🚗 Delivery<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{estTime} mins</span>
+              </button>
+            )}
+            {restaurant.accepts_pickup !== false && restaurant.pickup_enabled !== false && (
+              <button onClick={() => setForm({...form, orderType: 'pickup', isPreOrder: false})}
+                style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.orderType === 'pickup' ? '#22c55e' : border}`, background: form.orderType === 'pickup' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                🏪 Collection<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>{restaurant?.pickup_time_mins || 20} mins</span>
+              </button>
+            )}
+          </div>
 
-            {/* Personal Details */}
-            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '24px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', paddingBottom: '12px', borderBottom: `1px solid ${border}` }}>Personal Details</h2>
-              <div style={{ display: 'grid', gap: '14px' }}>
+          {/* WHEN - ASAP vs PRE-ORDER */}
+          <div style={{ borderTop: `1px solid ${border}`, paddingTop: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>When would you like it?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button onClick={() => setForm({...form, isPreOrder: false})}
+                style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${!form.isPreOrder ? '#22c55e' : border}`, background: !form.isPreOrder ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                ⚡ ASAP<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>~{estTime} mins</span>
+              </button>
+              {preOrderEnabled && (
+                <button onClick={() => setForm({...form, isPreOrder: true})}
+                  style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${form.isPreOrder ? '#22c55e' : border}`, background: form.isPreOrder ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                  📅 Pre-Order<br/><span style={{ fontSize: '11px', color: sub, fontWeight: 400 }}>Choose a time</span>
+                </button>
+              )}
+            </div>
+
+            {/* TIME SLOT PICKER */}
+            {form.isPreOrder && (
+              <div style={{ marginTop: '14px', display: 'grid', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>First name</label>
-                  <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name" style={inputStyle} />
+                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px' }}>Time Slot</label>
+                  {availableSlots.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                      {availableSlots.map(slot => (
+                        <button key={slot} onClick={() => setForm({...form, preOrderTime: slot})}
+                          style={{ padding: '8px 6px', background: form.preOrderTime === slot ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${form.preOrderTime === slot ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '6px', color: form.preOrderTime === slot ? '#22c55e' : text, fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: form.preOrderTime === slot ? 600 : 400 }}>
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: sub }}>No slots available today</div>
+                  )}
                 </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Last name</label>
-                  <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Phone number</label>
-                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 07911 123456" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Email address</label>
-                  <input value={user?.email || ''} disabled style={{ ...inputStyle, opacity: 0.5 }} />
-                </div>
-                <button onClick={saveProfile} disabled={saving}
-                  style={{ padding: '11px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
-                  {saving ? 'Saving...' : 'Save Changes'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* YOUR DETAILS */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Your Details</div>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <input placeholder="Full name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={inputStyle} />
+            <input placeholder="Phone number *" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inputStyle} />
+            <input placeholder="Email (optional)" value={form.email} onChange={e => setForm({...form, email: e.target.value})} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* DELIVERY ADDRESS */}
+        {form.orderType === 'delivery' && (
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Delivery Address</div>
+
+            {savedAddresses.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                <button onClick={() => setForm({...form, addressMode: 'saved'})}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: `2px solid ${form.addressMode === 'saved' ? '#22c55e' : border}`, background: form.addressMode === 'saved' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' }}>
+                  Saved Address
+                </button>
+                <button onClick={() => setForm({...form, addressMode: 'temp'})}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: `2px solid ${form.addressMode === 'temp' ? '#22c55e' : border}`, background: form.addressMode === 'temp' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' }}>
+                  Different Address
                 </button>
               </div>
-            </div>
-
-            {/* Change Password */}
-            {isGoogleUser ? (
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '24px' }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Password</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: 'rgba(66,133,244,0.08)', border: '1px solid rgba(66,133,244,0.2)', borderRadius: '10px' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>You signed in with Google. Your password is managed by Google.</span>
-                </div>
-              </div>
-            ) : (
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '24px' }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', paddingBottom: '12px', borderBottom: `1px solid ${border}` }}>Change Password</h2>
-                <div style={{ display: 'grid', gap: '14px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>New password</label>
-                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Confirm new password</label>
-                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm password" style={inputStyle} />
-                  </div>
-                  {pwMsg && (
-                    <div style={{ padding: '10px 12px', background: pwMsg.includes('updated') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.08)', border: `1px solid ${pwMsg.includes('updated') ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px', fontSize: '13px', color: pwMsg.includes('updated') ? '#22c55e' : '#fca5a5', fontWeight: 600 }}>
-                      {pwMsg}
-                    </div>
-                  )}
-                  <button onClick={changePassword}
-                    style={{ padding: '11px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
-                    Save New Password
-                  </button>
-                </div>
-              </div>
             )}
-          </div>
-        )}
 
-        {/* ADDRESSES TAB */}
-        {tab === 'addresses' && (
-          <div>
-            {!showAddressForm ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-                {addresses.map(addr => (
-                  <div key={addr.id} style={{ background: card, border: `2px solid ${addr.is_default ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '16px', padding: '18px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '15px', fontWeight: 700 }}>{addr.name}</span>
-                        {addr.is_default && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>Default</span>}
-                      </div>
+            {form.addressMode === 'saved' && savedAddresses.length > 0 && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {savedAddresses.map(addr => (
+                  <div key={addr.id} onClick={() => setForm({...form, savedAddressId: addr.id, parish: addr.parish || form.parish})}
+                    style={{ padding: '12px 14px', borderRadius: '10px', border: `2px solid ${form.savedAddressId === addr.id ? '#22c55e' : border}`, background: form.savedAddressId === addr.id ? 'rgba(34,197,94,0.06)' : 'transparent', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700 }}>{addr.name}</span>
+                      {addr.is_default && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '8px', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>Default</span>}
                     </div>
-                    <div style={{ fontSize: '13px', color: sub, lineHeight: 1.7, marginBottom: '14px' }}>
-                      <div>{addr.address_line1}</div>
-                      {addr.address_line2 && <div>{addr.address_line2}</div>}
-                      <div>{addr.parish}{addr.postcode ? `, ${addr.postcode}` : ''}</div>
-                      {addr.location_description && <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '12px' }}>"{addr.location_description}"</div>}
-                      {addr.what3words && <div style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>///{addr.what3words}</div>}
+                    <div style={{ fontSize: '12px', color: sub }}>
+                      {addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ''}, {addr.parish}{addr.postcode ? `, ${addr.postcode}` : ''}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {!addr.is_default && (
-                        <button onClick={() => setDefaultAddress(addr.id)} style={{ fontSize: '11px', padding: '5px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          Set default
-                        </button>
-                      )}
-                      <button onClick={() => openAddressForm(addr)} style={{ fontSize: '11px', padding: '5px 10px', background: 'rgba(255,255,255,0.06)', color: sub, border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
-                      <button onClick={() => deleteAddress(addr.id)} style={{ fontSize: '11px', padding: '5px 10px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Add address card */}
-                <div onClick={() => openAddressForm()} style={{ background: 'transparent', border: `2px dashed ${border}`, borderRadius: '16px', padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', minHeight: '140px' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#22c55e')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = border)}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '28px', marginBottom: '8px', color: sub }}>+</div>
-                    <div style={{ fontSize: '13px', color: sub, fontWeight: 600 }}>Add an address</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '24px', maxWidth: '500px' }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', paddingBottom: '12px', borderBottom: `1px solid ${border}` }}>
-                  {editingAddress ? 'Edit Address' : 'Add an Address'}
-                </h2>
-                <div style={{ display: 'grid', gap: '14px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Address name</label>
-                    <input value={addrName} onChange={e => setAddrName(e.target.value)} placeholder="e.g. Home, Work" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Address line 1 *</label>
-                    <input value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="House number and street" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Address line 2</label>
-                    <input value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="Apartment / building name (optional)" style={inputStyle} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Parish *</label>
-                      <select value={addrParish} onChange={e => setAddrParish(e.target.value)} style={{ ...inputStyle, appearance: 'none' as any }}>
-                        {PARISHES.map(p => <option key={p} value={p} style={{ background: dark ? '#0d1321' : '#fff' }}>{p}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Postcode</label>
-                      <input value={addrPostcode} onChange={e => setAddrPostcode(e.target.value)} placeholder="e.g. GY4 6RT" style={inputStyle} />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Directions (helps the driver find you)</label>
-                    <textarea value={addrDesc} onChange={e => setAddrDesc(e.target.value)} placeholder="e.g. Past the big tree, white van in the drive. Ring bell on gate." rows={3}
-                      style={{ ...inputStyle, resize: 'none' }} />
-                    <button type="button" onClick={() => setShowAddrMap(true)} style={{ width: '100%', padding: '10px', background: addrLat ? 'rgba(34,197,94,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${addrLat ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}`, borderRadius: '10px', color: addrLat ? '#22c55e' : '#3b82f6', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      📍 {addrLat ? 'Location pinned ✓ — tap to change' : 'Pin my exact location on map'}
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button onClick={saveAddress} disabled={saving}
-                    style={{ flex: 1, padding: '12px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {saving ? 'Saving...' : 'Save Address'}
-                  </button>
-                  <button onClick={() => setShowAddressForm(false)}
-                    style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.06)', color: sub, border: `1px solid ${border}`, borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ORDERS TAB */}
-        {tab === 'orders' && (
-          <div>
-            {orders.length === 0 ? (
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '48px', textAlign: 'center' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>No orders yet</div>
-                <p style={{ color: sub, marginBottom: '20px' }}>You haven't placed any orders yet</p>
-                <Link href="/" style={{ padding: '12px 24px', background: '#22c55e', color: '#080c14', borderRadius: '8px', fontWeight: 700, fontSize: '14px', textDecoration: 'none' }}>Order some food!</Link>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {orders.map(order => (
-                  <div key={order.id} style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {order.restaurants?.logo_url
-                          ? <img src={order.restaurants.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <span style={{ fontSize: '24px' }}>{order.restaurants?.emoji}</span>}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '3px' }}>{order.restaurants?.name}</div>
-                        <div style={{ fontSize: '12px', color: sub }}>{new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} &bull; {order.order_type === 'delivery' ? 'Delivery' : 'Collection'}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '10px', fontWeight: 600, background: order.status === 'completed' || order.status === 'paid' ? 'rgba(34,197,94,0.15)' : order.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: order.status === 'completed' || order.status === 'paid' ? '#22c55e' : order.status === 'cancelled' ? '#ef4444' : '#f97316' }}>
-                        {order.status}
-                      </span>
-                      <span style={{ fontSize: '16px', fontWeight: 800, color: '#22c55e' }}>GBP{order.total?.toFixed(2)}</span>
-                      {order.restaurants?.slug && (
-                        <Link href={`/restaurant/${order.restaurants.slug}?reorder=${order.id}`}
-                          style={{ padding: '7px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          🔄 Reorder
-                        </Link>
-                      )}
-                      <a href={`/api/invoice/order?orderId=${order.id}`} target="_blank"
-                        style={{ padding: '7px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        🧾 Receipt
-                      </a>
-                    </div>
+                    {addr.location_description && <div style={{ fontSize: '11px', color: sub, fontStyle: 'italic', marginTop: '3px' }}>"{addr.location_description}"</div>}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
-      </div>
-      <style>{`input::placeholder, textarea::placeholder { color: #334155; } select option { background: ${dark ? '#0d1321' : '#fff'}; }`}</style>
 
-      {/* ADDRESS MAP MODAL */}
-      {showAddrMap && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: '#0d1321', borderRadius: '16px', width: '100%', maxWidth: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            {(form.addressMode === 'new' || form.addressMode === 'temp' || savedAddresses.length === 0) && (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <input placeholder="House number and street *" value={form.addressLine1} onChange={e => setForm({...form, addressLine1: e.target.value})} style={inputStyle} />
+                <input placeholder="Apartment / building name (optional)" value={form.addressLine2} onChange={e => setForm({...form, addressLine2: e.target.value})} style={inputStyle} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <select value={form.parish} onChange={e => setForm({...form, parish: e.target.value})} style={{ ...inputStyle, appearance: 'none' as any }}>
+                    {(deliveryZones.length > 0 
+                      ? deliveryZones.filter((z: any) => z.is_active).map((z: any) => z.name || z.parish).filter(Boolean)
+                      : PARISHES
+                    ).map(p => <option key={p} value={p} style={{ background: dark ? '#0d1321' : '#fff' }}>{p}</option>)}
+                  </select>
+                  <input placeholder="Postcode" value={form.postcode} onChange={e => setForm({...form, postcode: e.target.value})} style={inputStyle} />
+                </div>
+                {form.parish && deliveryZones.length > 0 && !deliveryZones.find((z: any) => (z.name === form.parish || z.parish === form.parish) && z.is_active) && (
+                  <div style={{ fontSize: '12px', color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px' }}>
+                    ❌ Sorry, delivery is not available to {form.parish}
+                  </div>
+                )}
+                <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
+                  style={{ ...inputStyle, resize: 'none' }} />
+
+              </div>
+            )}
+
+            {/* CONTACTLESS */}
+            <div onClick={() => setForm({...form, contactless: !form.contactless, paymentMethod: !form.contactless ? 'card' : form.paymentMethod})}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: form.contactless ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${form.contactless ? 'rgba(34,197,94,0.2)' : border}`, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', marginTop: '12px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>📍 Pin your location</div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Tap the map to place a pin on your exact front door</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: form.contactless ? '#22c55e' : text }}>🚪 Contactless Delivery</div>
+                <div style={{ fontSize: '12px', color: sub, marginTop: '2px' }}>Driver leaves food at your door</div>
               </div>
-              <button onClick={() => setShowAddrMap(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ position: 'relative', height: '360px', background: '#1e293b' }}>
-              <iframe
-                key={addrMapPin ? `${addrMapPin.lat},${addrMapPin.lng}` : 'default'}
-                src={addrMapPin
-                  ? `https://maps.google.com/maps?q=${addrMapPin.lat},${addrMapPin.lng}&z=17&output=embed`
-                  : `https://maps.google.com/maps?q=49.455,-2.535&z=13&output=embed`
-                }
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                allowFullScreen
-              />
-              <div style={{ position: 'absolute', bottom: '60px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', color: '#f1f5f9', fontSize: '12px', padding: '6px 12px', borderRadius: '20px', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-                {addrMapPin ? '📍 Pin set — use GPS button or type coordinates below' : 'Use GPS button to pin your location'}
+              <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: form.contactless ? '#22c55e' : '#334155', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: '3px', left: form.contactless ? '23px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               </div>
             </div>
-            <div style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#64748b', flexShrink: 0 }}>Coordinates:</span>
-              <input
-                placeholder="Latitude e.g. 49.4567"
-                value={addrMapPin?.lat?.toFixed(6) || ''}
-                onChange={e => {
-                  const lat = parseFloat(e.target.value)
-                  if (!isNaN(lat)) setAddrMapPin(prev => ({ lat, lng: prev?.lng || -2.535 }))
-                }}
-                style={{ flex: 1, padding: '4px 8px', background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '11px', outline: 'none' }}
-              />
-              <input
-                placeholder="Longitude e.g. -2.5432"
-                value={addrMapPin?.lng?.toFixed(6) || ''}
-                onChange={e => {
-                  const lng = parseFloat(e.target.value)
-                  if (!isNaN(lng)) setAddrMapPin(prev => ({ lat: prev?.lat || 49.455, lng }))
-                }}
-                style={{ flex: 1, padding: '4px 8px', background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f1f5f9', fontSize: '11px', outline: 'none' }}
-              />
+          </div>
+        )}
+
+        {/* SPECIAL INSTRUCTIONS */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Special Instructions</div>
+          <textarea placeholder="Any notes for the restaurant? (optional)" value={form.note} onChange={e => setForm({...form, note: e.target.value})} rows={2}
+            style={{ ...inputStyle, resize: 'none' }} />
+        </div>
+
+        {/* PAYMENT METHOD */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Payment Method</div>
+          {form.contactless && (
+            <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '12px', color: '#22c55e' }}>
+              🚪 Contactless delivery requires card payment
             </div>
-            {addrMapPin && (
-              <div style={{ padding: '8px 16px', background: 'rgba(34,197,94,0.08)', borderTop: '1px solid rgba(34,197,94,0.15)', fontSize: '12px', color: '#22c55e', textAlign: 'center' }}>
-                📍 Pin placed at {addrMapPin.lat.toFixed(5)}, {addrMapPin.lng.toFixed(5)}
+          )}
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <button onClick={() => setForm({...form, paymentMethod: 'card'})}
+              style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'card' ? '#22c55e' : border}`, background: form.paymentMethod === 'card' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💳 Pay by card</div>
+              <div style={{ fontSize: '11px', color: sub }}>Secure online payment • Apple Pay • Google Pay • Card</div>
+            </button>
+            {!form.contactless && (form.orderType !== 'delivery' || hasPreviousOrder) && (
+              <button onClick={() => setForm({...form, paymentMethod: 'cash'})}
+                style={{ padding: '14px 16px', borderRadius: '10px', border: `2px solid ${form.paymentMethod === 'cash' ? '#22c55e' : border}`, background: form.paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'transparent', color: text, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>💵 Cash {form.orderType === 'delivery' ? 'on delivery' : 'on collection'}</div>
+                <div style={{ fontSize: '11px', color: sub }}>Pay with cash {form.orderType === 'delivery' ? 'when your order arrives' : 'when you collect'}</div>
+              </button>
+            )}
+            {form.orderType === 'delivery' && !hasPreviousOrder && (
+              <div style={{ padding: '12px 14px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '10px', fontSize: '12px', color: '#f97316' }}>
+                💡 Cash on delivery is available after your first order. Card payment is required for your first delivery.
               </div>
             )}
-            <div style={{ padding: '12px 16px', display: 'flex', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <button onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(pos => {
-                    setAddrMapPin({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                  })
-                }
-              }} style={{ flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                Use my GPS
-              </button>
-              <button onClick={() => {
-                if (addrMapPin) {
-                  setAddrLat(addrMapPin.lat)
-                  setAddrLng(addrMapPin.lng)
-                  setShowAddrMap(false)
-                }
-              }} disabled={!addrMapPin} style={{ flex: 2, padding: '10px', background: addrMapPin ? '#22c55e' : '#334155', color: addrMapPin ? '#0a0f1e' : '#64748b', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: addrMapPin ? 'pointer' : 'not-allowed' }}>
-                Confirm Location
-              </button>
-            </div>
           </div>
         </div>
-      )}
+
+        {/* TIP - only for card delivery */}
+        {form.orderType === 'delivery' && form.paymentMethod === 'card' && (
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Add a tip for the driver? 🙏</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+              {[0, 1, 2, 3, 4, 5, 10].map(t => (
+                <button key={t} onClick={() => { setTip(t); setCustomTip('') }}
+                  style={{ padding: '10px 4px', background: tip === t && !customTip ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${tip === t && !customTip ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: tip === t && !customTip ? '#22c55e' : text, fontSize: '13px', cursor: 'pointer', fontWeight: tip === t && !customTip ? 700 : 400, fontFamily: 'inherit' }}>
+                  {t === 0 ? 'None' : `£${t}`}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: sub }}>£</span>
+              <input type="number" min="0" step="0.50" placeholder="Custom amount" value={customTip}
+                onChange={e => { setCustomTip(e.target.value); setTip(parseFloat(e.target.value) || 0) }}
+                style={{ flex: 1, padding: '10px 12px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: `1px solid ${customTip ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: text, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+            </div>
+          </div>
+        )}
+
+        {/* PROMO CODE */}
+        <div style={{ background: card, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Promo Code 🎟️</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input placeholder="Enter promo code" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setAppliedPromo(null); setPromoError('') }}
+              style={{ flex: 1, padding: '10px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${appliedPromo ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
+            <button onClick={applyPromoCode} style={{ padding: '10px 16px', background: appliedPromo ? 'rgba(34,197,94,0.15)' : dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${appliedPromo ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '8px', color: appliedPromo ? '#22c55e' : text, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {appliedPromo ? '✓ Applied' : 'Apply'}
+            </button>
+          </div>
+          {promoError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>{promoError}</div>}
+          {appliedPromo && <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '6px' }}>🎉 {appliedPromo.description || `${appliedPromo.discount_type === 'percent' ? appliedPromo.discount_value + '%' : '£' + appliedPromo.discount_value} off applied!`}</div>}
+        </div>
+
+        {/* MIN ORDER WARNING */}
+        {!meetsMinOrder && (
+          <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>
+            Minimum order GBP{(parseFloat(restaurant?.min_order) || 10).toFixed(2)} — add GBP{((parseFloat(restaurant?.min_order) || 10) - cartTotal).toFixed(2)} more
+          </div>
+        )}
+
+        {error && (
+          <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>{error}</div>
+        )}
+
+        {/* SPACER for sticky bar */}
+        <div style={{ height: '90px' }} />
+
+      </div>
+
+      {/* STICKY BOTTOM BAR */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: dark ? 'rgba(6,11,24,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: `1px solid ${border}`, padding: '12px 16px' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ fontSize: '13px', color: sub }}>
+              {cartData?.cart?.length || 0} items
+              {promoDiscount > 0 && <span style={{ color: '#22c55e', marginLeft: '8px' }}>• Promo applied</span>}
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#22c55e' }}>
+              GBP{Math.max(0, orderTotal).toFixed(2)}
+            </div>
+          </div>
+          <button onClick={placeOrder} disabled={loading || !meetsMinOrder || (!isOpen && !form.isPreOrder)}
+            style={{ width: '100%', padding: '15px', background: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#1e3a2f' : '#22c55e', color: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? '#475569' : '#080c14', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 700, cursor: loading || !meetsMinOrder || (!isOpen && !form.isPreOrder) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {(!isOpen && !form.isPreOrder) ? 'Restaurant Closed' : loading ? 'Placing order...' : form.isPreOrder ? `Pre-Order for ${form.preOrderTime || 'selected time'}` : 'Place Order • GBP' + Math.max(0, orderTotal).toFixed(2)}
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        input::placeholder, textarea::placeholder { color: #334155; }
+        select option { background: ${dark ? '#0d1321' : '#fff'}; }
+        input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 30px ${dark ? '#0d1321' : '#fff'} inset !important;
+          -webkit-text-fill-color: ${dark ? '#f1f5f9' : '#0f172a'} !important;
+        }
+      `}</style>
+
+
+
     </div>
   )
 }
