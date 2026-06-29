@@ -134,6 +134,7 @@ export default function MerchantMenuEditor() {
     if (!merch) {
       const res2 = await supabase.from('merchants').select('*').ilike('email', user.email || '').maybeSingle()
       merch = res2.data
+      if (merch) await supabase.from('merchants').update({ auth_id: user.id }).eq('id', merch.id)
     }
     if (!merch) { router.push('/merchant/login'); return }
     setMerchant(merch)
