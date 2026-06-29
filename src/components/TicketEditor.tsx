@@ -32,6 +32,8 @@ const SAMPLE_ORDER = {
   customer_name: 'John Smith',
   customer_phone: '07700 900123',
   delivery_address: '12 Le Vauquiedor\nSt Andrews\nGuernsey GY6 8TP',
+  deliveryLat: 49.4557,
+  deliveryLng: -2.5354,
   order_type: 'delivery',
   contactless_delivery: true,
   scheduled_for: new Date(Date.now() + 3600000).toISOString(),
