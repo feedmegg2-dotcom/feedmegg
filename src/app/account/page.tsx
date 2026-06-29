@@ -40,6 +40,10 @@ export default function AccountPage() {
   const [addrParish, setAddrParish] = useState('St Peter Port')
   const [addrPostcode, setAddrPostcode] = useState('')
   const [addrDesc, setAddrDesc] = useState('')
+  const [addrLat, setAddrLat] = useState<number | null>(null)
+  const [addrLng, setAddrLng] = useState<number | null>(null)
+  const [showAddrMap, setShowAddrMap] = useState(false)
+  const [addrMapPin, setAddrMapPin] = useState<{lat: number, lng: number} | null>(null)
   const [addrW3W, setAddrW3W] = useState('')
   const [w3wLoading, setW3wLoading] = useState(false)
 
@@ -141,9 +145,15 @@ export default function AccountPage() {
       setAddrParish(addr.parish || 'St Peter Port')
       setAddrPostcode(addr.postcode || '')
       setAddrDesc(addr.location_description || '')
+      setAddrLat(addr.lat || null)
+      setAddrLng(addr.lng || null)
+      setAddrMapPin(addr.lat ? { lat: addr.lat, lng: addr.lng } : null)
       setAddrW3W(addr.what3words || '')
     } else {
       setEditingAddress(null)
+      setAddrLat(null)
+      setAddrLng(null)
+      setAddrMapPin(null)
       setAddrName('Home')
       setAddrLine1('')
       setAddrLine2('')
@@ -167,6 +177,8 @@ export default function AccountPage() {
       parish: addrParish || 'St Peter Port',
       postcode: addrPostcode || null,
       location_description: addrDesc || null,
+      lat: addrLat || null,
+      lng: addrLng || null,
       what3words: addrW3W || null,
       is_default: addresses.length === 0
     }
@@ -406,6 +418,9 @@ export default function AccountPage() {
                     <label style={{ fontSize: '12px', color: sub, display: 'block', marginBottom: '6px', fontWeight: 600 }}>Directions (helps the driver find you)</label>
                     <textarea value={addrDesc} onChange={e => setAddrDesc(e.target.value)} placeholder="e.g. Past the big tree, white van in the drive. Ring bell on gate." rows={3}
                       style={{ ...inputStyle, resize: 'none' }} />
+                    <button type="button" onClick={() => setShowAddrMap(true)} style={{ width: '100%', padding: '10px', background: addrLat ? 'rgba(34,197,94,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${addrLat ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}`, borderRadius: '10px', color: addrLat ? '#22c55e' : '#3b82f6', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      📍 {addrLat ? 'Location pinned ✓ — tap to change' : 'Pin my exact location on map'}
+                    </button>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
@@ -472,5 +487,63 @@ export default function AccountPage() {
       </div>
       <style>{`input::placeholder, textarea::placeholder { color: #334155; } select option { background: ${dark ? '#0d1321' : '#fff'}; }`}</style>
     </div>
+  )
+}
+
+      {/* ADDRESS MAP MODAL */}
+      {showAddrMap && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: '#0d1321', borderRadius: '16px', width: '100%', maxWidth: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>📍 Pin your location</div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Tap the map to place a pin on your exact front door</div>
+              </div>
+              <button onClick={() => setShowAddrMap(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ position: 'relative', height: '360px' }}>
+              <iframe
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=-2.72,-2.38,49.38,49.55&layer=mapnik${addrMapPin ? `&marker=${addrMapPin.lat},${addrMapPin.lng}` : ''}`}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
+              <div style={{ position: 'absolute', inset: 0 }} onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const x = (e.clientX - rect.left) / rect.width
+                const y = (e.clientY - rect.top) / rect.height
+                const minLng = -2.72, maxLng = -2.38
+                const minLat = 49.38, maxLat = 49.55
+                const lng = minLng + x * (maxLng - minLng)
+                const lat = maxLat - y * (maxLat - minLat)
+                setAddrMapPin({ lat, lng })
+              }} />
+            </div>
+            {addrMapPin && (
+              <div style={{ padding: '8px 16px', background: 'rgba(34,197,94,0.08)', borderTop: '1px solid rgba(34,197,94,0.15)', fontSize: '12px', color: '#22c55e', textAlign: 'center' }}>
+                📍 Pin placed at {addrMapPin.lat.toFixed(5)}, {addrMapPin.lng.toFixed(5)}
+              </div>
+            )}
+            <div style={{ padding: '12px 16px', display: 'flex', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button onClick={() => {
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(pos => {
+                    setAddrMapPin({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                  })
+                }
+              }} style={{ flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                Use my GPS
+              </button>
+              <button onClick={() => {
+                if (addrMapPin) {
+                  setAddrLat(addrMapPin.lat)
+                  setAddrLng(addrMapPin.lng)
+                  setShowAddrMap(false)
+                }
+              }} disabled={!addrMapPin} style={{ flex: 2, padding: '10px', background: addrMapPin ? '#22c55e' : '#334155', color: addrMapPin ? '#0a0f1e' : '#64748b', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: addrMapPin ? 'pointer' : 'not-allowed' }}>
+                Confirm Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
   )
 }
