@@ -30,6 +30,82 @@ export default function MerchantMenuEditor() {
 
   // Items
   const [editingItem, setEditingItem] = useState<any>(null)
+  const [imageModal, setImageModal] = useState<any>(null) // item being image-edited
+  const [imageTab, setImageTab] = useState<'emoji' | 'photo'>('emoji')
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  function suggestEmoji(name: string): string {
+    const t = name.toLowerCase()
+    const map: [string[], string][] = [
+      [['chicken','hen','poultry','wing','nugget','kfc','ifc','fried chicken','bucket'], '🍗'],
+      [['burger','beef burger','smash','double','triple'], '🍔'],
+      [['pizza','margherita','pepperoni','calzone'], '🍕'],
+      [['chip','fries','french fry'], '🍟'],
+      [['steak','ribeye','sirloin','fillet'], '🥩'],
+      [['fish','cod','haddock','salmon','sea bass','tuna','plaice','scampi'], '🐟'],
+      [['prawn','shrimp','lobster','crab'], '🦐'],
+      [['sushi','maki','nigiri','sashimi'], '🍣'],
+      [['pasta','spaghetti','linguine','penne','lasagne','carbonara','bolognese'], '🍝'],
+      [['salad','caesar','greek','nicoise'], '🥗'],
+      [['soup','broth','chowder','bisque'], '🍲'],
+      [['rice','biryani','fried rice','noodle','chow mein','pad thai'], '🍚'],
+      [['curry','tikka','korma','jalfrezi','masala','balti','rogan'], '🍛'],
+      [['wrap','burrito','tortilla'], '🌯'],
+      [['taco'], '🌮'],
+      [['hot dog','sausage','banger'], '🌭'],
+      [['sandwich','sub','baguette','panini','toastie'], '🥪'],
+      [['bread','naan','pitta','roll','garlic bread'], '🍞'],
+      [['egg','omelette','scrambled','poached','fried egg'], '🍳'],
+      [['waffle','pancake'], '🧇'],
+      [['cheese','brie','camembert','cheddar'], '🧀'],
+      [['bacon','ham','pork'], '🥓'],
+      [['lamb','sheep'], '🍖'],
+      [['duck'], '🦆'],
+      [['turkey'], '🦃'],
+      [['mushroom'], '🍄'],
+      [['corn','sweetcorn'], '🌽'],
+      [['carrot'], '🥕'],
+      [['tomato'], '🍅'],
+      [['pepper','chilli'], '🌶'],
+      [['avocado'], '🥑'],
+      [['broccoli'], '🥦'],
+      [['potato','jacket','mash','wedge'], '🥔'],
+      [['strawberry'], '🍓'],
+      [['apple'], '🍎'],
+      [['banana'], '🍌'],
+      [['lemon','lime'], '🍋'],
+      [['orange'], '🍊'],
+      [['cake','birthday','sponge'], '🎂'],
+      [['cupcake','muffin'], '🧁'],
+      [['cookie','biscuit'], '🍪'],
+      [['donut','doughnut'], '🍩'],
+      [['ice cream','gelato','sundae'], '🍨'],
+      [['chocolate','brownie'], '🍫'],
+      [['cheesecake'], '🍰'],
+      [['coffee','latte','cappuccino','espresso','americano'], '☕'],
+      [['tea'], '🍵'],
+      [['milkshake','shake'], '🥤'],
+      [['juice','smoothie'], '🧃'],
+      [['beer','lager','ale'], '🍺'],
+      [['wine'], '🍷'],
+      [['cocktail'], '🍹'],
+      [['water'], '💧'],
+      [['soft drink','cola','lemonade','fizzy','coke','pepsi'], '🥤'],
+      [['nachos'], '🧀'],
+      [['onion ring'], '🧅'],
+      [['spring roll','samosa'], '🥟'],
+      [['kebab','doner','shish'], '🥙'],
+      [['mixed grill'], '🍖'],
+      [['breakfast','fry up','full english'], '🍳'],
+      [['kids','children','junior'], '🧒'],
+      [['vegan','plant'], '🌱'],
+      [['gluten free'], '🌾'],
+    ]
+    for keywords, emoji in map:
+      if any(k in t for k in keywords):
+        return emoji
+    return ''
+  }
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: '' })
   const [showAddItem, setShowAddItem] = useState<string|null>(null)
 
@@ -179,7 +255,7 @@ export default function MerchantMenuEditor() {
 
   async function saveItem() {
     if (!editingItem) return
-    await supabase.from('menu_items').update({ name: editingItem.name, description: editingItem.description, price: parseFloat(editingItem.price), emoji: editingItem.emoji, is_available: editingItem.is_available, category_id: editingItem.category_id }).eq('id', editingItem.id)
+    await supabase.from('menu_items').update({ name: editingItem.name, description: editingItem.description, price: parseFloat(editingItem.price), emoji: editingItem.emoji, is_available: editingItem.is_available, category_id: editingItem.category_id, kitchen_number: editingItem.kitchen_number ? parseInt(editingItem.kitchen_number) : null, calories: editingItem.calories ? parseInt(editingItem.calories) : null }).eq('id', editingItem.id)
     setEditingItem(null); fetchMenu(); setMsg('Item saved!'); setTimeout(() => setMsg(''), 3000)
   }
 
@@ -187,6 +263,38 @@ export default function MerchantMenuEditor() {
     if (!confirm('Delete this item?')) return
     await supabase.from('menu_items').delete().eq('id', itemId)
     fetchMenu()
+  }
+
+  async function uploadMenuImage(file: File, itemId: string) {
+    setUploadingImage(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `menu-items/${itemId}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('menu-images').getPublicUrl(path)
+      const publicUrl = urlData.publicUrl
+      await supabase.from('menu_items').update({ image_url: publicUrl }).eq('id', itemId)
+      setItems((prev: any[]) => prev.map((i: any) => i.id === itemId ? { ...i, image_url: publicUrl } : i))
+      setCategories((prev: any[]) => prev.map((cat: any) => ({
+        ...cat,
+        items: cat.items?.map((i: any) => i.id === itemId ? { ...i, image_url: publicUrl } : i)
+      })))
+      setImageModal(null)
+    } catch (e: any) {
+      alert('Upload failed: ' + e.message)
+    }
+    setUploadingImage(false)
+  }
+
+  async function clearMenuImage(itemId: string) {
+    await supabase.from('menu_items').update({ image_url: null }).eq('id', itemId)
+    setItems((prev: any[]) => prev.map((i: any) => i.id === itemId ? { ...i, image_url: null } : i))
+    setCategories((prev: any[]) => prev.map((cat: any) => ({
+      ...cat,
+      items: cat.items?.map((i: any) => i.id === itemId ? { ...i, image_url: null } : i)
+    })))
+    setImageModal(null)
   }
 
   async function toggleItemAvailable(itemId: string, current: boolean) {
@@ -322,25 +430,50 @@ export default function MerchantMenuEditor() {
                          onDragLeave={() => setDragOverItem(null)}
                          onDrop={() => handleItemDrop(cat.id, item.id)}
                          style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: dragOverItem === item.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === item.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}>
+                        <div onClick={() => { const suggested = suggestEmoji(item.name); setImageModal({ ...item, emoji: item.emoji || suggested }); setImageTab('emoji') }} style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, overflow: 'hidden', marginBottom: '4px' }} title="Click to change emoji or photo">
+                          {item.image_url
+                            ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <span style={{ fontSize: '22px' }}>{item.emoji || '🍽'}</span>
+                          }
+                        </div>
                         {editingItem?.id === item.id ? (
-                          <div style={{ display: 'grid', gap: '8px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <div style={{ display: 'grid', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Name</label>
                               <input value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} placeholder="Name" style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Price GBP</label>
                               <input value={editingItem.price} onChange={e => setEditingItem({...editingItem, price: e.target.value})} placeholder="Price" type="number" step="0.01" style={inputStyle} />
                             </div>
-                            <input value={editingItem.description || ''} onChange={e => setEditingItem({...editingItem, description: e.target.value})} placeholder="Description" style={inputStyle} />
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Emoji</label>
                               <input value={editingItem.emoji || ''} onChange={e => setEditingItem({...editingItem, emoji: e.target.value})} placeholder="Emoji" style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Description</label>
+                              <input value={editingItem.description || ''} onChange={e => setEditingItem({...editingItem, description: e.target.value})} placeholder="Description" style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Calories</label>
+                              <input value={editingItem.calories || ''} onChange={e => setEditingItem({...editingItem, calories: e.target.value})} placeholder="e.g. 650" type="number" style={inputStyle} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Category</label>
                               <select value={editingItem.category_id} onChange={e => setEditingItem({...editingItem, category_id: e.target.value})} style={{ ...inputStyle, appearance: 'none' }}>
                                 {categories.map(c => <option key={c.id} value={c.id} style={{ background: '#0d1321' }}>{c.name}</option>)}
                               </select>
                             </div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                            <div>
+                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Kitchen Number (prints on ticket only)</label>
+                              <input value={editingItem.kitchen_number || ''} onChange={e => setEditingItem({...editingItem, kitchen_number: e.target.value})} placeholder="e.g. 42" type="number" style={inputStyle} />
+                            </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#f1f5f9' }}>
                               <input type="checkbox" checked={editingItem.is_available} onChange={e => setEditingItem({...editingItem, is_available: e.target.checked})} />
-                              Available
+                              Available for ordering
                             </label>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                              <button onClick={saveItem} style={{ flex: 1, padding: '9px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Save</button>
+                              <button onClick={saveItem} style={{ flex: 1, padding: '9px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Save Item</button>
                               <button onClick={() => setEditingItem(null)} style={{ padding: '9px 14px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
                             </div>
                           </div>
@@ -634,6 +767,72 @@ export default function MerchantMenuEditor() {
           </div>
         </div>
       )}
+    {/* EMOJI / PHOTO MODAL */}
+    {imageModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setImageModal(null) }}>
+        <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '360px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>Emoji / Photo</div>
+            <button onClick={() => setImageModal(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            {(['emoji', 'photo'] as const).map(tab => (
+              <button key={tab} onClick={() => setImageTab(tab)} style={{ flex: 1, padding: '8px', background: imageTab === tab ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${imageTab === tab ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: imageTab === tab ? '#22c55e' : '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                {tab === 'emoji' ? 'Emoji' : 'Photo'}
+              </button>
+            ))}
+          </div>
+          {imageTab === 'emoji' && (
+            <div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Tap to select an emoji</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px', maxHeight: '240px', overflowY: 'auto', marginBottom: '12px' }}>
+                {['🍕','🍔','🍟','🌭','🍿','🧂','🥓','🥚','🍳','🧇','🥞','🧈','🍞','🥐','🥨','🧀','🥗','🥙','🌮','🌯','🫔','🥪','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🧃','🥤','🧋','☕','🍵','🧉','🥩','🍗','🍖','🌽','🥕','🧅','🧄','🥔','🍠','🥦','🥬','🥒','🌶','🫑','🍅','🍆','🥑','🫒','🧆','🌰','🍄','🥜','🌿','🫐','🍓','🍒','🍑','🥭','🍍','🥝','🍇','🍉','🍌','🍋','🍊','🍎','🍏','🍐','🫐','🥣','🍲','🫕','🥘','🍛','🫙','🧊'].map(e => (
+                  <button key={e} onClick={() => setImageModal({ ...imageModal, emoji: e })} style={{ padding: '6px', background: imageModal.emoji === e ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${imageModal.emoji === e ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: '11px', color: '#475569', marginBottom: '6px' }}>Or type your own:</div>
+              <input
+                value={imageModal.emoji || ''}
+                onChange={e => setImageModal({ ...imageModal, emoji: e.target.value })}
+                placeholder="e.g. 🍕"
+                style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f1f5f9', fontSize: '20px', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }}
+              />
+              <button onClick={async () => {
+                await supabase.from('menu_items').update({ emoji: imageModal.emoji }).eq('id', imageModal.id)
+                setCategories((prev: any[]) => prev.map((cat: any) => ({
+                  ...cat,
+                  items: cat.items?.map((i: any) => i.id === imageModal.id ? { ...i, emoji: imageModal.emoji } : i)
+                })))
+                setImageModal(null)
+              }} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                Save Emoji
+              </button>
+            </div>
+          )}
+          {imageTab === 'photo' && (
+            <div>
+              {imageModal.image_url && (
+                <div style={{ marginBottom: '12px', textAlign: 'center' }}>
+                  <img src={imageModal.image_url} alt="Current" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />
+                  <div>
+                    <button onClick={() => clearMenuImage(imageModal.id)} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>Remove photo</button>
+                  </div>
+                </div>
+              )}
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>Upload a photo of this dish</div>
+              <label style={{ display: 'block', padding: '24px', background: 'rgba(255,255,255,0.04)', border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
+                <div style={{ fontSize: '28px', marginBottom: '8px' }}>📷</div>
+                <div style={{ fontSize: '13px', color: '#94a3b8' }}>{uploadingImage ? 'Uploading...' : 'Tap to choose photo'}</div>
+                <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImage} onChange={e => { if (e.target.files?.[0]) uploadMenuImage(e.target.files[0], imageModal.id) }} />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
     </div>
   )
 }
