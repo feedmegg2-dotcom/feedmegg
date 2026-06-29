@@ -778,7 +778,6 @@ export default function TerminalPage() {
             ))}
             <button onClick={async () => {
               // Fetch fresh restaurant list before showing selector
-              const { data: { user } } = await supabase.auth.getSession()
               let { data: merch } = await supabase.from('merchants').select('*').eq('auth_id', (await supabase.auth.getUser()).data.user?.id || '').maybeSingle()
               if (merch) {
                 const { data: allRests } = await supabase.from('restaurants').select('*').eq('merchant_id', merch.id)
