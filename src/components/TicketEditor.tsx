@@ -176,10 +176,11 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     case 'items_list_with_numbers': return (
       <div style={{ width: '100%' }}>
         {order.items?.map((item: any, i: number) => (
-          <div key={i} style={{ marginBottom: '6px' }}>
-            <div style={{ ...style, fontWeight: 700 }}>
-              {item.quantity}x {item.kitchen_number ? `[${item.kitchen_number}] ` : ''}{item.name}
-            </div>
+          <div key={i} style={{ marginBottom: '8px' }}>
+            {item.kitchen_number && (
+              <div style={{ ...style, fontSize: sizeMap[el.kitchen_number_size || 'xxxl'] || sizeMap.xxxl, fontWeight: 900, lineHeight: 1.1 }}>[{item.kitchen_number}]</div>
+            )}
+            <div style={{ ...style, fontWeight: 700 }}>{item.quantity}x {item.name}</div>
             {item.special_instructions && <div style={{ ...style, fontSize: Math.round(10 * scale) + 'px', paddingLeft: '10px', fontStyle: 'italic' }}>→ {item.special_instructions}</div>}
           </div>
         ))}
@@ -267,7 +268,7 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
   }
 
   function addElement(type: string) {
-    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, text: type === 'custom_text' ? 'Your custom text here' : undefined }
+    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, text: type === 'custom_text' ? 'Your custom text here' : undefined, kitchen_number_size: type === 'items_list_with_numbers' ? 'xxxl' : undefined }
     const updated = { ...selectedTemplate, elements: [...(selectedTemplate.elements || []), el] }
     setSelectedTemplate(updated)
     setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
@@ -440,6 +441,16 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Text</label>
                   <textarea value={selectedElement.text || ''} onChange={e => updateElement(selectedElement.id, { text: e.target.value })} rows={2} style={{ width: '100%', padding: '6px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
+                </div>
+              )}
+              {selectedElement.type === 'items_list_with_numbers' && (
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Kitchen Number Size</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4px' }}>
+                    {['small','medium','large','xl','xxl','xxxl'].map(s => (
+                      <button key={s} onClick={() => updateElement(selectedElement.id, { kitchen_number_size: s })} style={{ padding: '6px 2px', background: (selectedElement.kitchen_number_size || 'xxxl') === s ? 'rgba(249,115,22,0.15)' : '#0f172a', border: `1px solid ${(selectedElement.kitchen_number_size || 'xxxl') === s ? 'rgba(249,115,22,0.4)' : 'rgba(255,255,255,0.1)'}`, color: (selectedElement.kitchen_number_size || 'xxxl') === s ? '#f97316' : '#94a3b8', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>{s}</button>
+                    ))}
+                  </div>
                 </div>
               )}
               {!['divider','spacer'].includes(selectedElement.type) && (
