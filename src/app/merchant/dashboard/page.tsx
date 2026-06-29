@@ -679,7 +679,8 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
 
   async function fetchTerminals() {
     setLoading(true)
-    const { data } = await supabase.from('terminals').select('*, restaurants(name), divert_delivery:divert_delivery_to(name), divert_pickup:divert_pickup_to(name)').eq('merchant_id', merchant.id).order('created_at')
+    const { data, error } = await supabase.from('terminals').select('*, restaurants(name), divert_delivery:divert_delivery_to(name), divert_pickup:divert_pickup_to(name)').eq('merchant_id', merchant.id).order('created_at')
+    if (error) { alert('Fetch error: ' + error.message); setLoading(false); return }
     setTerminals(data || [])
     setLoading(false)
   }
