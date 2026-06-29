@@ -70,6 +70,12 @@ export default function TerminalPage() {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('connected')
   const reconnectRef = useRef<any>(null)
   const currentRestIdRef = useRef<string>('')
+  const [debugLog, setDebugLog] = useState<string[]>([])
+  const [showDebug, setShowDebug] = useState(false)
+  function dbg(msg: string) {
+    const time = new Date().toLocaleTimeString('en-GB')
+    setDebugLog(prev => [`${time}: ${msg}`, ...prev].slice(0, 30))
+  }
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
   const [pickupTime, setPickupTime] = useState(30)
@@ -341,18 +347,22 @@ export default function TerminalPage() {
     const today = new Date().toISOString().split('T')[0]
     let data: any[] | null = null
     let fetchError: any = null
+    dbg(`Poll start restId=${restId.slice(0,8)} firstLoad=${isFirstLoad}`)
     try {
       const result = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
       data = result.data
       fetchError = result.error
     } catch (e) {
       fetchError = e
+      dbg(`Poll exception: ${e}`)
     }
     if (fetchError || !data) {
+      dbg(`Poll error: ${fetchError}`)
       setConnectionStatus('reconnecting')
       startReconnecting()
       return
     }
+    dbg(`Poll ok: ${data.length} orders, pending=${data.filter((o:any)=>o.status==='pending').length}`)
     setConnectionStatus('connected')
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
@@ -484,10 +494,13 @@ export default function TerminalPage() {
       startAlertRepeat()
     } else if (newPending.length > 0) {
       const firstNew = newPending[0]
+      dbg(`NEW ORDER detected: ${firstNew.id.slice(0,8)} alerted=${alertedOrderIds.current.has(firstNew.id)}`)
       alertedOrderIds.current.add(firstNew.id)
       setCurrentOrderId(firstNew.id)
       setScreen('neworder')
       startAlertRepeat()
+    } else {
+      dbg(`No new orders. pending=${data.filter((o:any)=>o.status==='pending' && !o.scheduled_for).length} alerted=${alertedOrderIds.current.size}`)
     }
   }
 
@@ -813,6 +826,8 @@ export default function TerminalPage() {
           🖨️ Test
         </button>
 
+        <button onClick={() => setShowDebug(!showDebug)} style={{ background: showDebug ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.06)', border: `0.5px solid ${showDebug ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.1)'}`, color: showDebug ? '#f97316' : '#94a3b8', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', flexShrink: 0, fontWeight: 600 }}>DEBUG</button>
+
         <button onClick={() => setCogOpen(!cogOpen)} style={{ background: cogOpen ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.06)', border: `0.5px solid ${cogOpen ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: cogOpen ? '#22c55e' : '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,2.5vw,18px)', cursor: 'pointer', flexShrink: 0 }}>&#9881;</button>
 
         <a href="/merchant/dashboard" style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', width: 'clamp(30px,4vw,38px)', height: 'clamp(30px,4vw,38px)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(10px,1.6vw,12px)', cursor: 'pointer', flexShrink: 0, textDecoration: 'none', fontWeight: 600 }}>&#8962;</a>
@@ -905,6 +920,17 @@ export default function TerminalPage() {
           </div>
         )}
       </div>
+
+      {/* DEBUG PANEL */}
+      {showDebug && (
+        <div style={{ background: '#0a0a0a', borderBottom: '1px solid rgba(249,115,22,0.3)', padding: '8px 12px', maxHeight: '200px', overflowY: 'auto', flexShrink: 0 }}>
+          <div style={{ fontSize: '10px', color: '#f97316', fontWeight: 700, marginBottom: '4px' }}>DEBUG LOG — restId: {currentRestIdRef.current.slice(0,8)} pollRunning: {pollRef.current ? 'YES' : 'NO'}</div>
+          {debugLog.map((line, i) => (
+            <div key={i} style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace', lineHeight: 1.6 }}>{line}</div>
+          ))}
+          {debugLog.length === 0 && <div style={{ fontSize: '10px', color: '#475569' }}>No log yet...</div>}
+        </div>
+      )}
 
       {/* PRINT PENDING BANNER */}
       {printPendingOrders.length > 0 && (
