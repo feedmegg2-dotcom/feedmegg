@@ -275,10 +275,9 @@ export default function MerchantMenuEditor() {
       const { data: urlData } = supabase.storage.from('menu-images').getPublicUrl(path)
       const publicUrl = urlData.publicUrl
       await supabase.from('menu_items').update({ image_url: publicUrl }).eq('id', itemId)
-      setItems((prev: any[]) => prev.map((i: any) => i.id === itemId ? { ...i, image_url: publicUrl } : i))
       setCategories((prev: any[]) => prev.map((cat: any) => ({
         ...cat,
-        items: cat.items?.map((i: any) => i.id === itemId ? { ...i, image_url: publicUrl } : i)
+        menu_items: cat.menu_items?.map((i: any) => i.id === itemId ? { ...i, image_url: publicUrl } : i)
       })))
       setImageModal(null)
     } catch (e: any) {
@@ -289,10 +288,9 @@ export default function MerchantMenuEditor() {
 
   async function clearMenuImage(itemId: string) {
     await supabase.from('menu_items').update({ image_url: null }).eq('id', itemId)
-    setItems((prev: any[]) => prev.map((i: any) => i.id === itemId ? { ...i, image_url: null } : i))
     setCategories((prev: any[]) => prev.map((cat: any) => ({
       ...cat,
-      items: cat.items?.map((i: any) => i.id === itemId ? { ...i, image_url: null } : i)
+      menu_items: cat.menu_items?.map((i: any) => i.id === itemId ? { ...i, image_url: null } : i)
     })))
     setImageModal(null)
   }
@@ -803,7 +801,7 @@ export default function MerchantMenuEditor() {
                 await supabase.from('menu_items').update({ emoji: imageModal.emoji }).eq('id', imageModal.id)
                 setCategories((prev: any[]) => prev.map((cat: any) => ({
                   ...cat,
-                  items: cat.items?.map((i: any) => i.id === imageModal.id ? { ...i, emoji: imageModal.emoji } : i)
+                  menu_items: cat.menu_items?.map((i: any) => i.id === imageModal.id ? { ...i, emoji: imageModal.emoji } : i)
                 })))
                 setImageModal(null)
               }} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
