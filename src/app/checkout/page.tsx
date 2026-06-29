@@ -30,8 +30,7 @@ export default function CheckoutPage() {
     orderType: 'delivery',
     paymentMethod: 'card',
     addressMode: 'new',
-    deliveryLat: null as number | null,
-    deliveryLng: null as number | null,
+
     savedAddressId: '',
     addressLine1: '',
     addressLine2: '',
@@ -271,8 +270,7 @@ export default function CheckoutPage() {
   const [appliedPromo, setAppliedPromo] = useState<any>(null)
   const [promoError, setPromoError] = useState('')
   const [w3wAddress, setW3wAddress] = useState('')
-  const [showMapModal, setShowMapModal] = useState(false)
-  const [mapPin, setMapPin] = useState<{lat: number, lng: number} | null>(null)
+
   const [w3wLoading, setW3wLoading] = useState(false)
   const cartTotal = cartData?.cart?.reduce((s: number, i: any) => s + i.price * i.qty, 0) || 0
 
@@ -400,8 +398,9 @@ export default function CheckoutPage() {
         promoCode: appliedPromo?.code || null,
         promoDiscount: promoDiscount || 0,
         what3words: w3wAddress || null,
-        deliveryLat: form.deliveryLat || null,
-        deliveryLng: form.deliveryLng || null,
+        deliveryLat: selectedAddr?.lat || null,
+        deliveryLng: selectedAddr?.lng || null,
+
         contactlessDelivery: form.orderType === 'delivery' ? form.contactless : false,
         scheduledFor: getScheduledFor(),
       })
@@ -653,9 +652,7 @@ export default function CheckoutPage() {
                 )}
                 <textarea placeholder="Delivery directions - helps the driver find you (optional)" value={form.locationDesc} onChange={e => setForm({...form, locationDesc: e.target.value})} rows={2}
                   style={{ ...inputStyle, resize: 'none' }} />
-                <button type="button" onClick={() => setShowMapModal(true)} style={{ width: '100%', padding: '10px', background: form.deliveryLat ? 'rgba(34,197,94,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${form.deliveryLat ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}`, borderRadius: '10px', color: form.deliveryLat ? '#22c55e' : '#3b82f6', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  📍 {form.deliveryLat ? 'Location pinned ✓ — tap to change' : 'Pin my exact location on map'}
-                </button>
+
               </div>
             )}
 
@@ -789,64 +786,7 @@ export default function CheckoutPage() {
       `}</style>
 
 
-      {/* MAP MODAL */}
-      {showMapModal && (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-        <div style={{ background: '#0d1321', borderRadius: '16px', width: '100%', maxWidth: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            <div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>📍 Pin your location</div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Tap the map to place a pin on your exact front door</div>
-            </div>
-            <button onClick={() => setShowMapModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-          </div>
-          <div style={{ position: 'relative', height: '360px' }}>
-            <iframe
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=-2.7,-2.4,49.3,49.55&layer=mapnik&marker=${mapPin ? `${mapPin.lat},${mapPin.lng}` : '49.455,-2.535'}`}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-            />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <div style={{ fontSize: '32px', marginBottom: '32px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>📍</div>
-            </div>
-            <div style={{ position: 'absolute', inset: 0 }} onClick={async (e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const x = (e.clientX - rect.left) / rect.width
-              const y = (e.clientY - rect.top) / rect.height
-              // Guernsey bounding box
-              const minLng = -2.7, maxLng = -2.4
-              const minLat = 49.3, maxLat = 49.55
-              const lng = minLng + x * (maxLng - minLng)
-              const lat = maxLat - y * (maxLat - minLat)
-              setMapPin({ lat, lng })
-            }} />
-          </div>
-          {mapPin && (
-            <div style={{ padding: '8px 16px', background: 'rgba(34,197,94,0.08)', borderTop: '1px solid rgba(34,197,94,0.15)', fontSize: '12px', color: '#22c55e', textAlign: 'center' }}>
-              📍 Pin placed at {mapPin.lat.toFixed(5)}, {mapPin.lng.toFixed(5)}
-            </div>
-          )}
-          <div style={{ padding: '12px 16px', display: 'flex', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <button onClick={() => {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                  setMapPin({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                })
-              }
-            }} style={{ flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              Use my GPS
-            </button>
-            <button onClick={() => {
-              if (mapPin) {
-                setForm(f => ({ ...f, deliveryLat: mapPin.lat, deliveryLng: mapPin.lng }))
-                setShowMapModal(false)
-              }
-            }} disabled={!mapPin} style={{ flex: 2, padding: '10px', background: mapPin ? '#22c55e' : '#334155', color: mapPin ? '#0a0f1e' : '#64748b', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: mapPin ? 'pointer' : 'not-allowed' }}>
-              Confirm Location
-            </button>
-          </div>
-        </div>
-      </div>
-      )}
+
     </div>
   )
 }
