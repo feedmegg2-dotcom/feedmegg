@@ -124,7 +124,7 @@ export default function WaitingPage() {
         <Link href="/" style={{ fontFamily: 'Syne,sans-serif', fontSize: '20px', fontWeight: 800, textDecoration: 'none' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: text }}>me.gg</span>
         </Link>
-        {order && <div style={{ fontSize: '13px', color: sub }}>Order #{String(order.id).slice(-6).toUpperCase()}</div>}
+        {order && <div style={{ fontSize: '13px', color: sub }}>Order #{order.order_number || String(order.id).slice(-6).toUpperCase()}</div>}
       </nav>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
