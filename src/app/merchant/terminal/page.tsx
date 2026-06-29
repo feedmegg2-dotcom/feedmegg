@@ -69,6 +69,9 @@ export default function TerminalPage() {
   const autoPrintRef = useRef(autoPrint)
   useEffect(() => { autoPrintRef.current = autoPrint }, [autoPrint])
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('connected')
+  const reconnectRef = useRef<any>(null)
+  const currentRestIdRef = useRef<string>('')
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
   const [pickupTime, setPickupTime] = useState(30)
@@ -212,6 +215,7 @@ export default function TerminalPage() {
 
   function startPolling(restId: string) {
     if (!restId) return
+    currentRestIdRef.current = restId
     // First poll - pre-populate paid orders so we don't re-alert them
     pollOrders(restId, true)
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
@@ -310,10 +314,43 @@ export default function TerminalPage() {
     if (alertRef.current) { clearInterval(alertRef.current); alertRef.current = null }
   }
 
+  function startReconnecting() {
+    if (reconnectRef.current) return // already reconnecting
+    setConnectionStatus('reconnecting')
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    reconnectRef.current = setInterval(async () => {
+      try {
+        const restId = currentRestIdRef.current
+        if (!restId) return
+        const { data, error } = await supabase.from('orders').select('id').eq('restaurant_id', restId).limit(1)
+        if (!error) {
+          clearInterval(reconnectRef.current)
+          reconnectRef.current = null
+          setConnectionStatus('connected')
+          pollOrders(restId, false)
+          pollRef.current = setInterval(() => pollOrders(restId), 5000)
+        }
+      } catch (e) {}
+    }, 3000)
+  }
+
   async function pollOrders(restId: string, isFirstLoad = false) {
     const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
-    if (!data) return
+    let data: any = null
+    let fetchError: any = null
+    try {
+      const result = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
+      data = result.data
+      fetchError = result.error
+    } catch (e) {
+      fetchError = e
+    }
+    if (fetchError || !data) {
+      setConnectionStatus('reconnecting')
+      startReconnecting()
+      return
+    }
+    setConnectionStatus('connected')
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
     const now = new Date()
@@ -740,8 +777,9 @@ export default function TerminalPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'clamp(9px,1.4vw,11px)', color: '#22c55e', flexShrink: 0 }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />Live
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'clamp(9px,1.4vw,11px)', flexShrink: 0, color: connectionStatus === 'connected' ? '#22c55e' : connectionStatus === 'reconnecting' ? '#f59e0b' : '#ef4444' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: connectionStatus === 'connected' ? '#22c55e' : connectionStatus === 'reconnecting' ? '#f59e0b' : '#ef4444' }} />
+          {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'reconnecting' ? 'Reconnecting...' : 'Offline'}
         </div>
 
         {/* TEST PRINT BUTTON */}
