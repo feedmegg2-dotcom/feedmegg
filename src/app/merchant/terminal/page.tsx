@@ -12,9 +12,7 @@ export default function TerminalPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [archivedOrders, setArchivedOrders] = useState<any[]>([])
   const [tab, setTab] = useState<'incoming' | 'accepted' | 'preorders' | 'missed'>('incoming')
-  const dismissedMissedIds = useRef<Set<string>>(new Set(
-    typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('feedme-dismissed-orders') || '[]') : []
-  ))
+  const dismissedMissedIds = useRef<Set<string>>(new Set())
   const [dismissedVersion, setDismissedVersion] = useState(0)
 
   function dismissOrder(id: string) {
@@ -90,6 +88,11 @@ export default function TerminalPage() {
   useEffect(() => { triggerAutoPrintRef.current = triggerAutoPrint }, [triggerAutoPrint])
 
   useEffect(() => {
+    // Load dismissed orders from localStorage after hydration
+    try {
+      const saved = JSON.parse(localStorage.getItem('feedme-dismissed-orders') || '[]')
+      saved.forEach((id: string) => dismissedMissedIds.current.add(id))
+    } catch (e) {}
     checkAuth()
     // Keep screen awake
     async function requestWakeLock() {
