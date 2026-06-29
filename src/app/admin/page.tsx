@@ -481,7 +481,7 @@ export default function AdminPage() {
 
   async function saveMenuItem() {
     if (!editItem) return
-    const { error } = await supabase.from('menu_items').update({ name: editItem.name, description: editItem.description, price: parseFloat(editItem.price), emoji: editItem.emoji, calories: editItem.calories ? parseInt(editItem.calories) : null, is_available: editItem.is_available, category_id: editItem.category_id }).eq('id', editItem.id)
+    const { error } = await supabase.from('menu_items').update({ name: editItem.name, description: editItem.description, price: parseFloat(editItem.price), emoji: editItem.emoji, calories: editItem.calories ? parseInt(editItem.calories) : null, is_available: editItem.is_available, category_id: editItem.category_id, kitchen_number: editItem.kitchen_number ? parseInt(editItem.kitchen_number) : null }).eq('id', editItem.id)
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg('Item saved!'); setEditItem(null); fetchMenuForRestaurant(selectedRestaurant.id)
   }
@@ -1090,6 +1090,7 @@ export default function AdminPage() {
                     <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} /></div>
                     <div><label>Calories</label><input className="input" type="number" value={editItem.calories || ''} onChange={e => setEditItem({...editItem, calories: e.target.value})} /></div>
                     <div><label>Category</label><select className="input" value={editItem.category_id} onChange={e => setEditItem({...editItem, category_id: e.target.value})}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    <div><label>Kitchen Number (prints on ticket only)</label><input className="input" type="number" placeholder="e.g. 42" value={editItem.kitchen_number || ''} onChange={e => setEditItem({...editItem, kitchen_number: e.target.value})} /></div>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '13px' }}>
                     <input type="checkbox" checked={editItem.is_available} onChange={e => setEditItem({...editItem, is_available: e.target.checked})} />
