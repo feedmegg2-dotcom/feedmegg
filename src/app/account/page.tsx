@@ -1,4 +1,5 @@
 'use client'
+import PinMap from '@/components/PinMap'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -498,22 +499,11 @@ export default function AccountPage() {
               </div>
               <button onClick={() => setShowAddrMap(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ position: 'relative', height: '360px' }}>
-              <iframe
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=-2.72,-2.38,49.38,49.55&layer=mapnik${addrMapPin ? `&marker=${addrMapPin.lat},${addrMapPin.lng}` : ''}`}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-              />
-              <div style={{ position: 'absolute', inset: 0 }} onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const x = (e.clientX - rect.left) / rect.width
-                const y = (e.clientY - rect.top) / rect.height
-                const minLng = -2.72, maxLng = -2.38
-                const minLat = 49.38, maxLat = 49.55
-                const lng = minLng + x * (maxLng - minLng)
-                const lat = maxLat - y * (maxLat - minLat)
-                setAddrMapPin({ lat, lng })
-              }} />
-            </div>
+            <PinMap
+              initialLat={addrMapPin?.lat}
+              initialLng={addrMapPin?.lng}
+              onPin={(lat, lng) => setAddrMapPin({ lat, lng })}
+            />
             {addrMapPin && (
               <div style={{ padding: '8px 16px', background: 'rgba(34,197,94,0.08)', borderTop: '1px solid rgba(34,197,94,0.15)', fontSize: '12px', color: '#22c55e', textAlign: 'center' }}>
                 📍 Pin placed at {addrMapPin.lat.toFixed(5)}, {addrMapPin.lng.toFixed(5)}
