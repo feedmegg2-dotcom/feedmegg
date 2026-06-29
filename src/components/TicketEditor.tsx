@@ -12,6 +12,7 @@ const ELEMENTS = [
   { type: 'subtotal', label: '💷 Subtotal + Fees', conditional: false },
   { type: 'restaurant_name', label: '🏪 Restaurant Name', conditional: false },
   { type: 'delivery_address', label: '📍 Delivery Address', conditional: false },
+  { type: 'delivery_qr', label: '📱 Driver QR Code (Google Maps)', conditional: false },
   { type: 'phone', label: '📞 Phone Number', conditional: false },
   { type: 'datetime', label: '⏰ Date & Time', conditional: false },
   { type: 'order_type', label: '🚗 Order Type', conditional: false },
@@ -143,6 +144,26 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     case 'customer_name': return <div style={style}>{order.customer_name}</div>
     case 'phone': return <div style={style}>{order.customer_phone}</div>
     case 'delivery_address': return <div style={{ ...style, whiteSpace: 'pre-line' }}>{order.delivery_address}</div>
+    case 'delivery_qr': return (
+      <div style={{ textAlign: 'center', padding: '4px 0' }}>
+        <div style={{ display: 'inline-block', background: '#fff', padding: '6px', border: '1px solid #ddd' }}>
+          <svg width="80" height="80" viewBox="0 0 21 21" style={{ display: 'block' }}>
+            {/* QR code preview pattern */}
+            {[0,1,2,3,4,5,6].map(r => [0,1,2,3,4,5,6].map(c => {
+              const finder = (r < 7 && c < 7) || (r < 7 && c > 13) || (r > 13 && c < 7)
+              const border = finder && (r === 0 || r === 6 || c === 0 || c === 6)
+              const inner = finder && r >= 2 && r <= 4 && c >= 2 && c <= 4
+              const fill = border || inner ? '#000' : finder ? '#fff' : Math.random() > 0.5 ? '#000' : '#fff'
+              return <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} fill={fill} />
+            }))}
+            <rect x="0" y="0" width="7" height="7" fill="none" stroke="#000" strokeWidth="0.5"/>
+            <rect x="14" y="0" width="7" height="7" fill="none" stroke="#000" strokeWidth="0.5"/>
+            <rect x="0" y="14" width="7" height="7" fill="none" stroke="#000" strokeWidth="0.5"/>
+          </svg>
+        </div>
+        <div style={{ fontSize: '9px', color: '#666', marginTop: '4px' }}>Scan for Google Maps directions</div>
+      </div>
+    )
     case 'order_type': return <div style={style}>{order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
     case 'restaurant_name': return <div style={style}>{order.restaurant_name}</div>
     case 'datetime': return <div style={style}>{new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
