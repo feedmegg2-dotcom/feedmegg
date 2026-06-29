@@ -740,7 +740,8 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
                         onFocus={e => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
                       />
                       <div style={{ fontSize: '11px', color: '#64748b', paddingLeft: '6px' }}>
-                        {t.device_info || 'No device connected'} {t.last_seen ? `• Last seen ${new Date(t.last_seen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        {t.claimed_at ? `Claimed by ${t.claimed_device || 'tablet'} • ` : 'Unclaimed • '}
+                        {t.last_seen ? `Last seen ${new Date(t.last_seen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : 'Never connected'}
                       </div>
                     </div>
                   </div>
@@ -748,6 +749,10 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
                     <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', fontWeight: 700, background: online ? 'rgba(34,197,94,0.15)' : 'rgba(100,116,139,0.15)', color: online ? '#22c55e' : '#64748b' }}>
                       {online ? 'Online' : 'Offline'}
                     </span>
+                    {t.claimed_at && (
+                      <button onClick={() => updateTerminal(t.id, { claimed_at: null, claimed_device: null })}
+                        style={{ padding: '4px 8px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>Unclaim</button>
+                    )}
                     <button onClick={() => deleteTerminal(t.id)} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
                   </div>
                 </div>
