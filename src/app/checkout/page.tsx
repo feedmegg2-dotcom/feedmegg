@@ -171,10 +171,15 @@ export default function CheckoutPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setAuthUserId(user.id)
-    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).maybeSingle()
     if (!cust) {
-      const r2 = await supabase.from('customers').select('*').eq('id', user.id).single()
+      const r2 = await supabase.from('customers').select('*').eq('id', user.id).maybeSingle()
       cust = r2.data
+    }
+    if (!cust && user.email) {
+      const r3 = await supabase.from('customers').select('*').ilike('email', user.email).maybeSingle()
+      cust = r3.data
+      if (cust) await supabase.from('customers').update({ auth_id: user.id }).eq('id', cust.id)
     }
     if (cust) {
       setCustomer(cust)
