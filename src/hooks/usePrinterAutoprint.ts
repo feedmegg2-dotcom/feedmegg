@@ -7,6 +7,7 @@ interface OrderForPrint {
   id: string
   orderNumber: string | number
   restaurantName: string
+  restaurantId?: string
   customerName: string
   customerPhone?: string
   deliveryAddress?: string
@@ -325,10 +326,11 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
   const supabase = createClient()
   const printedOrdersRef = useRef<Set<string>>(new Set())
 
-  async function getTemplates() {
-    if (!restaurantId) return null
+  async function getTemplates(orderRestaurantId?: string) {
+    const rid = orderRestaurantId || restaurantId
+    if (!rid) return null
     try {
-      const { data } = await supabase.from('ticket_templates').select('*').eq('restaurant_id', restaurantId).order('created_at')
+      const { data } = await supabase.from('ticket_templates').select('*').eq('restaurant_id', rid).order('created_at')
       return data && data.length > 0 ? data : null
     } catch (e) {
       return null
@@ -340,7 +342,7 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
       if (allowFallback) printViaBrowser(order)
       return 
     }
-    const templates = await getTemplates()
+    const templates = await getTemplates((order as any).restaurantId)
     if (allowFallback) {
       await sendToPrinterWithFallback(order, printerIp, printerWidth || 80, templates || undefined)
     } else {
@@ -353,7 +355,7 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
     if (printedOrdersRef.current.has(order.id)) return true
     if (!printerIp) return false
     printedOrdersRef.current.add(order.id)
-    const templates = await getTemplates()
+    const templates = await getTemplates((order as any).restaurantId)
     const result = await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
     if (!result) printedOrdersRef.current.delete(order.id)
     return !!result
