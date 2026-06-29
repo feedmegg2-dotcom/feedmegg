@@ -804,11 +804,9 @@ export default function MerchantMenuEditor() {
               />
               <button onClick={async () => {
                 await supabase.from('menu_items').update({ emoji: imageModal.emoji }).eq('id', imageModal.id)
-                setCategories((prev: any[]) => prev.map((cat: any) => ({
-                  ...cat,
-                  menu_items: cat.menu_items?.map((i: any) => i.id === imageModal.id ? { ...i, emoji: imageModal.emoji } : i)
-                })))
+                if (editingItem?.id === imageModal.id) setEditingItem({ ...editingItem, emoji: imageModal.emoji })
                 setImageModal(null)
+                fetchMenu()
               }} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
                 Save Emoji
               </button>
