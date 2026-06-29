@@ -7,6 +7,8 @@ const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commi
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
+const FOOD_EMOJIS = ['🍕','🍔','🍟','🌭','🍿','🧂','🥓','🥚','🍳','🧇','🥞','🧈','🍞','🥐','🥨','🧀','🥗','🥙','🌮','🌯','🥪','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🧃','🥤','🧋','☕','🍵','🧉','🥩','🍗','🍖','🌽','🥕','🧅','🧄','🥔','🥦','🥬','🥒','🌶','🫑','🍅','🍆','🥑','🍄','🥜','🫐','🍓','🍒','🍑','🥭','🍍','🥝','🍇','🍉','🍌','🍋','🍊','🍎','🍏','🍐','🥣','🍲','🥘','🧊']
+
 export default function AdminPage() {
   const supabase = createClient()
   const [tab, setTab] = useState('dashboard')
@@ -46,6 +48,69 @@ export default function AdminPage() {
   const [importMerchantId, setImportMerchantId] = useState('')
   const [importing, setImporting] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
+  const [imageModal, setImageModal] = useState<any>(null)
+  const [imageTab, setImageTab] = useState<'emoji' | 'photo'>('emoji')
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  function suggestEmoji(name: string): string {
+    const t = name.toLowerCase()
+    const map: [string[], string][] = [
+      [['chicken','hen','poultry','wing','nugget','kfc','ifc','fried chicken','bucket'], '🍗'],
+      [['burger','beef burger','smash','double','triple'], '🍔'],
+      [['pizza','margherita','pepperoni','calzone'], '🍕'],
+      [['chip','fries','french fry'], '🍟'],
+      [['steak','ribeye','sirloin','fillet'], '🥩'],
+      [['fish','cod','haddock','salmon','sea bass','tuna','plaice','scampi'], '🐟'],
+      [['prawn','shrimp','lobster','crab'], '🦐'],
+      [['sushi','maki','nigiri','sashimi'], '🍣'],
+      [['pasta','spaghetti','linguine','penne','lasagne','carbonara','bolognese'], '🍝'],
+      [['salad','caesar','greek','nicoise'], '🥗'],
+      [['soup','broth','chowder','bisque'], '🍲'],
+      [['rice','biryani','fried rice','noodle','chow mein','pad thai'], '🍚'],
+      [['curry','tikka','korma','jalfrezi','masala','balti','rogan'], '🍛'],
+      [['wrap','burrito','tortilla'], '🌯'],
+      [['taco'], '🌮'],
+      [['hot dog','sausage','banger'], '🌭'],
+      [['sandwich','sub','baguette','panini','toastie'], '🥪'],
+      [['bread','naan','pitta','roll','garlic bread'], '🍞'],
+      [['egg','omelette','scrambled','poached','fried egg'], '🍳'],
+      [['waffle','pancake'], '🧇'],
+      [['cheese','brie','camembert','cheddar'], '🧀'],
+      [['bacon','ham','pork'], '🥓'],
+      [['lamb','sheep'], '🍖'],
+      [['mushroom'], '🍄'],
+      [['corn','sweetcorn'], '🌽'],
+      [['carrot'], '🥕'],
+      [['tomato'], '🍅'],
+      [['pepper','chilli'], '🌶'],
+      [['avocado'], '🥑'],
+      [['potato','jacket','mash','wedge'], '🥔'],
+      [['cake','birthday','sponge'], '🎂'],
+      [['cupcake','muffin'], '🧁'],
+      [['cookie','biscuit'], '🍪'],
+      [['donut','doughnut'], '🍩'],
+      [['ice cream','gelato','sundae'], '🍨'],
+      [['chocolate','brownie'], '🍫'],
+      [['coffee','latte','cappuccino','espresso'], '☕'],
+      [['tea'], '🍵'],
+      [['milkshake','shake'], '🥤'],
+      [['juice','smoothie'], '🧃'],
+      [['beer','lager','ale'], '🍺'],
+      [['wine'], '🍷'],
+      [['cocktail'], '🍹'],
+      [['soft drink','cola','lemonade','fizzy','coke','pepsi'], '🥤'],
+      [['nachos'], '🧀'],
+      [['spring roll','samosa'], '🥟'],
+      [['kebab','doner','shish'], '🥙'],
+      [['breakfast','fry up','full english'], '🍳'],
+      [['kids','children','junior'], '🧒'],
+      [['vegan','plant'], '🌱'],
+    ]
+    for (const [keywords, emoji] of map) {
+      if (keywords.some((k: string) => t.includes(k))) return emoji
+    }
+    return ''
+  }
   const [editRestaurant, setEditRestaurant] = useState<any>(null)
 
   // Option groups - per item
@@ -479,6 +544,30 @@ export default function AdminPage() {
     setNewItem({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' }); fetchMenuForRestaurant(selectedRestaurant.id)
   }
 
+  async function uploadMenuImage(file: File, itemId: string) {
+    setUploadingImage(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `menu-items/${itemId}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('menu-images').upload(path, file, { upsert: true })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('menu-images').getPublicUrl(path)
+      const publicUrl = urlData.publicUrl
+      await supabase.from('menu_items').update({ image_url: publicUrl }).eq('id', itemId)
+      setImageModal(null)
+      if (selectedRestaurant) fetchMenuForRestaurant(selectedRestaurant.id)
+    } catch (e: any) {
+      alert('Upload failed: ' + e.message)
+    }
+    setUploadingImage(false)
+  }
+
+  async function clearMenuImage(itemId: string) {
+    await supabase.from('menu_items').update({ image_url: null }).eq('id', itemId)
+    setImageModal(null)
+    if (selectedRestaurant) fetchMenuForRestaurant(selectedRestaurant.id)
+  }
+
   async function saveMenuItem() {
     if (!editItem) return
     const { error } = await supabase.from('menu_items').update({ name: editItem.name, description: editItem.description, price: parseFloat(editItem.price), emoji: editItem.emoji, calories: editItem.calories ? parseInt(editItem.calories) : null, is_available: editItem.is_available, category_id: editItem.category_id, kitchen_number: editItem.kitchen_number ? parseInt(editItem.kitchen_number) : null }).eq('id', editItem.id)
@@ -896,7 +985,12 @@ export default function AdminPage() {
                               onDrop={() => handleItemDrop(cat.id, item.id)}
                               style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', background: dragOverItem === item.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === item.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ fontSize: '24px' }}>{item.emoji}</span>
+                                <div onClick={() => { const suggested = suggestEmoji(item.name); setImageModal({ ...item, emoji: item.emoji || suggested }); setImageTab('emoji') }} style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, overflow: 'hidden' }} title="Click to change emoji or photo">
+                                  {item.image_url
+                                    ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <span style={{ fontSize: '20px' }}>{item.emoji || '🍽'}</span>
+                                  }
+                                </div>
                                 <div>
                                   <div style={{ fontSize: '13px', fontWeight: 600, color: item.is_available ? 'var(--text)' : 'var(--sub)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     {item.name}
