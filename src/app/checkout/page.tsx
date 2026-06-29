@@ -787,13 +787,10 @@ export default function CheckoutPage() {
           -webkit-text-fill-color: ${dark ? '#f1f5f9' : '#0f172a'} !important;
         }
       `}</style>
-    </div>
-  )
-}
-    </div>
 
-    {/* MAP MODAL */}
-    {showMapModal && (
+
+      {/* MAP MODAL */}
+      {showMapModal && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
         <div style={{ background: '#0d1321', borderRadius: '16px', width: '100%', maxWidth: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -849,6 +846,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
-    )}
+      )}
+    </div>
   )
 }
