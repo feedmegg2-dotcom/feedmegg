@@ -128,7 +128,6 @@ export default function TerminalPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/merchant/login'); return }
     
-    // Get merchant
     let { data: merchant } = await supabase.from('merchants').select('*').eq('auth_id', session.user.id).maybeSingle()
     if (!merchant) {
       const res2 = await supabase.from('merchants').select('*').ilike('email', session.user.email || '').maybeSingle()
@@ -137,45 +136,39 @@ export default function TerminalPage() {
     }
     if (!merchant) { router.push('/merchant/login'); return }
 
-    // Check if a restaurant is saved for this terminal
-    const savedRestId = localStorage.getItem('feedme-terminal-restaurant')
-    
-    // Get all restaurants for this merchant
-    const { data: allRests } = await supabase.from('restaurants').select('*').eq('merchant_id', merchant.id)
-    if (!allRests || allRests.length === 0) { router.push('/merchant/login'); return }
-
-    // If only one restaurant, use it directly
-    if (allRests.length === 1) {
-      initRestaurant(allRests[0], merchant)
-      return
-    }
-
-    // If saved restaurant exists, use it
-    if (savedRestId) {
-      const saved = allRests.find(r => r.id === savedRestId)
-      if (saved) { initRestaurant(saved, merchant); return }
-    }
-
-    // Show restaurant selector
-    setRestaurantList(allRests)
     setMerchantData(merchant)
+
+    // Check if this tablet has already claimed a terminal
+    const savedTerminalId = localStorage.getItem('feedme-terminal-id')
+
+    if (savedTerminalId) {
+      // Load the claimed terminal
+      const { data: terminal } = await supabase.from('terminals').select('*, restaurants(*)').eq('id', savedTerminalId).maybeSingle()
+      if (terminal?.restaurants) {
+        initRestaurant(terminal.restaurants, merchant, terminal.id)
+        return
+      }
+      // Terminal was deleted - clear and show selector
+      localStorage.removeItem('feedme-terminal-id')
+    }
+
+    // Show terminal selector - only unclaimed terminals
+    const { data: allTerminals } = await supabase.from('terminals').select('*, restaurants(name, emoji, parish)').eq('merchant_id', merchant.id).is('claimed_at', null)
+    setRestaurantList(allTerminals || [])
     setShowRestaurantSelector(true)
   }
 
-  async function initRestaurant(rest: any, merchant: any) {
-    // Register/update terminal last_seen
+  async function initRestaurant(rest: any, merchant: any, terminalId?: string) {
     const deviceInfo = navigator.userAgent.includes('Android') ? 'Android tablet' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Browser'
-    await supabase.from('terminals').upsert({
-      merchant_id: merchant.id,
-      restaurant_id: rest.id,
-      device_info: deviceInfo,
-      last_seen: new Date().toISOString(),
-    }, { onConflict: 'merchant_id,restaurant_id' }).select().maybeSingle()
     
-    // Update last_seen every 2 minutes
-    setInterval(async () => {
-      await supabase.from('terminals').update({ last_seen: new Date().toISOString() }).eq('merchant_id', merchant.id).eq('restaurant_id', rest.id)
-    }, 2 * 60 * 1000)
+    if (terminalId) {
+      // Update last_seen on claimed terminal
+      await supabase.from('terminals').update({ last_seen: new Date().toISOString(), claimed_device: deviceInfo }).eq('id', terminalId)
+      // Ping every 2 minutes
+      setInterval(async () => {
+        await supabase.from('terminals').update({ last_seen: new Date().toISOString() }).eq('id', terminalId)
+      }, 2 * 60 * 1000)
+    }
 
     setRestaurant(rest)
     setDelivTime(rest.delivery_time_mins || 25)
@@ -647,34 +640,44 @@ export default function TerminalPage() {
         <div style={{ fontFamily: 'Syne,sans-serif', fontSize: '28px', fontWeight: 800, marginBottom: '8px' }}>
           <span style={{ color: '#22c55e' }}>feed</span><span style={{ color: '#f1f5f9' }}>me</span><span style={{ color: '#22c55e' }}>.gg</span>
         </div>
-        <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '40px' }}>Select your restaurant</div>
-        <div style={{ width: '100%', maxWidth: '400px', display: 'grid', gap: '12px' }}>
-          {restaurantList.map(r => (
-            <button key={r.id} onClick={() => {
-              localStorage.setItem('feedme-terminal-restaurant', r.id)
-              setShowRestaurantSelector(false)
-              initRestaurant(r, merchantData)
-            }} style={{ padding: '20px', background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: '#f1f5f9', fontSize: '16px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '32px' }}>{r.emoji || '🍽️'}</span>
-              <div>
-                <div>{r.name}</div>
-                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>{r.parish}</div>
-              </div>
-            </button>
-          ))}
-        </div>
+        <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>Which terminal is this tablet?</div>
+        <div style={{ fontSize: '12px', color: '#334155', marginBottom: '32px' }}>Select your terminal - this will be saved on this device</div>
+        
+        {restaurantList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px', background: '#0d1321', borderRadius: '14px', maxWidth: '400px', width: '100%' }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📱</div>
+            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: '#f1f5f9' }}>No terminals available</div>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>Ask your manager to add a terminal in the merchant dashboard and make sure it is not already claimed by another tablet.</div>
+          </div>
+        ) : (
+          <div style={{ width: '100%', maxWidth: '400px', display: 'grid', gap: '12px' }}>
+            {restaurantList.map((terminal: any) => (
+              <button key={terminal.id} onClick={async () => {
+                // Claim this terminal
+                const deviceInfo = navigator.userAgent.includes('Android') ? 'Android tablet' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Browser'
+                await supabase.from('terminals').update({ claimed_at: new Date().toISOString(), claimed_device: deviceInfo, last_seen: new Date().toISOString() }).eq('id', terminal.id)
+                localStorage.setItem('feedme-terminal-id', terminal.id)
+                setShowRestaurantSelector(false)
+                initRestaurant(terminal.restaurants, merchantData, terminal.id)
+              }} style={{ padding: '20px', background: '#0d1321', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: '#f1f5f9', fontSize: '16px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '32px' }}>📱</span>
+                <div>
+                  <div>{terminal.name}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>
+                    {terminal.restaurants?.emoji} {terminal.restaurants?.name} • {terminal.restaurants?.parish}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
         {restaurant && (
-          <button onClick={() => {
-            setShowRestaurantSelector(false)
-          }} style={{ marginTop: '16px', fontSize: '14px', color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+          <button onClick={() => setShowRestaurantSelector(false)}
+            style={{ marginTop: '20px', fontSize: '14px', color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
             Cancel - stay on {restaurant?.name}
           </button>
         )}
-        <button onClick={() => {
-          localStorage.removeItem('feedme-terminal-restaurant')
-        }} style={{ marginTop: '12px', fontSize: '13px', color: '#475569', background: 'none', border: 'none', cursor: 'pointer' }}>
-          Clear saved selection
-        </button>
       </div>
     )
   }
@@ -776,29 +779,6 @@ export default function TerminalPage() {
                 </div>
               </button>
             ))}
-            <button onClick={async () => {
-              // Fetch fresh restaurant list before showing selector
-              let { data: merch } = await supabase.from('merchants').select('*').eq('auth_id', (await supabase.auth.getUser()).data.user?.id || '').maybeSingle()
-              if (merch) {
-                const { data: allRests } = await supabase.from('restaurants').select('*').eq('merchant_id', merch.id)
-                if (allRests && allRests.length > 0) {
-                  setRestaurantList(allRests)
-                  setMerchantData(merch)
-                }
-              }
-              localStorage.removeItem('feedme-terminal-restaurant')
-              setCogOpen(false)
-              setShowRestaurantSelector(true)
-            }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f97316', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.08)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-            >
-              <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }}>🔄</span>
-              <div>
-                <div style={{ fontWeight: 600 }}>Switch restaurant</div>
-                <div style={{ fontSize: 'clamp(9px,1.4vw,10px)', color: '#64748b' }}>Change this terminal</div>
-              </div>
-            </button>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0', padding: '10px 14px' }}>
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>New Order Sound</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
