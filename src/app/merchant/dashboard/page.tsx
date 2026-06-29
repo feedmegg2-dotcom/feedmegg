@@ -686,7 +686,8 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
 
   async function addTerminal() {
     const name = `Terminal ${terminals.length + 1}`
-    await supabase.from('terminals').insert({ merchant_id: merchant.id, name, restaurant_id: restaurants[0]?.id || null })
+    const { error } = await supabase.from('terminals').insert({ merchant_id: merchant.id, name, restaurant_id: restaurants[0]?.id || null })
+    if (error) { alert('Error: ' + error.message); return }
     fetchTerminals()
   }
 
