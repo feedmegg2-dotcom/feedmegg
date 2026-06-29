@@ -103,7 +103,7 @@ export default function ConfirmedPage() {
             {order && (
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '20px', textAlign: 'left' }}>
                 <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>Order reference</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'monospace', marginBottom: '8px' }}>{String(order.id).slice(0,8).toUpperCase()}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'monospace', marginBottom: '8px' }}>{order.order_number || String(order.id).slice(0,8).toUpperCase()}</div>
                 <div style={{ fontSize: '20px', fontWeight: 800, color: '#22c55e' }}>GBP{parseFloat(order.total).toFixed(2)}</div>
               </div>
             )}
