@@ -101,9 +101,9 @@ export default function MerchantMenuEditor() {
       [['vegan','plant'], '🌱'],
       [['gluten free'], '🌾'],
     ]
-    for keywords, emoji in map:
-      if any(k in t for k in keywords):
-        return emoji
+    for (const [keywords, emoji] of map) {
+      if (keywords.some((k: string) => t.includes(k))) return emoji
+    }
     return ''
   }
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: '' })
