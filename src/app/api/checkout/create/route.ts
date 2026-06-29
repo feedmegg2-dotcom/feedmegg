@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         price: item.price,
         subtotal: item.price * (item.qty || 1),
         special_instructions: item.note || null,
+        kitchen_number: item.kitchen_number || null,
       }))
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
