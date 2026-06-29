@@ -158,8 +158,8 @@ export default function TerminalPage() {
       localStorage.removeItem('feedme-terminal-id')
     }
 
-    // Show terminal selector - only unclaimed terminals
-    const { data: allTerminals } = await supabase.from('terminals').select('*').eq('merchant_id', merchant.id).is('claimed_at', null)
+    // Show terminal selector - show all terminals (allow reclaiming)
+    const { data: allTerminals } = await supabase.from('terminals').select('*').eq('merchant_id', merchant.id)
     
     // Fetch restaurant details separately
     const terminalsWithRests = await Promise.all((allTerminals || []).map(async (t: any) => {
@@ -695,7 +695,7 @@ export default function TerminalPage() {
           <div style={{ textAlign: 'center', padding: '24px', background: '#0d1321', borderRadius: '14px', maxWidth: '400px', width: '100%' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>📱</div>
             <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: '#f1f5f9' }}>No terminals available</div>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>Ask your manager to add a terminal in the merchant dashboard and make sure it is not already claimed by another tablet.</div>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>Ask your manager to add a terminal in the merchant dashboard.</div>
           </div>
         ) : (
           <div style={{ width: '100%', maxWidth: '400px', display: 'grid', gap: '12px' }}>
@@ -704,6 +704,7 @@ export default function TerminalPage() {
                 // Claim this terminal
                 const deviceInfo = navigator.userAgent.includes('Android') ? 'Android tablet' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Browser'
                 await supabase.from('terminals').update({ claimed_at: new Date().toISOString(), claimed_device: deviceInfo, last_seen: new Date().toISOString() }).eq('id', terminal.id)
+                // Also clear any other device's claim on this terminal
                 localStorage.setItem('feedme-terminal-id', terminal.id)
                 setShowRestaurantSelector(false)
                 initRestaurant(terminal.restaurants, merchantData, terminal.id)
@@ -714,6 +715,9 @@ export default function TerminalPage() {
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>
                     {terminal.restaurants?.emoji} {terminal.restaurants?.name} • {terminal.restaurants?.parish}
                   </div>
+                  {terminal.claimed_at && (
+                    <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>Previously claimed by {terminal.claimed_device || 'another device'} — tap to reclaim</div>
+                  )}
                 </div>
               </button>
             ))}
