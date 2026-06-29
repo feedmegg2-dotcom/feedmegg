@@ -663,9 +663,16 @@ export default function TerminalPage() {
             </button>
           ))}
         </div>
+        {restaurant && (
+          <button onClick={() => {
+            setShowRestaurantSelector(false)
+          }} style={{ marginTop: '16px', fontSize: '14px', color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px', padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+            Cancel - stay on {restaurant?.name}
+          </button>
+        )}
         <button onClick={() => {
           localStorage.removeItem('feedme-terminal-restaurant')
-        }} style={{ marginTop: '24px', fontSize: '13px', color: '#475569', background: 'none', border: 'none', cursor: 'pointer' }}>
+        }} style={{ marginTop: '12px', fontSize: '13px', color: '#475569', background: 'none', border: 'none', cursor: 'pointer' }}>
           Clear saved selection
         </button>
       </div>
@@ -769,7 +776,21 @@ export default function TerminalPage() {
                 </div>
               </button>
             ))}
-            <button onClick={() => { localStorage.removeItem('feedme-terminal-restaurant'); setCogOpen(false); setShowRestaurantSelector(true); setRestaurantList(restaurantList) }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f97316', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
+            <button onClick={async () => {
+              // Fetch fresh restaurant list before showing selector
+              const { data: { user } } = await supabase.auth.getSession()
+              let { data: merch } = await supabase.from('merchants').select('*').eq('auth_id', (await supabase.auth.getUser()).data.user?.id || '').maybeSingle()
+              if (merch) {
+                const { data: allRests } = await supabase.from('restaurants').select('*').eq('merchant_id', merch.id)
+                if (allRests && allRests.length > 0) {
+                  setRestaurantList(allRests)
+                  setMerchantData(merch)
+                }
+              }
+              localStorage.removeItem('feedme-terminal-restaurant')
+              setCogOpen(false)
+              setShowRestaurantSelector(true)
+            }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'none', border: 'none', color: '#f97316', padding: '12px 14px', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', textAlign: 'left' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.08)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
