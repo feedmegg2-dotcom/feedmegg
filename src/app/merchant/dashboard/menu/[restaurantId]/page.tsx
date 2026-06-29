@@ -769,8 +769,9 @@ export default function MerchantMenuEditor() {
           </div>
         </div>
       )}
-    {/* EMOJI / PHOTO MODAL */}
-    {imageModal && (
+
+      {/* EMOJI / PHOTO MODAL */}
+      {imageModal && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setImageModal(null) }}>
         <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '360px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -833,8 +834,7 @@ export default function MerchantMenuEditor() {
           )}
         </div>
       </div>
-    )}
-
+      )}
     </div>
   )
 }
