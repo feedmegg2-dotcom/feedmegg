@@ -435,32 +435,36 @@ export default function MerchantMenuEditor() {
                           }
                         </div>
                         {editingItem?.id === item.id ? (
-                          <div style={{ display: 'grid', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
-                            <div>
+                          <div style={{ display: 'grid', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ gridColumn: 'span 2' }}>
                               <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Name</label>
                               <input value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} placeholder="Name" style={inputStyle} />
                             </div>
-                            <div>
-                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Price GBP</label>
-                              <input value={editingItem.price} onChange={e => setEditingItem({...editingItem, price: e.target.value})} placeholder="Price" type="number" step="0.01" style={inputStyle} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Price GBP</label>
+                                <input value={editingItem.price} onChange={e => setEditingItem({...editingItem, price: e.target.value})} placeholder="Price" type="number" step="0.01" style={inputStyle} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Calories</label>
+                                <input value={editingItem.calories || ''} onChange={e => setEditingItem({...editingItem, calories: e.target.value})} placeholder="e.g. 650" type="number" style={inputStyle} />
+                              </div>
                             </div>
-                            <div>
-                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Emoji</label>
-                              <input value={editingItem.emoji || ''} onChange={e => setEditingItem({...editingItem, emoji: e.target.value})} placeholder="Emoji" style={inputStyle} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Emoji</label>
+                                <input value={editingItem.emoji || ''} onChange={e => setEditingItem({...editingItem, emoji: e.target.value})} placeholder="Emoji" style={inputStyle} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Category</label>
+                                <select value={editingItem.category_id} onChange={e => setEditingItem({...editingItem, category_id: e.target.value})} style={{ ...inputStyle, appearance: 'none' }}>
+                                  {categories.map(c => <option key={c.id} value={c.id} style={{ background: '#0d1321' }}>{c.name}</option>)}
+                                </select>
+                              </div>
                             </div>
                             <div>
                               <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Description</label>
                               <input value={editingItem.description || ''} onChange={e => setEditingItem({...editingItem, description: e.target.value})} placeholder="Description" style={inputStyle} />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Calories</label>
-                              <input value={editingItem.calories || ''} onChange={e => setEditingItem({...editingItem, calories: e.target.value})} placeholder="e.g. 650" type="number" style={inputStyle} />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Category</label>
-                              <select value={editingItem.category_id} onChange={e => setEditingItem({...editingItem, category_id: e.target.value})} style={{ ...inputStyle, appearance: 'none' }}>
-                                {categories.map(c => <option key={c.id} value={c.id} style={{ background: '#0d1321' }}>{c.name}</option>)}
-                              </select>
                             </div>
                             <div>
                               <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Kitchen Number (prints on ticket only)</label>
