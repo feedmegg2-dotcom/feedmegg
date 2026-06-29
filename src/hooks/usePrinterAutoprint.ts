@@ -109,6 +109,24 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
         if (item.special_instructions) t += ALIGN_LEFT + '  -> ' + item.special_instructions + LF
       })
       break
+    case 'items_list_with_numbers': {
+      // kitchen_number_size maps to ESC/POS size multipliers
+      const knSize = el.kitchen_number_size || 'xxxl'
+      // GS ! n: bits 0-2 = width multiplier-1, bits 4-6 = height multiplier-1
+      // xxxl/xxl = 4x = 0x33, xl = 3x = 0x22, large = 2x = 0x11, medium = 1x = 0x00
+      const knCmd = knSize === 'xxxl' ? GS + '!3' :
+                    knSize === 'xxl'  ? GS + '!3' :
+                    knSize === 'xl'   ? GS + '!"' :
+                    knSize === 'large'? GS + '!' : SIZE_NORMAL
+      order.items.forEach((item: any) => {
+        if (item.kitchen_number) {
+          t += ALIGN_CENTER + knCmd + BOLD_ON + '[' + item.kitchen_number + ']' + BOLD_OFF + SIZE_NORMAL + LF
+        }
+        t += align + size + bold + item.quantity + 'x ' + item.name + boldOff + SIZE_NORMAL + LF
+        if (item.special_instructions) t += ALIGN_LEFT + '  -> ' + item.special_instructions + LF
+      })
+      break
+    }
     case 'total':
       t += align + size + bold + lr('TOTAL:', 'GBP' + order.total.toFixed(2), cols) + boldOff + SIZE_NORMAL + LF
       break
