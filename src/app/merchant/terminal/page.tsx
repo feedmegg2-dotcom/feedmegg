@@ -70,6 +70,8 @@ export default function TerminalPage() {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('connected')
   const reconnectRef = useRef<any>(null)
   const currentRestIdRef = useRef<string>('')
+  const lastPollSuccessRef = useRef<number>(Date.now())
+  const watchdogRef = useRef<any>(null)
 
   const [deliverySlotDuration, setDeliverySlotDuration] = useState(30)
   const [deliverySlotCapacity, setDeliverySlotCapacity] = useState(4)
@@ -126,6 +128,7 @@ export default function TerminalPage() {
       if (syncRef.current) clearInterval(syncRef.current)
       if (alertRef.current) clearInterval(alertRef.current)
       if (wakeLockRef.current) wakeLockRef.current.release()
+      if (watchdogRef.current) clearInterval(watchdogRef.current)
       document.removeEventListener('touchstart', handler)
       document.removeEventListener('click', handler)
     }
@@ -236,11 +239,20 @@ export default function TerminalPage() {
   function startPolling(restId: string) {
     if (!restId) return
     currentRestIdRef.current = restId
+    lastPollSuccessRef.current = Date.now()
     // First poll - pre-populate paid orders so we don't re-alert them
     pollOrders(restId, true)
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
     checkPrinterStatus()
     setInterval(() => checkPrinterStatus(), 30000)
+    // Watchdog - reload page if no successful poll in 60 seconds
+    watchdogRef.current = setInterval(() => {
+      const secondsSinceLastPoll = (Date.now() - lastPollSuccessRef.current) / 1000
+      if (secondsSinceLastPoll > 60) {
+        console.log('Watchdog triggered - reloading terminal')
+        window.location.reload()
+      }
+    }, 15000)
   }
 
   async function checkPrinterStatus() {
@@ -347,6 +359,7 @@ export default function TerminalPage() {
           clearInterval(reconnectRef.current)
           reconnectRef.current = null
           setConnectionStatus('connected')
+    lastPollSuccessRef.current = Date.now()
           pollOrders(restId, false)
           pollRef.current = setInterval(() => pollOrders(restId), 5000)
         }
