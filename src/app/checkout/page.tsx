@@ -56,6 +56,19 @@ export default function CheckoutPage() {
     setCartData(data)
     fetchRestaurant(data.restaurantId)
     fetchCustomer()
+    // Prefill guest details from previous order
+    const guestSaved = localStorage.getItem('feedme-guest')
+    if (guestSaved) {
+      try {
+        const g = JSON.parse(guestSaved)
+        setForm(f => ({
+          ...f,
+          name: f.name || g.name || '',
+          phone: f.phone || g.phone || '',
+          email: f.email || g.email || '',
+        }))
+      } catch (e) {}
+    }
     // Auto-select pre-order if coming from timeout/rejected page
     const params = new URLSearchParams(window.location.search)
     if (params.get('preorder') === 'true') {
@@ -395,6 +408,9 @@ export default function CheckoutPage() {
     // Don't clear cart yet - keep it in case order is rejected/times out
     // Cart will be cleared when order is confirmed
     // localStorage.removeItem('feedme-cart')
+    // Save guest details for next order
+    localStorage.setItem('feedme-guest', JSON.stringify({ name: form.name, phone: form.phone, email: form.email }))
+
     if (data.paymentMethod === 'cash') {
       // Cash orders (including pre-orders) go straight to confirmed
       router.push(`/order/${data.orderId}/confirmed?method=cash`)
