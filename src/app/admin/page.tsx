@@ -1082,17 +1082,21 @@ export default function AdminPage() {
             {editItem && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditItem(null) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Edit {editItem.name}</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div style={{ gridColumn: 'span 2' }}><label>Name</label><input className="input" value={editItem.name} onChange={e => setEditItem({...editItem, name: e.target.value})} /></div>
-                    <div><label>Price GBP</label><input className="input" type="number" step="0.01" value={editItem.price} onChange={e => setEditItem({...editItem, price: e.target.value})} /></div>
-                    <div><label>Emoji</label><input className="input" value={editItem.emoji} onChange={e => setEditItem({...editItem, emoji: e.target.value})} /></div>
-                    <div style={{ gridColumn: 'span 2' }}><label>Description</label><input className="input" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} /></div>
-                    <div><label>Calories</label><input className="input" type="number" value={editItem.calories || ''} onChange={e => setEditItem({...editItem, calories: e.target.value})} /></div>
-                    <div><label>Category</label><select className="input" value={editItem.category_id} onChange={e => setEditItem({...editItem, category_id: e.target.value})}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px' }}>Edit {editItem.name}</h3>
+                  <div style={{ display: 'grid', gap: '10px', marginBottom: '10px' }}>
+                    <div><label>Name</label><input className="input" value={editItem.name} onChange={e => setEditItem({...editItem, name: e.target.value})} /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div><label>Price GBP</label><input className="input" type="number" step="0.01" value={editItem.price} onChange={e => setEditItem({...editItem, price: e.target.value})} /></div>
+                      <div><label>Calories</label><input className="input" type="number" value={editItem.calories || ''} onChange={e => setEditItem({...editItem, calories: e.target.value})} /></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div><label>Emoji</label><input className="input" value={editItem.emoji} onChange={e => setEditItem({...editItem, emoji: e.target.value})} /></div>
+                      <div><label>Category</label><select className="input" value={editItem.category_id} onChange={e => setEditItem({...editItem, category_id: e.target.value})}>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    </div>
+                    <div><label>Description</label><input className="input" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} /></div>
                     <div><label>Kitchen Number (prints on ticket only)</label><input className="input" type="number" placeholder="e.g. 42" value={editItem.kitchen_number || ''} onChange={e => setEditItem({...editItem, kitchen_number: e.target.value})} /></div>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', cursor: 'pointer', fontSize: '13px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', cursor: 'pointer', fontSize: '13px' }}>
                     <input type="checkbox" checked={editItem.is_available} onChange={e => setEditItem({...editItem, is_available: e.target.checked})} />
                     Available for ordering
                   </label>
