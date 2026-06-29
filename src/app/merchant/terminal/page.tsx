@@ -336,7 +336,7 @@ export default function TerminalPage() {
 
   async function pollOrders(restId: string, isFirstLoad = false) {
     const today = new Date().toISOString().split('T')[0]
-    let data: any = null
+    let data: any[] | null = null
     let fetchError: any = null
     try {
       const result = await supabase.from('orders').select('*, order_items(*)').eq('restaurant_id', restId).in('status', ['pending', 'accepted', 'waiting_payment', 'paid', 'cancelled', 'rejected']).gte('created_at', today + 'T00:00:00').order('created_at', { ascending: false }).limit(50)
