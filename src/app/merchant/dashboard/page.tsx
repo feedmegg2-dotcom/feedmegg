@@ -10,7 +10,7 @@ export default function MerchantDashboard() {
   const supabase = createClient()
   const [merchant, setMerchant] = useState<any>(null)
   const [restaurants, setRestaurants] = useState<any[]>([])
-  const [tab, setTab] = useState<'dashboard'|'restaurants'|'offers'>('dashboard')
+  const [tab, setTab] = useState<'dashboard'|'restaurants'|'offers'|'terminals'>('dashboard')
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
 
@@ -218,9 +218,9 @@ export default function MerchantDashboard() {
 
         {/* TABS */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '4px' }}>
-          {(['dashboard','restaurants','offers'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', background: tab === t ? '#22c55e' : 'transparent', color: tab === t ? '#080c14' : '#64748b', textTransform: 'capitalize' }}>
-              {t === 'dashboard' ? 'Dashboard' : t === 'restaurants' ? 'Restaurants' : '🎁 Offers'}
+          {(['dashboard','restaurants','offers','terminals'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', background: tab === t ? '#22c55e' : 'transparent', color: tab === t ? '#080c14' : '#64748b' }}>
+              {t === 'dashboard' ? 'Dashboard' : t === 'restaurants' ? 'Restaurants' : t === 'offers' ? 'Offers' : 'Terminals'}
             </button>
           ))}
         </div>
@@ -520,6 +520,10 @@ export default function MerchantDashboard() {
           <MerchantOffersTab restaurant={restaurants[0]} supabase={supabase} />
         )}
 
+        {tab === 'terminals' && (
+          <MerchantTerminalsTab merchant={merchant} restaurants={restaurants} supabase={supabase} />
+        )}
+
     </div>
   )
 }
@@ -658,6 +662,180 @@ function MerchantOffersTab({ restaurant, supabase }: { restaurant: any, supabase
               </div>
             ))}
             {offers.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: '#475569', fontSize: '14px' }}>No offers yet</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: any, restaurants: any[], supabase: any }) {
+  const [terminals, setTerminals] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<string|null>(null)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => { if (merchant) fetchTerminals() }, [merchant])
+
+  async function fetchTerminals() {
+    setLoading(true)
+    const { data } = await supabase.from('terminals').select('*, restaurants(name), divert_delivery:divert_delivery_to(name), divert_pickup:divert_pickup_to(name)').eq('merchant_id', merchant.id).order('created_at')
+    setTerminals(data || [])
+    setLoading(false)
+  }
+
+  async function addTerminal() {
+    const name = `Terminal ${terminals.length + 1}`
+    await supabase.from('terminals').insert({ merchant_id: merchant.id, name, restaurant_id: restaurants[0]?.id || null })
+    fetchTerminals()
+  }
+
+  async function updateTerminal(id: string, changes: any) {
+    setSaving(id)
+    await supabase.from('terminals').update(changes).eq('id', id)
+    setSaving(null)
+    setMsg('Saved!')
+    setTimeout(() => setMsg(''), 2000)
+    fetchTerminals()
+  }
+
+  async function deleteTerminal(id: string) {
+    if (!confirm('Delete this terminal?')) return
+    await supabase.from('terminals').delete().eq('id', id)
+    fetchTerminals()
+  }
+
+  function isOnline(lastSeen: string | null) {
+    if (!lastSeen) return false
+    return (Date.now() - new Date(lastSeen).getTime()) < 5 * 60 * 1000
+  }
+
+  const inputStyle: any = { padding: '6px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f1f5f9', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Terminals</h2>
+        <button onClick={addTerminal} style={{ padding: '8px 16px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Terminal</button>
+      </div>
+
+      {msg && <div style={{ marginBottom: '16px', padding: '10px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '10px', fontSize: '13px', color: '#22c55e', fontWeight: 600 }}>{msg}</div>}
+
+      {loading ? <div style={{ color: '#64748b', textAlign: 'center', padding: '40px' }}>Loading...</div> : (
+        <div style={{ display: 'grid', gap: '16px', marginBottom: '32px' }}>
+          {terminals.map(t => {
+            const online = isOnline(t.last_seen)
+            return (
+              <div key={t.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${online ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '14px', padding: '18px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ fontSize: '24px' }}>📱</div>
+                    <div>
+                      <input value={t.name} onChange={e => setTerminals(prev => prev.map(x => x.id === t.id ? {...x, name: e.target.value} : x))}
+                        onBlur={e => updateTerminal(t.id, { name: e.target.value })}
+                        style={{ ...inputStyle, fontSize: '15px', fontWeight: 700, background: 'transparent', border: '1px solid transparent', padding: '2px 6px' }}
+                        onFocus={e => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
+                      />
+                      <div style={{ fontSize: '11px', color: '#64748b', paddingLeft: '6px' }}>
+                        {t.device_info || 'No device connected'} {t.last_seen ? `• Last seen ${new Date(t.last_seen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', fontWeight: 700, background: online ? 'rgba(34,197,94,0.15)' : 'rgba(100,116,139,0.15)', color: online ? '#22c55e' : '#64748b' }}>
+                      {online ? 'Online' : 'Offline'}
+                    </span>
+                    <button onClick={() => deleteTerminal(t.id)} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>Delete</button>
+                  </div>
+                </div>
+
+                {/* Assigned restaurant */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Assigned restaurant</div>
+                  <select value={t.restaurant_id || ''} onChange={e => updateTerminal(t.id, { restaurant_id: e.target.value || null })}
+                    style={{ ...inputStyle, width: '100%' }}>
+                    <option value="">Not assigned</option>
+                    {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Diversion */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Order diversion</div>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '16px' }}>🚗</span>
+                      <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1 }}>Divert deliveries to</span>
+                      <select value={t.divert_delivery_to || ''} onChange={e => updateTerminal(t.id, { divert_delivery_to: e.target.value || null })}
+                        style={{ ...inputStyle, minWidth: '180px' }}>
+                        <option value="">No diversion</option>
+                        {restaurants.filter(r => r.id !== t.restaurant_id).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '16px' }}>🏪</span>
+                      <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1 }}>Divert pickups to</span>
+                      <select value={t.divert_pickup_to || ''} onChange={e => updateTerminal(t.id, { divert_pickup_to: e.target.value || null })}
+                        style={{ ...inputStyle, minWidth: '180px' }}>
+                        <option value="">No diversion</option>
+                        {restaurants.filter(r => r.id !== t.restaurant_id).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {(t.divert_delivery_to || t.divert_pickup_to) && (
+                    <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', fontSize: '12px', color: '#f97316' }}>
+                      Active diversion: {t.divert_delivery_to ? `Deliveries to ${restaurants.find(r => r.id === t.divert_delivery_to)?.name}` : ''}{t.divert_delivery_to && t.divert_pickup_to ? ' • ' : ''}{t.divert_pickup_to ? `Pickups to ${restaurants.find(r => r.id === t.divert_pickup_to)?.name}` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {terminals.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '48px', color: '#475569' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📱</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>No terminals yet</div>
+              <div style={{ fontSize: '13px', marginBottom: '16px' }}>Add a terminal for each tablet at your restaurants</div>
+              <button onClick={addTerminal} style={{ padding: '10px 24px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>Add first terminal</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Restaurant overview */}
+      {terminals.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Restaurant overview</h3>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+            {restaurants.map((r, i) => {
+              const assignedTerminal = terminals.find(t => t.restaurant_id === r.id)
+              const divertedFrom = terminals.filter(t => t.divert_delivery_to === r.id || t.divert_pickup_to === r.id)
+              const online = assignedTerminal ? isOnline(assignedTerminal.last_seen) : false
+              return (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < restaurants.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '120px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{r.name}</div>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>{assignedTerminal ? assignedTerminal.name : 'No terminal assigned'}</div>
+                  </div>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: online ? 'rgba(34,197,94,0.15)' : 'rgba(100,116,139,0.15)', color: online ? '#22c55e' : '#64748b', fontWeight: 600 }}>
+                    {online ? 'Online' : 'Offline'}
+                  </span>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: r.delivery_enabled !== false ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: r.delivery_enabled !== false ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                    Delivery {r.delivery_enabled !== false ? 'on' : 'off'}
+                  </span>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: r.pickup_enabled !== false ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: r.pickup_enabled !== false ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                    Pickup {r.pickup_enabled !== false ? 'on' : 'off'}
+                  </span>
+                  {(assignedTerminal?.divert_delivery_to || assignedTerminal?.divert_pickup_to) && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(249,115,22,0.1)', color: '#f97316', fontWeight: 600 }}>Diverting orders</span>
+                  )}
+                  {divertedFrom.length > 0 && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontWeight: 600 }}>Receiving diversions</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
