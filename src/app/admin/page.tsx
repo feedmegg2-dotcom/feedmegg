@@ -2007,6 +2007,63 @@ function CustomersTab({ supabase }: { supabase: any }) {
           </div>
         </div>
       )}
+
+      {/* EMOJI / PHOTO MODAL */}
+      {imageModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setImageModal(null) }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '360px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>Emoji / Photo</div>
+              <button onClick={() => setImageModal(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              {(['emoji', 'photo'] as const).map(tab => (
+                <button key={tab} onClick={() => setImageTab(tab)} style={{ flex: 1, padding: '8px', background: imageTab === tab ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${imageTab === tab ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: imageTab === tab ? '#22c55e' : '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                  {tab === 'emoji' ? 'Emoji' : 'Photo'}
+                </button>
+              ))}
+            </div>
+            {imageTab === 'emoji' && (
+              <div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Tap to select an emoji</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px', maxHeight: '240px', overflowY: 'auto', marginBottom: '12px' }}>
+                  {FOOD_EMOJIS.map(e => (
+                    <button key={e} onClick={() => setImageModal({ ...imageModal, emoji: e })} style={{ padding: '6px', background: imageModal.emoji === e ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.04)', border: `1px solid ${imageModal.emoji === e ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '11px', color: '#475569', marginBottom: '6px' }}>Or type your own:</div>
+                <input value={imageModal.emoji || ''} onChange={e => setImageModal({ ...imageModal, emoji: e.target.value })} placeholder="e.g. 🍕" style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f1f5f9', fontSize: '20px', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+                <button onClick={async () => {
+                  await supabase.from('menu_items').update({ emoji: imageModal.emoji }).eq('id', imageModal.id)
+                  if (editItem?.id === imageModal.id) setEditItem({ ...editItem, emoji: imageModal.emoji })
+                  setImageModal(null)
+                  if (selectedRestaurant) fetchMenuForRestaurant(selectedRestaurant.id)
+                }} style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                  Save Emoji
+                </button>
+              </div>
+            )}
+            {imageTab === 'photo' && (
+              <div>
+                {imageModal.image_url && (
+                  <div style={{ marginBottom: '12px', textAlign: 'center' }}>
+                    <img src={imageModal.image_url} alt="Current" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />
+                    <div><button onClick={() => clearMenuImage(imageModal.id)} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>Remove photo</button></div>
+                  </div>
+                )}
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>Upload a photo of this dish</div>
+                <label style={{ display: 'block', padding: '24px', background: 'rgba(255,255,255,0.04)', border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>📷</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8' }}>{uploadingImage ? 'Uploading...' : 'Tap to choose photo'}</div>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImage} onChange={e => { if (e.target.files?.[0]) uploadMenuImage(e.target.files[0], imageModal.id) }} />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
