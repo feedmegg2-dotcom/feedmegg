@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { requireAdmin, requireMerchantForRestaurant } from '@/lib/adminAuth'
 
 // ============================================================
 // COMPREHENSIVE ALLERGEN DETECTION
@@ -387,6 +388,12 @@ export async function POST(request: NextRequest) {
   try {
     const { restaurantId } = await request.json()
     if (!restaurantId) return NextResponse.json({ error: 'restaurantId required' }, { status: 400 })
+
+    const admin = await requireAdmin()
+    if (!admin) {
+      const merchantOk = await requireMerchantForRestaurant(restaurantId)
+      if (!merchantOk) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const { data: items } = await supabase
       .from('menu_items')
