@@ -18,7 +18,7 @@ export async function PATCH(
     .from('orders')
     .select('*, restaurants(*, merchants(*))')
     .eq('id', orderId)
-    .single()
+    .maybeSingle()
 
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
