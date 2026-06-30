@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendOrderConfirmation } from '@/lib/email'
+import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
 
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number, resetAt: number }>()
@@ -229,6 +230,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // PRE-ORDERS: payment is taken/requested immediately at checkout so the
+    // customer isn't left waiting hours for a merchant lead-time window -
+    // but the order STAYS 'pending' the whole time so it correctly sits in
+    // the Pre-Orders tab and still requires the merchant to Accept or
+    // Reject once the lead time arrives, exactly like an ASAP order does.
+    // Cash pre-orders: payment is implicitly committed (collected on
+    // delivery/pickup) but we don't mark 'paid' yet - that still happens
+    // when the merchant accepts, same as a normal cash order today.
+    // Card pre-orders: a SumUp link is generated and sent now so the
+    // customer can pay straight away, but status stays 'pending' until
+    // the merchant accepts at lead time.
+    let preOrderPaymentLink: string | null = null
+    let preOrderSumupCheckoutId: string | null = null
+    let preOrderPaymentLinkExpiresAt: string | null = null
+    if (scheduledFor && paymentMethod !== 'cash') {
+      if (restaurant.sumup_api_key && restaurant.sumup_merchant_code) {
+        try {
+          const linkData = await generatePaymentLink({
+            orderId: order.id,
+            orderNumber: order.order_number,
+            amount: order.total,
+            merchantApiKey: restaurant.sumup_api_key,
+            merchantCode: restaurant.sumup_merchant_code,
+            customerEmail: order.customer_email,
+            restaurantName: restaurant.name,
+          })
+          preOrderPaymentLink = linkData.paymentUrl
+          preOrderSumupCheckoutId = linkData.checkoutId
+          preOrderPaymentLinkExpiresAt = linkData.expiresAt
+        } catch (linkError: any) {
+          console.error('Pre-order SumUp link generation failed:', linkError)
+          if (linkError.message?.includes('DUPLICATED_CHECKOUT')) {
+            try {
+              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, restaurant.sumup_api_key)
+              if (existing) {
+                preOrderPaymentLink = existing.paymentUrl
+                preOrderSumupCheckoutId = existing.checkoutId
+              }
+            } catch (e2) {
+              console.error('Pre-order fallback checkout fetch failed:', e2)
+            }
+          }
+        }
+      }
+      // Note: status intentionally NOT updated here - stays 'pending'.
+      // sumup_link/checkout_id are stored so the customer can pay now,
+      // and the SumUp webhook will mark it 'paid' independently of the
+      // merchant's accept/reject action when payment actually completes.
+      // payment_link_expires_at lets us auto-cancel this pre-order if the
+      // customer never completes payment, so an unpaid pre-order never
+      // sits forever and never reaches the merchant's terminal.
+      await supabase.from('orders').update({
+        sumup_link: preOrderPaymentLink,
+        sumup_checkout_id: preOrderSumupCheckoutId,
+        payment_link_sent_at: preOrderPaymentLink ? new Date().toISOString() : null,
+        payment_link_expires_at: preOrderPaymentLinkExpiresAt,
+      }).eq('id', order.id)
+    }
+
     // Send confirmation email (fire and forget)
     if (customerEmail) {
       sendOrderConfirmation({
@@ -254,6 +314,7 @@ export async function POST(request: NextRequest) {
       orderNumber,
       paymentMethod: paymentMethod || 'card',
       scheduledFor: scheduledFor || null,
+      preOrderPaymentLink: preOrderPaymentLink || null,
     })
 
   } catch (error: any) {
