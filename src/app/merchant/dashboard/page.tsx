@@ -674,8 +674,43 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string|null>(null)
   const [msg, setMsg] = useState('')
+  const [setupPin, setSetupPin] = useState('')
+  const [currentPinEntry, setCurrentPinEntry] = useState('')
+  const [pinMsg, setPinMsg] = useState('')
+  const [pinError, setPinError] = useState('')
 
   useEffect(() => { if (merchant) fetchTerminals() }, [merchant])
+
+  async function saveRefundPin() {
+    setPinError('')
+    setPinMsg('')
+    if (!setupPin || setupPin.length < 4) { setPinError('PIN must be at least 4 digits'); return }
+    if (!merchant?.id || !restaurants?.[0]?.id) return
+    try {
+      const res = await fetch('/api/merchant/refund-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchantId: merchant.id,
+          restaurantId: restaurants[0].id,
+          currentPin: currentPinEntry || undefined,
+          newPin: setupPin,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) {
+        setPinError(result.error || 'Failed to update PIN')
+        return
+      }
+      merchant.refund_pin = setupPin
+      setSetupPin('')
+      setCurrentPinEntry('')
+      setPinMsg(merchant.refund_pin ? 'Refund PIN updated!' : 'Refund PIN set!')
+      setTimeout(() => setPinMsg(''), 3000)
+    } catch (e) {
+      setPinError('Network error - please try again')
+    }
+  }
 
   async function fetchTerminals() {
     setLoading(true)
@@ -809,6 +844,42 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
           )}
         </div>
       )}
+
+      {/* Refund PIN */}
+      <div style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '14px', padding: '20px', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <span style={{ fontSize: '20px' }}>💸</span>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Refund PIN</h3>
+        </div>
+        <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
+          Staff must enter this PIN on the terminal before issuing any refund. {merchant?.refund_pin ? 'A PIN is currently set - changing it requires the current PIN.' : 'No PIN is set yet - refunds cannot be processed until one is created.'}
+        </p>
+        <div style={{ display: 'grid', gap: '10px', maxWidth: '320px' }}>
+          {merchant?.refund_pin && (
+            <input
+              type="password"
+              inputMode="numeric"
+              value={currentPinEntry}
+              onChange={e => setCurrentPinEntry(e.target.value)}
+              placeholder="Current PIN"
+              style={{ ...inputStyle }}
+            />
+          )}
+          <input
+            type="password"
+            inputMode="numeric"
+            value={setupPin}
+            onChange={e => setSetupPin(e.target.value)}
+            placeholder={merchant?.refund_pin ? 'New PIN (4+ digits)' : 'Set a 4+ digit PIN'}
+            style={{ ...inputStyle }}
+          />
+          {pinError && <div style={{ fontSize: '12px', color: '#ef4444' }}>{pinError}</div>}
+          {pinMsg && <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>{pinMsg}</div>}
+          <button onClick={saveRefundPin} style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {merchant?.refund_pin ? 'Change Refund PIN' : 'Save Refund PIN'}
+          </button>
+        </div>
+      </div>
 
       {/* Restaurant overview */}
       {terminals.length > 0 && (
