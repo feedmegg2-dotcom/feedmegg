@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     .from('restaurants')
     .select('id, name, foodgg_url')
     .eq('id', restaurantId)
-    .single()
+    .maybeSingle()
 
   if (!restaurant?.foodgg_url) {
     return NextResponse.json({ error: 'No food.gg URL configured' }, { status: 400 })
