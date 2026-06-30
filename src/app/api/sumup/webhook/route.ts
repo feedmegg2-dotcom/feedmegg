@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
         await supabase.from('orders').update({
           status: isPreOrder ? order.status : 'paid',
           paid_at: new Date().toISOString(),
+          sumup_payment_id: checkout.transaction_id || checkout.transactions?.[0]?.id || null,
         }).eq('id', orderId)
         return NextResponse.json({ status: 'paid', paymentLink: order.sumup_link })
       }
