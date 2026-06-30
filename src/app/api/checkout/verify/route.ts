@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('orders').update({
         status: isPreOrder ? order.status : 'paid',
         paid_at: new Date().toISOString(),
+        sumup_payment_id: data.transaction_id || data.transactions?.[0]?.id || null,
       }).eq('id', orderId)
       return NextResponse.json({ status: 'paid', order, isPreOrder })
     }
