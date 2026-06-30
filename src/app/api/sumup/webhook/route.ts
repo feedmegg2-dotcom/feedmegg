@@ -6,36 +6,62 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('SumUp webhook received:', JSON.stringify(body))
-    
+
     const { event_type, payload } = body
-    
-    // Handle checkout status change
+
+    // Handle checkout status change - webhook is only a NOTIFICATION.
+    // We never trust the payload's status directly; we always re-verify
+    // with SumUp's API using our own API key before marking anything paid.
     if (event_type === 'CHECKOUT_STATUS_CHANGED' || body.status === 'PAID') {
       const reference = payload?.checkout_reference || body.checkout_reference
       const checkoutId = payload?.id || body.id
-      
-      // Find order by checkout ID or reference
+
       let order = null
       if (checkoutId) {
-        const { data } = await supabase.from('orders').select('*').eq('sumup_checkout_id', checkoutId).single()
+        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key)').eq('sumup_checkout_id', checkoutId).maybeSingle()
         order = data
       }
       if (!order && reference) {
         const orderNumber = reference.replace(/^ORDER-/, '')
-        const { data } = await supabase.from('orders').select('*').eq('order_number', orderNumber).single()
+        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key)').eq('order_number', orderNumber).maybeSingle()
         order = data
       }
-      
-      if (order && order.status !== 'paid') {
-        await supabase.from('orders').update({
-          status: 'paid',
-          paid_at: new Date().toISOString(),
-          sumup_payment_id: payload?.transaction_id || body.transaction_id,
-        }).eq('id', order.id)
-        console.log('Order marked as paid:', order.id)
+
+      if (!order) {
+        return NextResponse.json({ success: true, note: 'order not found, ignored' })
+      }
+
+      if (order.status === 'paid') {
+        return NextResponse.json({ success: true, note: 'already paid' })
+      }
+
+      if (!order.sumup_checkout_id || !order.restaurants?.sumup_api_key) {
+        console.error('Webhook: missing checkout ID or API key, cannot verify - ignoring')
+        return NextResponse.json({ success: true, note: 'cannot verify, ignored' })
+      }
+
+      // Re-verify directly with SumUp before trusting the webhook
+      try {
+        const verifyRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${order.sumup_checkout_id}`, {
+          headers: { 'Authorization': `Bearer ${order.restaurants.sumup_api_key}` }
+        })
+        const checkout = await verifyRes.json()
+
+        if (checkout.status === 'PAID') {
+          await supabase.from('orders').update({
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            sumup_payment_id: checkout.transaction_id || payload?.transaction_id || body.transaction_id,
+          }).eq('id', order.id)
+          console.log('Order verified and marked as paid:', order.id)
+        } else {
+          console.log('Webhook claimed paid but SumUp verification returned:', checkout.status)
+        }
+      } catch (verifyError) {
+        console.error('SumUp verification request failed:', verifyError)
       }
     }
-    
+
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('Webhook error:', error)
@@ -52,13 +78,11 @@ export async function GET(request: NextRequest) {
     .from('orders')
     .select('*, restaurants(sumup_api_key)')
     .eq('id', orderId)
-    .single()
+    .maybeSingle()
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  // If already paid, return immediately
   if (order.status === 'paid') return NextResponse.json({ status: 'paid', paymentLink: order.sumup_link })
 
-  // Poll SumUp for checkout status
   if (order.sumup_checkout_id && order.restaurants?.sumup_api_key) {
     try {
       const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${order.sumup_checkout_id}`, {
