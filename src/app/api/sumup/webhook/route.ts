@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { logSystemError } from '@/lib/errorLog'
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
         }
       } catch (verifyError) {
         console.error('SumUp verification request failed:', verifyError)
+        logSystemError({
+          source: 'sumup-webhook',
+          message: 'Could not verify a payment claim with SumUp - order may be stuck unconfirmed',
+          details: verifyError,
+          orderId: order.id,
+          restaurantId: order.restaurant_id,
+        })
       }
     }
 
