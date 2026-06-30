@@ -1,7 +1,13 @@
-import { createClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/adminAuth'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin()
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { id, delivery_fee, opening_time, closing_time, delivery_time_mins } = await request.json()
 
@@ -9,8 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing restaurant ID' }, { status: 400 })
     }
 
-    const supabase = createClient()
-    
+    const supabase = createAdminClient()
+
     const updateData: any = {}
     if (delivery_fee !== undefined) updateData.delivery_fee = delivery_fee
     if (opening_time !== undefined) updateData.opening_time = opening_time
