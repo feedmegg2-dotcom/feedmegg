@@ -181,9 +181,9 @@ export default function HomePage() {
       </nav>
 
       {/* HERO */}
-      <div style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 10vw, 120px) clamp(16px, 4vw, 48px) clamp(48px, 7vw, 80px)' }}>
+      <div style={{ position: 'relative', padding: 'clamp(64px, 10vw, 120px) clamp(16px, 4vw, 48px) clamp(48px, 7vw, 80px)' }}>
         {/* Food background image */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=1600)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.25)', zIndex: 0 }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=1600)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.25)', zIndex: 0, overflow: 'hidden' }} />
         {/* Gradient overlay */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(8,12,20,0.3) 0%, rgba(8,12,20,0.95) 100%)', zIndex: 1 }} />
 
@@ -197,12 +197,12 @@ export default function HomePage() {
           </p>
 
           {/* Search */}
-          <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto 16px' }}>
+          <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto 16px', zIndex: 100 }}>
             <svg style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1f5f9" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input className="search-input" type="text" placeholder="Search restaurants, cuisines, or dishes..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
 
             {search.trim().length >= 2 && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, background: t.card, border: `1px solid ${t.border}`, borderRadius: '14px', boxShadow: '0 12px 32px rgba(0,0,0,0.35)', maxHeight: '420px', overflowY: 'auto', zIndex: 50, textAlign: 'left' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, background: t.card, border: `1px solid ${t.border}`, borderRadius: '14px', boxShadow: '0 12px 32px rgba(0,0,0,0.5)', maxHeight: '420px', overflowY: 'auto', overscrollBehavior: 'contain', zIndex: 200, textAlign: 'left', WebkitOverflowScrolling: 'touch' }}>
                 {itemSearchLoading ? (
                   <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>Searching menus...</div>
                 ) : itemResults.length === 0 ? (
