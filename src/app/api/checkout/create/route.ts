@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       .from('restaurants')
       .select('*')
       .eq('id', restaurantId)
-      .single()
+      .maybeSingle()
 
     if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
 
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
         items: JSON.stringify(items), // Store as JSON backup
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (orderError || !order) {
       console.error('Order creation error:', orderError)
