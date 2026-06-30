@@ -25,7 +25,7 @@ export default function HomePage() {
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
-        const { data: cust } = await supabase.from('customers').select('name, first_name').eq('auth_id', data.user.id).single()
+        const { data: cust } = await supabase.from('customers').select('name, first_name').eq('auth_id', data.user.id).maybeSingle()
         setCustomer(cust)
       }
     })
