@@ -284,12 +284,20 @@ export default function TerminalPage() {
     pollRef.current = setInterval(() => pollOrders(restId), 5000)
     checkPrinterStatus()
     setInterval(() => checkPrinterStatus(), 30000)
-    // Watchdog - reload page if no successful poll in 60 seconds
+    // Watchdog - if no successful poll in 60 seconds, force-restart the
+    // reconnect/polling logic IN PLACE rather than reloading the whole
+    // page. A hard reload was kicking the merchant back to the main
+    // screen and losing whatever order/modal they had open. This instead
+    // just clears any stuck timers and kicks off a fresh reconnect attempt
+    // silently in the background - the UI never changes unless the
+    // connection genuinely can't be restored.
     watchdogRef.current = setInterval(() => {
       const secondsSinceLastPoll = (Date.now() - lastPollSuccessRef.current) / 1000
       if (secondsSinceLastPoll > 60) {
-        console.log('Watchdog triggered - reloading terminal')
-        window.location.reload()
+        console.log('Watchdog triggered - soft-restarting polling in background')
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+        if (reconnectRef.current) { clearInterval(reconnectRef.current); reconnectRef.current = null }
+        startReconnecting()
       }
     }, 15000)
   }
