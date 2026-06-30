@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, note: 'order not found, ignored' })
       }
 
-      if (order.status === 'paid') {
+      if (order.paid_at) {
         return NextResponse.json({ success: true, note: 'already paid' })
       }
 
@@ -48,12 +48,17 @@ export async function POST(request: NextRequest) {
         const checkout = await verifyRes.json()
 
         if (checkout.status === 'PAID') {
+          // PRE-ORDERS stay 'pending' even once paid, so the merchant still
+          // sees them in the Pre-Orders tab and must Accept/Reject when the
+          // lead time arrives - we just record that payment has gone through
+          // via paid_at, without touching status.
+          const isPreOrder = !!order.scheduled_for
           await supabase.from('orders').update({
-            status: 'paid',
+            status: isPreOrder ? order.status : 'paid',
             paid_at: new Date().toISOString(),
             sumup_payment_id: checkout.transaction_id || payload?.transaction_id || body.transaction_id,
           }).eq('id', order.id)
-          console.log('Order verified and marked as paid:', order.id)
+          console.log('Order verified and marked as paid:', order.id, isPreOrder ? '(pre-order, status unchanged)' : '')
         } else {
           console.log('Webhook claimed paid but SumUp verification returned:', checkout.status)
         }
@@ -81,7 +86,25 @@ export async function GET(request: NextRequest) {
     .maybeSingle()
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  if (order.status === 'paid') return NextResponse.json({ status: 'paid', paymentLink: order.sumup_link })
+  // Unpaid pre-order whose payment link has expired - close it out so it
+  // never sits forever as an invisible unpaid order.
+  if (
+    order.status === 'pending' &&
+    order.scheduled_for &&
+    order.payment_method === 'card' &&
+    !order.paid_at &&
+    order.payment_link_expires_at &&
+    new Date(order.payment_link_expires_at).getTime() < Date.now()
+  ) {
+    await supabase.from('orders').update({
+      status: 'cancelled',
+      cancel_reason: 'Pre-order payment was never completed',
+      cancelled_at: new Date().toISOString(),
+    }).eq('id', orderId)
+    return NextResponse.json({ status: 'cancelled' })
+  }
+
+  if (order.paid_at) return NextResponse.json({ status: order.status === 'pending' ? 'paid' : order.status, paymentLink: order.sumup_link })
 
   if (order.sumup_checkout_id && order.restaurants?.sumup_api_key) {
     try {
@@ -90,8 +113,9 @@ export async function GET(request: NextRequest) {
       })
       const checkout = await response.json()
       if (checkout.status === 'PAID') {
+        const isPreOrder = !!order.scheduled_for
         await supabase.from('orders').update({
-          status: 'paid',
+          status: isPreOrder ? order.status : 'paid',
           paid_at: new Date().toISOString(),
         }).eq('id', orderId)
         return NextResponse.json({ status: 'paid', paymentLink: order.sumup_link })
