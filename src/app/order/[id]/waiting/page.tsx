@@ -25,8 +25,14 @@ export default function WaitingPage() {
   useEffect(() => {
     const saved = localStorage.getItem('feedme-theme')
     if (saved) setDark(saved === 'dark')
-    fetchOrder()
-    startCountdown()
+    fetchOrder().then(fetchedOrder => {
+      // Pre-orders are not time-critical the way ASAP orders are - the
+      // merchant may not act on them for hours, so the 2-minute auto-cancel
+      // timeout used for ASAP orders must never apply here.
+      if (!fetchedOrder?.scheduled_for) {
+        startCountdown()
+      }
+    })
     startPolling()
     return () => {
       clearInterval(pollRef.current)
@@ -65,6 +71,7 @@ export default function WaitingPage() {
   async function fetchOrder() {
     const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).maybeSingle()
     if (data) setOrder(data)
+    return data
   }
 
   function startCountdown() {
