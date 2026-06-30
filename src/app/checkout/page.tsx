@@ -202,7 +202,7 @@ export default function CheckoutPage() {
   }
 
   async function fetchRestaurant(id: string) {
-    const { data } = await supabase.from('restaurants').select('*').eq('id', id).single()
+    const { data } = await supabase.from('restaurants').select('*').eq('id', id).maybeSingle()
     setRestaurant(data)
     const { data: zones } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', id).eq('is_active', true)
     setDeliveryZones(zones || [])
