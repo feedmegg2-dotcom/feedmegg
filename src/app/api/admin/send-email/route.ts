@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/adminAuth'
 
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin()
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { to, subject, body, name } = await request.json()
   if (!to || !subject || !body) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
