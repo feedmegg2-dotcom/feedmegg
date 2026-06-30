@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .select('*, restaurants(sumup_api_key, name)')
       .eq('id', orderId)
-      .single()
+      .maybeSingle()
 
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     if (!order.sumup_checkout_id) return NextResponse.json({ status: 'pending' })
