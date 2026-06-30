@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       .from('restaurants')
       .select('*, merchants(*)')
       .eq('id', restaurantId)
-      .single()
+      .maybeSingle()
 
     if (restError || !restaurant) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         .from('menu_items')
         .select('*')
         .eq('id', item.menuItemId)
-        .single()
+        .maybeSingle()
 
       if (!menuItem || !menuItem.is_available) {
         return NextResponse.json({ error: `Item ${item.name} is not available` }, { status: 400 })
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         .eq('restaurant_id', restaurantId)
         .eq('code', promoCode.toUpperCase())
         .eq('is_active', true)
-        .single()
+        .maybeSingle()
 
       if (promo) {
         // Check if first order only and user has ordered before
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         status: 'pending',
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (orderError || !order) {
       throw new Error('Failed to create order')
@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select('*, order_items(*)')
       .eq('id', orderId)
-      .single()
+      .maybeSingle()
     return NextResponse.json({ order })
   }
 
