@@ -138,7 +138,7 @@ export default function MerchantMenuEditor() {
     }
     if (!merch) { router.push('/merchant/login'); return }
     setMerchant(merch)
-    const { data: rest } = await supabase.from('restaurants').select('*').eq('id', restaurantId).eq('merchant_id', merch.id).single()
+    const { data: rest } = await supabase.from('restaurants').select('*').eq('id', restaurantId).eq('merchant_id', merch.id).maybeSingle()
     if (!rest) { router.push('/merchant/dashboard'); return }
     setRestaurant(rest)
     await fetchMenu()
