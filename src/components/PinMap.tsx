@@ -33,6 +33,15 @@ export default function PinMap({ initialLat, initialLng, onPin }: PinMapProps) {
   )
   const tileCache = useRef<Map<string, HTMLImageElement>>(new Map())
 
+  // Recenter map when initialLat/initialLng change externally (e.g. GPS button)
+  useEffect(() => {
+    if (initialLat && initialLng) {
+      setCenter({ lat: initialLat, lng: initialLng })
+      setPin({ lat: initialLat, lng: initialLng })
+      setZoom(z => Math.max(z, 17))
+    }
+  }, [initialLat, initialLng])
+
   // Drag state - store the tile-coordinate center at drag start, and pixel start
   const dragState = useRef<{ active: boolean, moved: boolean, startPx: number, startPy: number, startCenterTile: { x: number, y: number } } | null>(null)
   const lastPinchDist = useRef<number | null>(null)
