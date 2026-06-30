@@ -39,7 +39,7 @@ export default function RestaurantPage() {
   useEffect(() => { fetchRestaurant() }, [slug])
 
   async function fetchRestaurant() {
-    const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).single()
+    const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).maybeSingle()
     if (!rest) { router.push('/'); return }
     setRestaurant(rest)
     // Fetch hours and zones
@@ -64,7 +64,7 @@ export default function RestaurantPage() {
         .from('orders')
         .select('*, order_items(*)')
         .eq('id', reorderId)
-        .single()
+        .maybeSingle()
       if (oldOrder?.order_items) {
         const allItems = (cats || []).flatMap((c: any) => c.menu_items || [])
         const reorderCart = oldOrder.order_items
@@ -404,7 +404,11 @@ export default function RestaurantPage() {
                 style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>{item.emoji}</div>
+                <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, overflow: 'hidden' }}>
+                  {item.image_url
+                    ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : item.emoji || '🍽'}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '2px' }}>{item.name}</div>
                   {item.description && <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>}
@@ -453,7 +457,11 @@ export default function RestaurantPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }} onClick={e => { if (e.target === e.currentTarget) setSelectedItem(null) }}>
           <div style={{ width: '100%', background: '#0f172a', borderRadius: '16px 16px 0 0', padding: '24px', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '40px' }}>{selectedItem.emoji}</div>
+              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', overflow: 'hidden', margin: '0 auto' }}>
+              {selectedItem.image_url
+                ? <img src={selectedItem.image_url} alt={selectedItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : selectedItem.emoji || '🍽'}
+            </div>
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, marginBottom: '3px' }}>{selectedItem.name}</h2>
                 {selectedItem.description && <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{selectedItem.description}</p>}
