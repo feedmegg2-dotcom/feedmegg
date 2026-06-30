@@ -356,10 +356,43 @@ export function usePrinterAutoprint(restaurantId?: string, printerIp?: string, p
     if (!['paid', 'accepted'].includes(status)) return false
     if (printedOrdersRef.current.has(order.id)) return true
     if (!printerIp) return false
+
+    // DATABASE-BACKED DEDUP: in-memory refs (printedOrdersRef) reset on every
+    // page reload, which previously caused already-printed tickets to print
+    // again whenever the terminal reloaded (watchdog recovery, network
+    // reconnect, manual refresh, etc). ticket_printed_at survives reloads
+    // and is the real source of truth - we atomically claim it here (only
+    // update rows where it's still null) so two near-simultaneous polls
+    // can never both print the same order.
+    try {
+      const { data: claimed } = await supabase
+        .from('orders')
+        .update({ ticket_printed_at: new Date().toISOString() })
+        .eq('id', order.id)
+        .is('ticket_printed_at', null)
+        .select('id')
+        .maybeSingle()
+
+      if (!claimed) {
+        // Already printed by a previous session/poll - don't print again,
+        // but remember it locally too so we don't keep re-checking the DB
+        printedOrdersRef.current.add(order.id)
+        return true
+      }
+    } catch (e) {
+      console.error('Print claim check failed, proceeding cautiously:', e)
+    }
+
     printedOrdersRef.current.add(order.id)
     const templates = await getTemplates((order as any).restaurantId)
     const result = await sendToPrinter(order, printerIp, printerWidth || 80, templates || undefined)
-    if (!result) printedOrdersRef.current.delete(order.id)
+    if (!result) {
+      printedOrdersRef.current.delete(order.id)
+      // Release the claim so a retry (manual reprint or next poll) can try again
+      try {
+        await supabase.from('orders').update({ ticket_printed_at: null }).eq('id', order.id)
+      } catch (e) {}
+    }
     return !!result
   }, [printerIp, printerWidth, restaurantId])
 
