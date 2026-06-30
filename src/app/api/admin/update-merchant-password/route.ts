@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const { merchantId, password } = await request.json()
     if (!merchantId || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-    const { data: merchant } = await supabase.from('merchants').select('auth_id').eq('id', merchantId).single()
+    const { data: merchant } = await supabase.from('merchants').select('auth_id').eq('id', merchantId).maybeSingle()
     if (!merchant?.auth_id) return NextResponse.json({ error: 'Merchant not found' }, { status: 404 })
     const { error } = await supabase.auth.admin.updateUserById(merchant.auth_id, { password })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
