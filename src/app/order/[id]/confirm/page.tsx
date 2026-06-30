@@ -96,9 +96,11 @@ export default function ConfirmedPage() {
               {status === 'cash' ? 'Order placed!' : 'Payment confirmed!'}
             </h1>
             <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px', lineHeight: 1.6 }}>
-              {status === 'cash'
-                ? `Your order has been sent to ${order?.restaurants?.name}. Please have the correct cash ready.`
-                : `Your payment was successful and your order has been sent to ${order?.restaurants?.name}.`}
+              {order?.scheduled_for
+                ? `Your payment has been received. ${order?.restaurants?.name} will confirm your order shortly before your scheduled time of ${new Date(order.scheduled_for).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
+                : status === 'cash'
+                  ? `Your order has been sent to ${order?.restaurants?.name}. Please have the correct cash ready.`
+                  : `Your payment was successful and your order has been sent to ${order?.restaurants?.name}.`}
             </p>
             {order && (
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '20px', textAlign: 'left' }}>
