@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState('')
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [merchants, setMerchants] = useState<any[]>([])
+  const [unresolvedErrorCount, setUnresolvedErrorCount] = useState(0)
   const [editMerchant, setEditMerchant] = useState<any>(null)
   const [merchantNewPassword, setMerchantNewPassword] = useState('')
   const [orders, setOrders] = useState<any[]>([])
@@ -635,8 +636,12 @@ export default function AdminPage() {
           <span style={{ color: 'var(--green)' }}>feed</span><span style={{ color: 'var(--text)' }}>me.gg</span>
           <span style={{ fontSize: '12px', color: 'var(--sub)', marginLeft: '8px', fontFamily: 'DM Sans' }}>Admin</span>
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants - {merchants.length} merchants</div>
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <a href="/admin/errors" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: unresolvedErrorCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${unresolvedErrorCount > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`, borderRadius: '8px', color: unresolvedErrorCount > 0 ? '#ef4444' : 'var(--sub)', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+            {unresolvedErrorCount > 0 ? `⚠️ ${unresolvedErrorCount} system error${unresolvedErrorCount === 1 ? '' : 's'}` : '✅ No system errors'}
+          </a>
+          <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants - {merchants.length} merchants</div>
+        </div>
 
       <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
         {TABS.map(t => (
@@ -1655,7 +1660,17 @@ function OffersTab({ restaurants, supabase }: { restaurants: any[], supabase: an
   const [newPromo, setNewPromo] = useState({ code: '', description: '', discount_type: 'percent', discount_value: '10', min_order: '0', max_uses: '', first_order_only: false, restaurant_id: '', expires_at: '' })
   const [newOffer, setNewOffer] = useState({ restaurant_id: '', title: '', description: '', offer_type: 'deal_of_day', discount_type: 'percent', discount_value: '10', min_order: '0', free_delivery_over: '' })
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    fetchUnresolvedErrorCount()
+    const interval = setInterval(fetchUnresolvedErrorCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  async function fetchUnresolvedErrorCount() {
+    const { count } = await supabase.from('system_errors').select('id', { count: 'exact', head: true }).eq('resolved', false)
+    setUnresolvedErrorCount(count || 0)
+  }
 
   async function fetchAll() {
     const { data: p } = await supabase.from('promo_codes').select('*, restaurants(name)').order('created_at', { ascending: false })
