@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { issueRefund } from '@/lib/sumup'
 import { sendOrderRejection } from '@/lib/email'
 import { requireAdmin, requireMerchantForRestaurant } from '@/lib/adminAuth'
 
-// This route NEVER calls SumUp's refund API. Refunds are always processed
-// manually by staff in the SumUp dashboard/app. This route exists purely to:
-// 1. Gate the action behind a PIN so only authorised staff can mark an order refunded
-// 2. Record the refund (full or partial) against the order for reporting/audit purposes
-// 3. Notify the customer by email that a refund is on its way
-//
-// `amount` is optional. If omitted, or equal to the order total, this is a
-// FULL refund and the order status moves to 'refunded'. If a smaller amount
-// is given, this is a PARTIAL refund - the order's existing status is left
-// alone (it's still a real, fulfilled order) but refund_amount/refunded_at
-// are recorded so it's clear some money has gone back to the customer.
+// PIN-gated refund action. Once the correct refund PIN is entered on the
+// terminal, this route automatically calls SumUp's refund API to send the
+// money back to the customer's card - no manual step in the SumUp
+// dashboard required. If the SumUp API call itself fails (network issue,
+// account lacks refund permission, transaction too old, etc), the order is
+// still marked as needing a refund and staff are told to action it
+// manually as a fallback, rather than the whole request failing silently.
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
   const { orderId, pin, reason, amount, refundedItems } = await request.json()
@@ -75,6 +72,32 @@ export async function POST(request: NextRequest) {
     : null
   const combinedReason = [reason, itemsNote].filter(Boolean).join(' — ') || undefined
 
+  // Attempt the real SumUp refund automatically for card payments. Cash
+  // payments were never collected through SumUp, so there's nothing to
+  // call - just record it.
+  let sumupRefunded = false
+  let sumupError: string | null = null
+  if (order.payment_method === 'card') {
+    if (!order.sumup_payment_id) {
+      sumupError = 'No SumUp transaction ID on this order - cannot auto-refund'
+    } else if (!order.restaurants?.sumup_api_key) {
+      sumupError = 'No SumUp API key configured for this restaurant'
+    } else {
+      try {
+        await issueRefund({
+          transactionId: order.sumup_payment_id,
+          amount: refundAmount,
+          reason: combinedReason || 'Refund issued by restaurant',
+          merchantApiKey: order.restaurants.sumup_api_key,
+        })
+        sumupRefunded = true
+      } catch (e: any) {
+        sumupError = e.message || 'SumUp refund request failed'
+        console.error('SumUp auto-refund failed for order', orderId, e)
+      }
+    }
+  }
+
   const updates: any = {
     refund_amount: newTotalRefunded,
     refunded_at: new Date().toISOString(),
@@ -104,13 +127,19 @@ export async function POST(request: NextRequest) {
     }).catch(err => console.error('Refund email error:', err))
   }
 
+  const manualRefundNeeded = order.payment_method === 'card' && !sumupRefunded
+
   return NextResponse.json({
     success: true,
     isFullRefund,
     refundAmount,
     totalRefunded: newTotalRefunded,
+    sumupRefunded,
+    manualRefundNeeded,
     message: order.payment_method === 'cash'
       ? `${isFullRefund ? 'Order marked as fully refunded' : `GBP${refundAmount.toFixed(2)} marked as refunded`}. Cash was never collected, so no money movement is needed.`
-      : `${isFullRefund ? 'Order marked as fully refunded' : `GBP${refundAmount.toFixed(2)} marked as refunded`}. Please process the refund manually in your SumUp dashboard - the customer has been notified to expect it within 48 hours.`,
+      : sumupRefunded
+        ? `GBP${refundAmount.toFixed(2)} has been refunded to the customer's card via SumUp.`
+        : `${isFullRefund ? 'Order marked as fully refunded' : `GBP${refundAmount.toFixed(2)} marked as refunded`}, but the automatic SumUp refund failed (${sumupError}). Please process this refund manually in your SumUp dashboard.`,
   })
 }
