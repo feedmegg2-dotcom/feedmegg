@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { issueRefund } from '@/lib/sumup'
 import { sendOrderRejection } from '@/lib/email'
 import { requireAdmin, requireMerchantForRestaurant } from '@/lib/adminAuth'
+import { logSystemError } from '@/lib/errorLog'
 
 // PIN-gated refund action. Once the correct refund PIN is entered on the
 // terminal, this route automatically calls SumUp's refund API to send the
@@ -94,6 +95,13 @@ export async function POST(request: NextRequest) {
       } catch (e: any) {
         sumupError = e.message || 'SumUp refund request failed'
         console.error('SumUp auto-refund failed for order', orderId, e)
+        logSystemError({
+          source: 'refund',
+          message: 'Automatic SumUp refund failed - manual refund required',
+          details: { error: e.message, refundAmount },
+          orderId,
+          restaurantId: order.restaurant_id,
+        })
       }
     }
   }
