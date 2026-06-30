@@ -642,6 +642,7 @@ export default function AdminPage() {
           </a>
           <div style={{ fontSize: '12px', color: 'var(--sub)' }}>{restaurants.length} restaurants - {merchants.length} merchants</div>
         </div>
+      </div>
 
       <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', padding: '0 20px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
         {TABS.map(t => (
