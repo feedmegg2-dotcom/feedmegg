@@ -424,8 +424,17 @@ export default function CheckoutPage() {
     if (data.paymentMethod === 'cash') {
       // Cash orders (including pre-orders) go straight to confirmed
       router.push(`/order/${data.orderId}/confirmed?method=cash`)
+    } else if (data.scheduledFor && data.preOrderPaymentLink) {
+      // Card pre-orders are auto-accepted, payment link already generated -
+      // send the customer straight to pay, no waiting on the merchant
+      window.location.href = data.preOrderPaymentLink
+    } else if (data.scheduledFor) {
+      // Card pre-order but link generation failed (e.g. SumUp not configured) -
+      // still treat as accepted; fall back to the waiting page which will
+      // pick up the link once available, or show an error if there truly isn't one
+      router.push(`/order/${data.orderId}/waiting`)
     } else {
-      // Card orders wait for merchant acceptance then payment
+      // ASAP card orders wait for merchant acceptance then payment
       router.push(`/order/${data.orderId}/waiting`)
     }
   }
