@@ -62,6 +62,14 @@ export default function TerminalPage() {
   const printPendingRef = useRef<Set<string>>(new Set())
   const [printPendingOrders, setPrintPendingOrders] = useState<any[]>([])
   const [urgentPrintFailures, setUrgentPrintFailures] = useState<any[]>([])
+  const [refundModalOrder, setRefundModalOrder] = useState<any>(null)
+  const [refundPin, setRefundPin] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refundLoading, setRefundLoading] = useState(false)
+  const [refundError, setRefundError] = useState('')
+  const [setupPin, setSetupPin] = useState('')
+  const [refundAmountInput, setRefundAmountInput] = useState('')
+  const [selectedRefundItems, setSelectedRefundItems] = useState<Set<string>>(new Set())
   const [printerIp, setPrinterIp] = useState('')
   const [printerWidth, setPrinterWidth] = useState(80)
   const [autoPrint, setAutoPrint] = useState(true)
@@ -173,6 +181,7 @@ export default function TerminalPage() {
     if (!merchant) { router.push('/merchant/login'); return }
 
     setMerchantData(merchant)
+    setSetupPin(merchant.refund_pin || '')
 
     // Check if this tablet has already claimed a terminal
     // Always fetch all terminals for this merchant
@@ -411,6 +420,32 @@ export default function TerminalPage() {
     }
     setConnectionStatus('connected')
 
+    // AUTO-CANCEL unpaid card pre-orders once their payment link has
+    // expired. Unpaid pre-orders never appear to the merchant in the first
+    // place (filtered out in pendingOrders/preOrders below) - this just
+    // closes them out properly in the database instead of leaving them as
+    // invisible zombie 'pending' rows forever.
+    const nowTs = Date.now()
+    const expiredUnpaidPreOrders = data.filter((o: any) =>
+      o.status === 'pending' &&
+      o.scheduled_for &&
+      o.payment_method === 'card' &&
+      !o.paid_at &&
+      o.payment_link_expires_at &&
+      new Date(o.payment_link_expires_at).getTime() < nowTs
+    )
+    if (expiredUnpaidPreOrders.length > 0) {
+      const expiredIds = expiredUnpaidPreOrders.map((o: any) => o.id)
+      await supabase.from('orders').update({
+        status: 'cancelled',
+        cancel_reason: 'Pre-order payment was never completed',
+        cancelled_at: new Date().toISOString(),
+      }).in('id', expiredIds)
+      // Reflect the cancellation locally immediately so the UI doesn't
+      // briefly show these before the next poll
+      data = data.map((o: any) => expiredIds.includes(o.id) ? { ...o, status: 'cancelled', cancel_reason: 'Pre-order payment was never completed' } : o)
+    }
+
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
     const now = new Date()
     const leadTimeMins = restaurant?.preorder_lead_time_mins || preOrderLeadTime || 30
@@ -602,9 +637,19 @@ export default function TerminalPage() {
   }
 
   const currentOrder = orders.find(o => o.id === currentOrderId)
+  function isPreOrderVisible(o: any) {
+    // Cash pre-orders are always visible - payment is collected on
+    // delivery/pickup, same as any cash order. Card pre-orders must be
+    // PAID before they ever appear to the merchant - an unpaid card
+    // pre-order (abandoned/failed payment) never reaches the terminal at all.
+    if (o.payment_method === 'cash') return true
+    return !!o.paid_at
+  }
+
   const pendingOrders = orders.filter(o => {
     if (o.status !== 'pending') return false
     if (!o.scheduled_for) return true // ASAP orders
+    if (!isPreOrderVisible(o)) return false
     // Due pre-orders also show in incoming
     const scheduledTime = new Date(o.scheduled_for)
     const minsUntil = (scheduledTime.getTime() - new Date().getTime()) / 60000
@@ -613,13 +658,14 @@ export default function TerminalPage() {
   })
   const preOrders = orders.filter(o => {
     if (o.status !== 'pending' || !o.scheduled_for) return false
+    if (!isPreOrderVisible(o)) return false
     const scheduledTime = new Date(o.scheduled_for)
     const minsUntil = (scheduledTime.getTime() - new Date().getTime()) / 60000
     const leadTime = restaurant?.preorder_lead_time_mins || preOrderLeadTime || 30
     return minsUntil > leadTime
   })
   const acceptedOrders = orders.filter(o => ['accepted', 'waiting_payment', 'paid', 'complete'].includes(o.status))
-  const missedOrders = orders.filter(o => ['cancelled', 'rejected'].includes(o.status) && !dismissedMissedIds.current.has(o.id))
+  const missedOrders = orders.filter(o => ['cancelled', 'rejected', 'refunded'].includes(o.status) && !dismissedMissedIds.current.has(o.id))
 
   const [accepting, setAccepting] = useState(false)
 
@@ -748,10 +794,75 @@ export default function TerminalPage() {
     setRejectOpen(false)
     alertedOrderIds.current.delete(currentOrder.id)
     const reason = selectedReason || customReason || 'No reason given'
-    await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejectionReason: reason }) })
+    const res = await fetch(`/api/orders/${currentOrder.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejectionReason: reason }) })
+    const result = await res.json().catch(() => null)
     playSound('reject')
     setScreen('main')
     setCurrentOrderId(null)
+    if (result?.manualRefundNeeded) {
+      alert(`⚠️ Manual refund needed\n\nThis was a paid card order. Please refund GBP${currentOrder.total?.toFixed(2)} for order ${currentOrder.order_number} in your SumUp dashboard - the customer has been told to expect it within 48 hours.`)
+    }
+  }
+
+  function toggleRefundItem(item: any) {
+    const next = new Set(selectedRefundItems)
+    if (next.has(item.id)) {
+      next.delete(item.id)
+    } else {
+      next.add(item.id)
+    }
+    setSelectedRefundItems(next)
+    // Recalculate amount from selected items' subtotals
+    const items = refundModalOrder?.order_items || []
+    const selectedTotal = items
+      .filter((i: any) => next.has(i.id))
+      .reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0)
+    if (next.size > 0) {
+      setRefundAmountInput(selectedTotal.toFixed(2))
+    }
+  }
+
+  async function submitRefund() {
+    if (!refundModalOrder || !refundPin || !refundAmountInput) return
+    setRefundLoading(true)
+    setRefundError('')
+    try {
+      const refundedItemNames = (refundModalOrder.order_items || [])
+        .filter((i: any) => selectedRefundItems.has(i.id))
+        .map((i: any) => `${i.quantity}x ${i.name}`)
+      const res = await fetch('/api/orders/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: refundModalOrder.id,
+          pin: refundPin,
+          reason: refundReason || undefined,
+          amount: parseFloat(refundAmountInput),
+          refundedItems: refundedItemNames.length > 0 ? refundedItemNames : undefined,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) {
+        setRefundError(result.error || 'Refund failed')
+        setRefundLoading(false)
+        return
+      }
+      const amount = result.refundAmount ?? parseFloat(refundAmountInput)
+      setRefundModalOrder(null)
+      setRefundPin('')
+      setRefundReason('')
+      setRefundAmountInput('')
+      setSelectedRefundItems(new Set())
+      setRefundLoading(false)
+      alert(result.message || `GBP${amount.toFixed(2)} marked as refunded for order ${refundModalOrder.order_number}.`)
+      // Refresh orders list so status updates
+      if (restaurant?.id) pollOrders(restaurant.id, false)
+      setScreen('main')
+      setCurrentOrderId(null)
+    } catch (e) {
+      setRefundError('Network error - please try again')
+      setRefundLoading(false)
+    }
   }
 
   async function toggleMenuItem(id: string, current: boolean) {
@@ -1013,6 +1124,28 @@ export default function TerminalPage() {
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💸 Refund PIN</div>
+                <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px' }}>Staff must enter this PIN to issue a refund. Keep it private.</div>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={setupPin}
+                  onChange={e => setSetupPin(e.target.value)}
+                  placeholder="Set a 4+ digit PIN"
+                  style={{ width: '100%', padding: '5px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '11px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' }}
+                />
+                <button onClick={async () => {
+                  if (!setupPin || setupPin.length < 4) { alert('PIN must be at least 4 digits'); return }
+                  if (!merchantData?.id) return
+                  await supabase.from('merchants').update({ refund_pin: setupPin }).eq('id', merchantData.id)
+                  setMerchantData({ ...merchantData, refund_pin: setupPin })
+                  alert('Refund PIN saved!')
+                }} style={{ width: '100%', padding: '5px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>
+                  Save Refund PIN
+                </button>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-Order Lead Time</div>
                 <select value={preOrderLeadTime} onChange={async e => {
                   const val = parseInt(e.target.value)
@@ -1120,7 +1253,12 @@ export default function TerminalPage() {
               <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: colors.surfaceDark, border: `1px solid ${colors.borderSecondary}`, borderLeft: `3px solid #3b82f6`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
                   <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
-                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>📅 Pre-order</span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>📅 Pre-order</span>
+                    {o.paid_at && (
+                      <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>✅ Paid</span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#3b82f6', fontWeight: 600, marginBottom: '4px' }}>
                   {o.scheduled_for ? `⏰ ${new Date(o.scheduled_for).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -1148,9 +1286,16 @@ export default function TerminalPage() {
               <div key={o.id} onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ background: '#0f172a', borderLeft: `3px solid ${o.status === 'paid' ? '#22c55e' : '#f97316'}`, border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: '#f8fafc' }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
-                  <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'paid' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'paid' ? '#22c55e' : '#f97316' }}>
-                    {o.status === 'paid' ? '✅ Paid' : o.status === 'accepted' ? '✓ Accepted' : '⏳ Waiting payment'}
-                  </span>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'paid' ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'paid' ? '#22c55e' : '#f97316' }}>
+                      {o.status === 'paid' ? '✅ Paid' : o.status === 'accepted' ? '✓ Accepted' : '⏳ Waiting payment'}
+                    </span>
+                    {o.refund_amount > 0 && (
+                      <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                        💸 GBP{o.refund_amount.toFixed(2)} refunded
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ fontSize: 'clamp(10px,1.8vw,12px)', color: '#64748b', marginBottom: '4px' }}>
                   {o.customer_name} • {o.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Collection'} • {o.payment_method === 'cash' ? '💵 Cash' : '💳 Card'}
@@ -1179,14 +1324,14 @@ export default function TerminalPage() {
                 </button>
               </div>
               {missedOrders.map(o => (
-                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid ${o.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(249,115,22,0.2)'}`, borderLeft: `3px solid ${o.status === 'rejected' ? '#ef4444' : '#f97316'}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', opacity: 0.9 }}>
+                <div key={o.id} style={{ background: colors.surfaceDark, border: `1px solid ${o.status === 'rejected' ? 'rgba(239,68,68,0.2)' : o.status === 'refunded' ? 'rgba(168,85,247,0.2)' : 'rgba(249,115,22,0.2)'}`, borderLeft: `3px solid ${o.status === 'rejected' ? '#ef4444' : o.status === 'refunded' ? '#a855f7' : '#f97316'}`, borderRadius: '10px', padding: 'clamp(10px,2vw,14px)', marginBottom: '8px', opacity: 0.9 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
                     <div onClick={() => { setCurrentOrderId(o.id); setScreen('detail') }} style={{ flex: 1, cursor: 'pointer' }}>
                       <div style={{ fontSize: 'clamp(12px,2.2vw,15px)', fontWeight: 600, color: colors.text }}>{o.order_number || String(o.id).slice(-6).toUpperCase()}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'rejected' ? '#ef4444' : '#f97316' }}>
-                        {o.status === 'rejected' ? '❌ Rejected' : '⏱️ Missed'}
+                      <span style={{ fontSize: 'clamp(9px,1.5vw,11px)', fontWeight: 500, padding: '2px 8px', borderRadius: '10px', background: o.status === 'rejected' ? 'rgba(239,68,68,0.15)' : o.status === 'refunded' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: o.status === 'rejected' ? '#ef4444' : o.status === 'refunded' ? '#a855f7' : '#f97316' }}>
+                        {o.status === 'rejected' ? '❌ Rejected' : o.status === 'refunded' ? '💸 Refunded' : '⏱️ Missed'}
                       </span>
                       <button onClick={() => dismissOrder(o.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
                     </div>
@@ -1201,7 +1346,7 @@ export default function TerminalPage() {
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: o.status === 'rejected' ? '#ef4444' : '#f97316' }}>GBP{o.total?.toFixed(2)}</div>
+                      <div style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 600, color: o.status === 'rejected' ? '#ef4444' : o.status === 'refunded' ? '#a855f7' : '#f97316' }}>GBP{(o.refund_amount || o.total)?.toFixed(2)}</div>
                       <div style={{ fontSize: 'clamp(9px,1.4vw,11px)', color: colors.textTertiary }}>{new Date(o.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   </div>
@@ -1270,6 +1415,16 @@ export default function TerminalPage() {
                   <div style={{ fontSize: 'clamp(10px,1.6vw,12px)', color: '#64748b' }}>
                     Scheduled for {new Date(currentOrder.scheduled_for).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ALREADY PAID BADGE (pre-orders that paid at checkout) */}
+            {currentOrder.scheduled_for && currentOrder.paid_at && currentOrder.status === 'pending' && (
+              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '10px', padding: '10px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ fontSize: '18px' }}>✅</div>
+                <div style={{ fontSize: 'clamp(11px,1.8vw,13px)', color: '#22c55e', fontWeight: 600 }}>
+                  Customer has already paid - no payment link needed when you accept
                 </div>
               </div>
             )}
@@ -1346,7 +1501,9 @@ export default function TerminalPage() {
             {currentOrder.status === 'pending' && (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
                 <button onClick={() => setAcceptOpen(true)} style={{ background: '#22c55e', color: '#0a0f1e', border: 'none', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', fontWeight: 700, cursor: 'pointer' }}>
-                  {currentOrder.payment_method === 'cash' ? '✓ Accept (Cash)' : '✓ Accept & Send Payment Link'}
+                  {currentOrder.paid_at
+                    ? '✓ Accept (Already Paid)'
+                    : currentOrder.payment_method === 'cash' ? '✓ Accept (Cash)' : '✓ Accept & Send Payment Link'}
                 </button>
                 <button onClick={() => setRejectOpen(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: 'clamp(12px,2.5vw,16px)', borderRadius: '10px', fontSize: 'clamp(13px,2.5vw,17px)', cursor: 'pointer', fontWeight: 600 }}>Reject</button>
               </div>
@@ -1358,6 +1515,17 @@ export default function TerminalPage() {
                 <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '12px', textAlign: 'center', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, color: '#22c55e' }}>
                   ✅ {currentOrder.status === 'paid' || currentOrder.status === 'complete' ? 'Order Paid' : currentOrder.status === 'waiting_payment' ? 'Waiting for Payment' : 'Accepted'}
                 </div>
+                {currentOrder.status === 'refunded' && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', padding: '12px', textAlign: 'center', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 700, color: '#ef4444' }}>
+                    💸 Refund Issued — GBP{(currentOrder.refund_amount || currentOrder.total)?.toFixed(2)}
+                    {currentOrder.refunded_at && <div style={{ fontSize: '11px', fontWeight: 400, color: '#fca5a5', marginTop: '2px' }}>{new Date(currentOrder.refunded_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>}
+                  </div>
+                )}
+                {currentOrder.status !== 'refunded' && currentOrder.refund_amount > 0 && (
+                  <div style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: 'clamp(11px,1.8vw,13px)', fontWeight: 700, color: '#f97316' }}>
+                    💸 Partial Refund Issued — GBP{currentOrder.refund_amount.toFixed(2)} of GBP{currentOrder.total?.toFixed(2)}
+                  </div>
+                )}
                 <button onClick={() => manualReprint({
                   id: currentOrder.id,
                   orderNumber: currentOrder.order_number,
@@ -1379,6 +1547,19 @@ export default function TerminalPage() {
                 })} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', padding: '10px', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>
                   🖨️ Reprint Tickets
                 </button>
+                {currentOrder.status !== 'refunded' && (
+                  <button onClick={() => {
+                    const remaining = currentOrder.total - (currentOrder.refund_amount || 0)
+                    setRefundModalOrder(currentOrder)
+                    setRefundPin('')
+                    setRefundReason('')
+                    setRefundError('')
+                    setRefundAmountInput(remaining.toFixed(2))
+                    setSelectedRefundItems(new Set())
+                  }} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '10px', borderRadius: '10px', fontSize: 'clamp(12px,2vw,14px)', fontWeight: 600, cursor: 'pointer' }}>
+                  💸 {currentOrder.refund_amount > 0 ? 'Issue Another Refund' : 'Refund Order'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1567,6 +1748,86 @@ export default function TerminalPage() {
           <div style={{ display: 'flex', gap: '7px' }}>
             <button onClick={() => { setRejectOpen(false); setSelectedReason(''); setCustomReason('') }} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
             <button onClick={rejectOrder} disabled={!selectedReason && !customReason} style={{ flex: 2, background: selectedReason || customReason ? '#ef4444' : '#334155', color: 'white', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: selectedReason || customReason ? 'pointer' : 'not-allowed' }}>Confirm Rejection</button>
+          </div>
+        </Modal>
+      )}
+
+      {refundModalOrder && (
+        <Modal onClose={() => { setRefundModalOrder(null); setRefundPin(''); setRefundReason(''); setRefundError(''); setRefundAmountInput(''); setSelectedRefundItems(new Set()) }}>
+          <h3 style={{ fontSize: 'clamp(13px,2.5vw,16px)', fontWeight: 700, textAlign: 'center', marginBottom: '6px' }}>Refund Order {refundModalOrder.order_number}</h3>
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 'clamp(11px,2vw,13px)', marginBottom: '16px' }}>
+            Order total GBP{refundModalOrder.total?.toFixed(2)} • {refundModalOrder.customer_name}
+            {refundModalOrder.refund_amount > 0 && (
+              <div style={{ color: '#f97316', marginTop: '4px' }}>Already refunded: GBP{refundModalOrder.refund_amount.toFixed(2)}</div>
+            )}
+          </div>
+          {refundModalOrder.order_items?.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Select items to refund (optional - fills in the amount below)</label>
+              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'grid', gap: '4px' }}>
+                {refundModalOrder.order_items.map((item: any) => (
+                  <label key={item.id} onClick={() => toggleRefundItem(item)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: selectedRefundItems.has(item.id) ? 'rgba(239,68,68,0.1)' : '#0f172a', border: `0.5px solid ${selectedRefundItems.has(item.id) ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedRefundItems.has(item.id)} onChange={() => {}} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 'clamp(11px,2vw,13px)', color: '#f8fafc' }}>{item.quantity}x {item.name}</span>
+                    <span style={{ fontSize: 'clamp(11px,2vw,13px)', fontWeight: 600, color: selectedRefundItems.has(item.id) ? '#ef4444' : '#94a3b8' }}>GBP{item.subtotal?.toFixed(2)}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedRefundItems.size > 0 && (
+                <button onClick={() => { setSelectedRefundItems(new Set()) }} style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                  Clear item selection
+                </button>
+              )}
+            </div>
+          )}
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Refund amount (GBP)</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={refundAmountInput}
+              onChange={e => { setRefundAmountInput(e.target.value); setSelectedRefundItems(new Set()) }}
+              style={{ width: '100%', padding: '10px', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '16px', outline: 'none', boxSizing: 'border-box', marginBottom: '6px' }}
+            />
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => { setRefundAmountInput((refundModalOrder.total - (refundModalOrder.refund_amount || 0)).toFixed(2)); setSelectedRefundItems(new Set()) }} style={{ flex: 1, padding: '6px', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>
+                Full remaining (GBP{(refundModalOrder.total - (refundModalOrder.refund_amount || 0)).toFixed(2)})
+              </button>
+              <button onClick={() => { setRefundAmountInput(''); setSelectedRefundItems(new Set()) }} style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>
+                Clear
+              </button>
+            </div>
+          </div>
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Enter refund PIN to confirm</label>
+            <input
+              type="password"
+              inputMode="numeric"
+              value={refundPin}
+              onChange={e => setRefundPin(e.target.value)}
+              placeholder="••••"
+              style={{ width: '100%', padding: '12px', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '20px', textAlign: 'center', letterSpacing: '6px', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+          <textarea
+            value={refundReason}
+            onChange={e => setRefundReason(e.target.value)}
+            placeholder="Reason for refund (optional, shown to customer)"
+            rows={2}
+            style={{ width: '100%', background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 11px', fontSize: 'clamp(11px,2vw,13px)', color: '#f8fafc', marginBottom: '10px', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+          />
+          {refundError && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '0.5px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: 'clamp(11px,2vw,13px)', color: '#ef4444', marginBottom: '10px' }}>
+              {refundError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '7px' }}>
+            <button onClick={() => { setRefundModalOrder(null); setRefundPin(''); setRefundReason(''); setRefundError(''); setRefundAmountInput(''); setSelectedRefundItems(new Set()) }} style={{ flex: 1, background: '#0f172a', border: '0.5px solid rgba(255,255,255,0.1)', color: '#64748b', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(11px,2vw,13px)' }}>Cancel</button>
+            <button onClick={submitRefund} disabled={!refundPin || !refundAmountInput || refundLoading} style={{ flex: 2, background: refundPin && refundAmountInput && !refundLoading ? '#ef4444' : '#334155', color: 'white', border: 'none', padding: 'clamp(9px,1.8vw,12px)', borderRadius: '8px', fontSize: 'clamp(11px,2vw,13px)', fontWeight: 700, cursor: refundPin && refundAmountInput && !refundLoading ? 'pointer' : 'not-allowed' }}>
+              {refundLoading ? 'Processing...' : `Confirm Refund of GBP${refundAmountInput || '0.00'}`}
+            </button>
           </div>
         </Modal>
       )}
