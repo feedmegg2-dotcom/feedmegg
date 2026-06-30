@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
@@ -67,6 +67,34 @@ export default function HomePage() {
   }
 
   useEffect(() => { fetchRestaurants() }, [])
+
+  const [itemResults, setItemResults] = useState<any[]>([])
+  const [itemSearchLoading, setItemSearchLoading] = useState(false)
+  const itemSearchDebounceRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (itemSearchDebounceRef.current) clearTimeout(itemSearchDebounceRef.current)
+    if (!search || search.trim().length < 2) {
+      setItemResults([])
+      setItemSearchLoading(false)
+      return
+    }
+    setItemSearchLoading(true)
+    itemSearchDebounceRef.current = setTimeout(() => searchMenuItems(search), 350)
+    return () => clearTimeout(itemSearchDebounceRef.current)
+  }, [search])
+
+  async function searchMenuItems(query: string) {
+    const { data } = await supabase
+      .from('menu_items')
+      .select('id, name, description, price, emoji, image_url, restaurant_id, restaurants(id, name, slug, emoji, is_active, is_open, parish)')
+      .eq('is_available', true)
+      .ilike('name', `%${query}%`)
+      .limit(20)
+    const results = (data || []).filter((item: any) => item.restaurants?.is_active)
+    setItemResults(results)
+    setItemSearchLoading(false)
+  }
 
   async function fetchRestaurants() {
     const { data } = await supabase
@@ -171,7 +199,40 @@ export default function HomePage() {
           {/* Search */}
           <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto 16px' }}>
             <svg style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1f5f9" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input className="search-input" type="text" placeholder="Search for a restaurant or cuisine..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="search-input" type="text" placeholder="Search restaurants, cuisines, or dishes..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
+
+            {search.trim().length >= 2 && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, background: t.card, border: `1px solid ${t.border}`, borderRadius: '14px', boxShadow: '0 12px 32px rgba(0,0,0,0.35)', maxHeight: '420px', overflowY: 'auto', zIndex: 50, textAlign: 'left' }}>
+                {itemSearchLoading ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>Searching menus...</div>
+                ) : itemResults.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>No dishes found matching "{search}"</div>
+                ) : (
+                  <>
+                    <div style={{ padding: '12px 16px 6px', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Dishes matching "{search}"
+                    </div>
+                    {itemResults.map((item: any) => (
+                      <a key={item.id} href={`/restaurant/${item.restaurants?.slug}?item=${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', textDecoration: 'none', color: 'inherit', borderTop: `1px solid ${t.border}` }}
+                        onMouseEnter={e => (e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0, overflow: 'hidden' }}>
+                          {item.image_url ? <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (item.emoji || '🍽')}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.restaurants?.emoji} {item.restaurants?.name}
+                            {!item.restaurants?.is_open && <span style={{ color: '#ef4444', marginLeft: '6px' }}>• Closed</span>}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#22c55e', flexShrink: 0 }}>GBP{parseFloat(item.price).toFixed(2)}</div>
+                      </a>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Parish + Cuisine dropdowns */}
