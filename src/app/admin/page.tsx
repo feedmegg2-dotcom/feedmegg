@@ -139,8 +139,19 @@ export default function AdminPage() {
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' })
 
   function checkPassword() {
-    if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll() }
+    if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll(); fetchUnresolvedErrorCount() }
     else setAuthError('Incorrect password')
+  }
+
+  useEffect(() => {
+    if (!authed) return
+    const interval = setInterval(fetchUnresolvedErrorCount, 30000)
+    return () => clearInterval(interval)
+  }, [authed])
+
+  async function fetchUnresolvedErrorCount() {
+    const { count } = await supabase.from('system_errors').select('id', { count: 'exact', head: true }).eq('resolved', false)
+    setUnresolvedErrorCount(count || 0)
   }
 
   async function fetchAll() {
@@ -1663,15 +1674,7 @@ function OffersTab({ restaurants, supabase }: { restaurants: any[], supabase: an
 
   useEffect(() => {
     fetchAll()
-    fetchUnresolvedErrorCount()
-    const interval = setInterval(fetchUnresolvedErrorCount, 30000)
-    return () => clearInterval(interval)
   }, [])
-
-  async function fetchUnresolvedErrorCount() {
-    const { count } = await supabase.from('system_errors').select('id', { count: 'exact', head: true }).eq('resolved', false)
-    setUnresolvedErrorCount(count || 0)
-  }
 
   async function fetchAll() {
     const { data: p } = await supabase.from('promo_codes').select('*, restaurants(name)').order('created_at', { ascending: false })
