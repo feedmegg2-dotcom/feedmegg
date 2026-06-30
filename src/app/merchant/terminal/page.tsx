@@ -130,6 +130,12 @@ export default function TerminalPage() {
       const saved = JSON.parse(localStorage.getItem('feedme-dismissed-orders') || '[]')
       saved.forEach((id: string) => dismissedMissedIds.current.add(id))
     } catch (e) {}
+    // Load already-alerted failed-payment IDs so a reload never re-buzzes
+    // about an order whose failure alert has already been heard once
+    try {
+      const savedFailed = JSON.parse(localStorage.getItem('feedme-alerted-failed') || '[]')
+      savedFailed.forEach((key: string) => alertedOrderIds.current.add(key))
+    } catch (e) {}
     checkAuth()
     // Keep screen awake
     async function requestWakeLock() {
@@ -552,6 +558,10 @@ export default function TerminalPage() {
     )
     for (const o of justFailed) {
       alertedOrderIds.current.add('failed_' + o.id)
+      try {
+        const existing = JSON.parse(localStorage.getItem('feedme-alerted-failed') || '[]')
+        localStorage.setItem('feedme-alerted-failed', JSON.stringify([...new Set([...existing, 'failed_' + o.id])]))
+      } catch (e) {}
       playAlertSound('buzz')
     }
 
