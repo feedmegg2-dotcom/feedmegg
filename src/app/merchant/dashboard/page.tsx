@@ -685,7 +685,8 @@ function MerchantTerminalsTab({ merchant, restaurants, supabase }: { merchant: a
     setPinError('')
     setPinMsg('')
     if (!setupPin || setupPin.length < 4) { setPinError('PIN must be at least 4 digits'); return }
-    if (!merchant?.id || !restaurants?.[0]?.id) return
+    if (!merchant?.id) { setPinError('Merchant account not loaded yet - please refresh the page and try again'); return }
+    if (!restaurants?.[0]?.id) { setPinError('No restaurant found on this account - add a restaurant before setting a refund PIN'); return }
     try {
       const res = await fetch('/api/merchant/refund-pin', {
         method: 'POST',
