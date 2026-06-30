@@ -25,9 +25,14 @@ export async function POST(request: NextRequest) {
     const data = await res.json()
 
     if (data.status === 'PAID') {
-      // Update order to paid
-      await supabase.from('orders').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', orderId)
-      return NextResponse.json({ status: 'paid', order })
+      // PRE-ORDERS stay 'pending' even once paid, so they still require the
+      // merchant to Accept/Reject when the lead time arrives.
+      const isPreOrder = !!order.scheduled_for
+      await supabase.from('orders').update({
+        status: isPreOrder ? order.status : 'paid',
+        paid_at: new Date().toISOString(),
+      }).eq('id', orderId)
+      return NextResponse.json({ status: 'paid', order, isPreOrder })
     }
 
     if (data.status === 'FAILED' || data.status === 'EXPIRED') {
