@@ -63,13 +63,13 @@ export default function AccountPage() {
     const provider = user.app_metadata?.provider
     setIsGoogleUser(provider === 'google')
     // Try auth_id first, then id (both should work now), then email
-    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).single()
+    let { data: cust } = await supabase.from('customers').select('*').eq('auth_id', user.id).maybeSingle()
     if (!cust) {
-      const res2 = await supabase.from('customers').select('*').eq('id', user.id).single()
+      const res2 = await supabase.from('customers').select('*').eq('id', user.id).maybeSingle()
       cust = res2.data
     }
     if (!cust && user.email) {
-      const res3 = await supabase.from('customers').select('*').ilike('email', user.email).single()
+      const res3 = await supabase.from('customers').select('*').ilike('email', user.email).maybeSingle()
       cust = res3.data
       if (cust) {
         // Fix both id and auth_id for future lookups
