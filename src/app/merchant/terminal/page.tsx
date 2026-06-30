@@ -67,7 +67,6 @@ export default function TerminalPage() {
   const [refundReason, setRefundReason] = useState('')
   const [refundLoading, setRefundLoading] = useState(false)
   const [refundError, setRefundError] = useState('')
-  const [setupPin, setSetupPin] = useState('')
   const [refundAmountInput, setRefundAmountInput] = useState('')
   const [selectedRefundItems, setSelectedRefundItems] = useState<Set<string>>(new Set())
   const [printerIp, setPrinterIp] = useState('')
@@ -187,7 +186,6 @@ export default function TerminalPage() {
     if (!merchant) { router.push('/merchant/login'); return }
 
     setMerchantData(merchant)
-    setSetupPin(merchant.refund_pin || '')
 
     // Check if this tablet has already claimed a terminal
     // Always fetch all terminals for this merchant
@@ -1130,28 +1128,6 @@ export default function TerminalPage() {
                   alert('Printer settings saved!')
                 }} style={{ width: '100%', padding: '5px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, marginBottom: '4px' }}>
                   Save Printer IP
-                </button>
-              </div>
-
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '8px 0', paddingTop: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💸 Refund PIN</div>
-                <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px' }}>Staff must enter this PIN to issue a refund. Keep it private.</div>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={setupPin}
-                  onChange={e => setSetupPin(e.target.value)}
-                  placeholder="Set a 4+ digit PIN"
-                  style={{ width: '100%', padding: '5px 8px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f8fafc', fontSize: '11px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' }}
-                />
-                <button onClick={async () => {
-                  if (!setupPin || setupPin.length < 4) { alert('PIN must be at least 4 digits'); return }
-                  if (!merchantData?.id) return
-                  await supabase.from('merchants').update({ refund_pin: setupPin }).eq('id', merchantData.id)
-                  setMerchantData({ ...merchantData, refund_pin: setupPin })
-                  alert('Refund PIN saved!')
-                }} style={{ width: '100%', padding: '5px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>
-                  Save Refund PIN
                 </button>
               </div>
 
