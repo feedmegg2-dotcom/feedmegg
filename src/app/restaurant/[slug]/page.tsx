@@ -10,6 +10,7 @@ export default function RestaurantPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reorderId = searchParams.get('reorder')
+  const highlightItemId = searchParams.get('item')
   const supabase = createClient()
   const [restaurant, setRestaurant] = useState<any>(null)
   const [categories, setCategories] = useState<any[]>([])
@@ -37,6 +38,13 @@ export default function RestaurantPage() {
   }, [])
 
   useEffect(() => { fetchRestaurant() }, [slug])
+
+  useEffect(() => {
+    if (!highlightItemId || categories.length === 0) return
+    const allItems = categories.flatMap((c: any) => c.menu_items || [])
+    const match = allItems.find((i: any) => i.id === highlightItemId)
+    if (match) openItem(match)
+  }, [highlightItemId, categories])
 
   async function fetchRestaurant() {
     const { data: rest } = await supabase.from('restaurants').select('*').eq('slug', slug).maybeSingle()
