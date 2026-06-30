@@ -67,7 +67,7 @@ export default function TerminalPage() {
   const autoPrintRef = useRef(autoPrint)
   useEffect(() => { autoPrintRef.current = autoPrint }, [autoPrint])
   const [printerOnline, setPrinterOnline] = useState<boolean | null>(null)
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('connected')
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting')
   const reconnectRef = useRef<any>(null)
   const currentRestIdRef = useRef<string>('')
   const lastPollSuccessRef = useRef<number>(Date.now())
@@ -416,11 +416,47 @@ export default function TerminalPage() {
     
     setOrders(data)
 
-    // On first load, mark all existing paid/alerted orders so we don't re-trigger
+    // On first load (including reloads from the watchdog), mark existing
+    // orders as already-seen so we don't re-trigger the "new order" alert
+    // screen — but auto-print any recently-accepted order that hasn't been
+    // printed yet, since a mid-flow reload would otherwise silently skip it.
     if (isFirstLoad) {
+      const RECENT_MS = 5 * 60 * 1000 // 5 minutes
+      const now = Date.now()
       data.filter(o => o.status === 'paid' || o.status === 'accepted' || o.status === 'waiting_payment').forEach(o => {
         alertedOrderIds.current.add(o.id)
         alertedOrderIds.current.add('paid_' + o.id)
+
+        const acceptedAt = o.accepted_at ? new Date(o.accepted_at).getTime() : 0
+        const isRecent = acceptedAt && (now - acceptedAt) < RECENT_MS
+        const needsPrint = o.status === 'paid' && isRecent && !printPendingRef.current.has(o.id)
+
+        if (needsPrint && autoPrintRef.current) {
+          const printOrder = {
+            id: o.id,
+            orderNumber: o.order_number,
+            restaurantName: restaurant?.name || 'Restaurant',
+            restaurantId: restId,
+            customerName: o.customer_name,
+            customerPhone: o.customer_phone,
+            deliveryAddress: o.delivery_address,
+            what3words: o.delivery_what3words || undefined,
+            deliveryLat: o.delivery_lat || null,
+            deliveryLng: o.delivery_lng || null,
+            isCollection: o.order_type === 'collection' || o.order_type === 'pickup',
+            contactlessDelivery: o.contactless_delivery,
+            isPreOrder: !!o.scheduled_for || !!(o.notes?.includes('PRE-ORDER')),
+            scheduledFor: o.scheduled_for,
+            items: o.order_items || [],
+            specialInstructions: o.special_instructions || o.notes,
+            subtotal: o.subtotal,
+            deliveryFee: o.delivery_fee,
+            tip: o.tip,
+            total: o.total,
+            paymentMethod: o.payment_method,
+          }
+          triggerAutoPrintRef.current(printOrder, 'paid')
+        }
         printPendingRef.current.add(o.id)
       })
       return
