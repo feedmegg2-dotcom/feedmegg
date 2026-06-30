@@ -261,7 +261,7 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
   React.useEffect(() => { loadTemplates() }, [])
 
   async function loadTemplates() {
-    const { data: rest } = await supabase.from('restaurants').select('printer_width').eq('id', restaurantId).single()
+    const { data: rest } = await supabase.from('restaurants').select('printer_width').eq('id', restaurantId).maybeSingle()
     if (rest?.printer_width) setPrinterWidth(rest.printer_width as 58 | 80)
     const { data } = await supabase.from('ticket_templates').select('*').eq('restaurant_id', restaurantId).order('created_at')
     if (data && data.length > 0) {
@@ -276,7 +276,7 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
     for (const t of templates) {
       const isDefault = ['kitchen', 'customer', 'delivery'].includes(t.id)
       if (isDefault) {
-        const existing = await supabase.from('ticket_templates').select('id').eq('restaurant_id', restaurantId).eq('template_type', t.template_type).single()
+        const existing = await supabase.from('ticket_templates').select('id').eq('restaurant_id', restaurantId).eq('template_type', t.template_type).maybeSingle()
         if (existing.data) {
           await supabase.from('ticket_templates').update({ name: t.name, copies: t.copies, elements: t.elements, updated_at: new Date().toISOString() }).eq('id', existing.data.id)
         } else {
