@@ -28,7 +28,7 @@ export default function SlotsPage() {
   }, [])
 
   async function fetchRestaurant() {
-    const { data } = await supabase.from('restaurants').select('*').eq('id', restaurantId).single()
+    const { data } = await supabase.from('restaurants').select('*').eq('id', restaurantId).maybeSingle()
     if (data) {
       setRestaurant(data)
       setSettings({
