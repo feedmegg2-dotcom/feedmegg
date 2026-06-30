@@ -63,7 +63,7 @@ export default function WaitingPage() {
   }, [checkoutId])
 
   async function fetchOrder() {
-    const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).single()
+    const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).maybeSingle()
     if (data) setOrder(data)
   }
 
