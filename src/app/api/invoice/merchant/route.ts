@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { requireAdmin, requireMerchantForRestaurant } from '@/lib/adminAuth'
 
 export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
@@ -8,6 +9,12 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get('month') // e.g. "2026-06"
 
   if (!restaurantId || !month) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+
+  const admin = await requireAdmin()
+  if (!admin) {
+    const merchantOk = await requireMerchantForRestaurant(restaurantId)
+    if (!merchantOk) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const [year, mon] = month.split('-')
   const startDate = `${month}-01`
