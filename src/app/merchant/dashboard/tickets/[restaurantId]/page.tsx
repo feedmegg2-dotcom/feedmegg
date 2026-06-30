@@ -12,7 +12,7 @@ export default function TicketsPage() {
   const [restaurantName, setRestaurantName] = useState('Restaurant')
 
   useEffect(() => {
-    supabase.from('restaurants').select('name').eq('id', restaurantId).single()
+    supabase.from('restaurants').select('name').eq('id', restaurantId).maybeSingle()
       .then(({ data }) => { if (data) setRestaurantName(data.name) })
   }, [restaurantId])
 
