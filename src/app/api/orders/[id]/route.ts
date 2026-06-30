@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
-import { sendOrderConfirmation } from '@/lib/email'
+import { sendOrderConfirmation, sendOrderRejection } from '@/lib/email'
 
 // PATCH /api/orders/[id]/accept
 export async function PATCH(
@@ -47,12 +47,15 @@ export async function PATCH(
         .eq('id', orderId)
     }
 
-    // Generate SumUp payment link (for card payments only)
+    // Generate SumUp payment link (for card payments only) - but skip
+    // entirely if this is a pre-order that's already been paid ahead of
+    // time, otherwise we'd charge the customer a second time.
     let paymentLink = null
     let paymentLinkExpiresAt = null
-    let sumupCheckoutId = null
+    let sumupCheckoutId = order.sumup_checkout_id || null
+    const alreadyPaidInAdvance = !!order.paid_at
 
-    if (order.payment_method === 'card') {
+    if (order.payment_method === 'card' && !alreadyPaidInAdvance) {
       const restaurant = order.restaurants
 
       console.log('SumUp debug - restaurant:', JSON.stringify({
@@ -98,16 +101,16 @@ export async function PATCH(
       }
     }
 
-    // Update order status to accepted (waiting for payment)
+    // Update order status to accepted
     await supabase
       .from('orders')
       .update({
-        status: order.payment_method === 'card' ? 'waiting_payment' : 'paid',
+        status: alreadyPaidInAdvance ? 'paid' : (order.payment_method === 'card' ? 'waiting_payment' : 'paid'),
         estimated_wait_mins: estimatedWaitMins,
         accepted_at: new Date().toISOString(),
-        sumup_link: paymentLink,
+        sumup_link: paymentLink || order.sumup_link,
         sumup_checkout_id: sumupCheckoutId,
-        payment_link_sent_at: paymentLink ? new Date().toISOString() : null,
+        payment_link_sent_at: paymentLink ? new Date().toISOString() : order.payment_link_sent_at,
         payment_link_expires_at: paymentLinkExpiresAt,
       })
       .eq('id', orderId)
@@ -122,14 +125,22 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      paymentLink,
+      paymentLink: paymentLink || order.sumup_link,
       paymentLinkExpiresAt,
-      message: order.payment_method === 'card'
-        ? 'Order accepted. Payment link sent to customer.'
-        : 'Order accepted. Cash payment on delivery.',
+      message: alreadyPaidInAdvance
+        ? 'Order accepted. Customer already paid in advance.'
+        : order.payment_method === 'card'
+          ? 'Order accepted. Payment link sent to customer.'
+          : 'Order accepted. Cash payment on delivery.',
     })
 
   } else if (action === 'reject') {
+    const wasPaidByCard = (order.status === 'paid' || order.status === 'waiting_payment') && order.payment_method === 'card'
+
+    // Refunds are always processed manually by staff in the SumUp dashboard/app.
+    // This route never calls SumUp's refund API - it just records the rejection
+    // and tells the customer to expect a refund if they were charged by card.
+
     await supabase
       .from('orders')
       .update({
@@ -139,9 +150,24 @@ export async function PATCH(
       })
       .eq('id', orderId)
 
+    if (order.customer_email) {
+      sendOrderRejection({
+        customerName: order.customer_name,
+        customerEmail: order.customer_email,
+        orderNumber: order.order_number,
+        restaurantName: order.restaurants?.name || 'the restaurant',
+        total: order.total,
+        reason: rejectionReason,
+        wasRefunded: wasPaidByCard,
+      }).catch(err => console.error('Rejection email error:', err))
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Order rejected. Customer has been notified.',
+      manualRefundNeeded: wasPaidByCard,
+      message: wasPaidByCard
+        ? 'Order rejected. Customer notified - please issue the refund manually in your SumUp dashboard.'
+        : 'Order rejected. Customer has been notified.',
     })
 
   } else if (action === 'complete') {
