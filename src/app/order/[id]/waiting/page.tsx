@@ -70,7 +70,17 @@ export default function WaitingPage() {
 
   async function fetchOrder() {
     const { data } = await supabase.from('orders').select('*, restaurants(name, emoji, logo_url, delivery_time_mins, pickup_time_mins)').eq('id', orderId).maybeSingle()
-    if (data) setOrder(data)
+    if (data) {
+      setOrder(data)
+      // Pre-orders already have a SumUp checkout generated at checkout time -
+      // mount the embedded card widget right away rather than waiting for
+      // the poll loop, which only triggers on 'waiting_payment' (a status
+      // pre-orders never reach until the merchant accepts them).
+      if (data.scheduled_for && data.payment_method === 'card' && !data.paid_at && data.sumup_checkout_id) {
+        setCheckoutId(data.sumup_checkout_id)
+        setStatus('accepted') // re-use the existing "show payment widget" screen
+      }
+    }
     return data
   }
 
@@ -184,9 +194,9 @@ export default function WaitingPage() {
           {status === 'accepted' && (
             <div>
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                <div style={{ width: '60px', height: '60px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>✅</div>
-                <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: '#22c55e' }}>Order accepted!</h1>
-                <p style={{ fontSize: '14px', color: sub }}>Complete your payment below</p>
+                <div style={{ width: '60px', height: '60px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '28px' }}>{order?.scheduled_for ? '📅' : '✅'}</div>
+                <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: '#22c55e' }}>{order?.scheduled_for ? 'Pre-order received!' : 'Order accepted!'}</h1>
+                <p style={{ fontSize: '14px', color: sub }}>{order?.scheduled_for ? 'Pay now to confirm your pre-order' : 'Complete your payment below'}</p>
               </div>
               {/* SumUp Payment Widget */}
               <div id="sumup-card" style={{ background: card, borderRadius: '14px', padding: '16px', border: `1px solid ${border}` }}></div>
