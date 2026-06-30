@@ -99,12 +99,27 @@ export async function issueRefund(params: {
     }),
   })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(`SumUp refund failed: ${JSON.stringify(error)}`)
+  // SumUp's refund endpoint often returns 204 No Content (or another
+  // response with an empty body) on success, and may return a non-JSON
+  // body (plain text, HTML error page) on failure. Never blindly call
+  // .json() on either path - read the raw text first and only parse it
+  // as JSON if it's actually non-empty.
+  const rawText = await response.text()
+  let parsed: any = null
+  if (rawText) {
+    try {
+      parsed = JSON.parse(rawText)
+    } catch (e) {
+      // Not JSON - keep parsed as null, we'll fall back to rawText below
+    }
   }
 
-  return await response.json()
+  if (!response.ok) {
+    const errorDetail = parsed ? JSON.stringify(parsed) : (rawText || `HTTP ${response.status}`)
+    throw new Error(`SumUp refund failed: ${errorDetail}`)
+  }
+
+  return parsed || { success: true, status: response.status }
 }
 
 // Verify SumUp webhook signature
