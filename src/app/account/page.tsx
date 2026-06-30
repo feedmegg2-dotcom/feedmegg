@@ -511,11 +511,23 @@ export default function AccountPage() {
             )}
             <div style={{ padding: '12px 16px', display: 'flex', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <button onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(pos => {
-                    setAddrMapPin({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                  })
+                if (!navigator.geolocation) {
+                  alert('Your browser does not support GPS location.')
+                  return
                 }
+                navigator.geolocation.getCurrentPosition(
+                  pos => {
+                    setAddrMapPin({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                  },
+                  err => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                      alert('Location permission denied. Please allow location access in your browser settings, or drag the pin manually on the map.')
+                    } else {
+                      alert('Could not get your location. Please drag the pin manually on the map.')
+                    }
+                  },
+                  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                )
               }} style={{ flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                 Use my GPS
               </button>
