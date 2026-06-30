@@ -313,21 +313,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* PROMO BANNER */}
-      <div style={{ padding: 'clamp(32px, 5vw, 48px) clamp(16px, 4vw, 48px)', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ background: t.promoBg, border: '1px solid rgba(34,197,94,0.2)', borderRadius: '20px', padding: 'clamp(24px, 4vw, 40px) clamp(24px, 4vw, 48px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-          <div>
-            <div style={{ fontSize: 'clamp(11px, 1.2vw, 13px)', fontWeight: 600, color: '#22c55e', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>Limited time offer</div>
-            <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: 'clamp(18px, 3vw, 26px)', fontWeight: 800, color: '#f1f5f9', marginBottom: '8px', letterSpacing: '-0.5px' }}>10% off your first order</h3>
-            <p style={{ fontSize: 'clamp(12px, 1.3vw, 14px)', color: '#475569' }}>Use code FIRSTORDER at checkout. Valid for new customers only.</p>
-          </div>
-          <button onClick={() => document.getElementById('restaurants')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{ padding: 'clamp(12px, 1.5vw, 14px) clamp(20px, 2.5vw, 28px)', background: '#22c55e', color: '#080c14', border: 'none', borderRadius: '10px', fontSize: 'clamp(13px, 1.3vw, 15px)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
-            Order now
-          </button>
-        </div>
-      </div>
-
       {/* FOOTER */}
       {/* INSTALL PROMPT */}
       <InstallPrompt />
