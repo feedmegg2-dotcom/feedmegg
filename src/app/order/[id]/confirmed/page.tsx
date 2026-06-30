@@ -11,42 +11,43 @@ export default function ConfirmedPage() {
   const supabase = createClient()
   const [status, setStatus] = useState<'checking' | 'paid' | 'cash' | 'failed'>('checking')
   const [order, setOrder] = useState<any>(null)
-  const [timeLeft, setTimeLeft] = useState(120)
   const pollRef = useRef<any>(null)
-  const countRef = useRef<any>(null)
   const method = searchParams.get('method')
 
   useEffect(() => {
     if (method === 'cash') { setStatus('cash'); fetchOrder(); return }
-    // Check immediately on load (SumUp may have just redirected here)
-    checkNow()
-    startPolling()
-    countRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(countRef.current); setStatus('failed'); return 0 }
-        return t - 1
-      })
-    }, 1000)
-    return () => { clearInterval(pollRef.current); clearInterval(countRef.current) }
+    checkOrderDirectly()
+    return () => { clearInterval(pollRef.current) }
   }, [])
 
-  async function checkNow() {
-    const res = await fetch('/api/checkout/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: id })
-    })
-    const data = await res.json()
-    if (data.status === 'paid') {
-      clearInterval(pollRef.current)
-      clearInterval(countRef.current)
-      setOrder(data.order)
-      setStatus('paid')
+  // By the time the customer reaches this page, they have almost always
+  // ALREADY paid - the SumUp widget on the previous /waiting page confirms
+  // payment and calls our webhook to verify it with SumUp directly before
+  // ever redirecting here. So we trust the order's real database status
+  // first, rather than immediately running a fresh payment check (which can
+  // lag) and risking telling a customer their successful payment "failed".
+  async function checkOrderDirectly() {
+    const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('id', id).maybeSingle()
+    if (data) {
+      setOrder(data)
+      if (data.paid_at || data.status === 'paid') {
+        setStatus('paid')
+        return
+      }
+      if (data.status === 'cancelled' || data.status === 'rejected') {
+        setStatus('failed')
+        return
+      }
     }
+    // Not yet confirmed paid in our own records - poll a few times in case
+    // the webhook is still catching up. We never auto-cancel an order
+    // purely because of a local timeout - only a genuine FAILED/EXPIRED
+    // result from SumUp's own API (via /api/checkout/verify) marks it failed.
+    startPolling()
   }
 
   async function fetchOrder() {
-    const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('id', id).single()
+    const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('id', id).maybeSingle()
     setOrder(data)
   }
 
@@ -59,14 +60,15 @@ export default function ConfirmedPage() {
       })
       const data = await res.json()
       if (data.status === 'paid') {
-        clearInterval(pollRef.current); clearInterval(countRef.current)
-        setOrder(data.order); setStatus('paid')
+        clearInterval(pollRef.current)
+        setOrder(data.order)
+        setStatus('paid')
       }
       if (data.status === 'failed') {
-        clearInterval(pollRef.current); clearInterval(countRef.current)
+        clearInterval(pollRef.current)
         setStatus('failed')
       }
-    }, 5000)
+    }, 4000)
   }
 
   return (
@@ -79,13 +81,8 @@ export default function ConfirmedPage() {
         {status === 'checking' && (
           <>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>...</div>
-            <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '10px' }}>Waiting for payment...</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>Complete your payment on SumUp. This page updates automatically.</p>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#f97316', marginBottom: '8px' }}>{timeLeft}s</div>
-            <div style={{ fontSize: '12px', color: '#475569', marginBottom: '12px' }}>Time remaining</div>
-            <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: '#f97316', borderRadius: '2px', width: `${(timeLeft/120)*100}%`, transition: 'width 1s linear' }} />
-            </div>
+            <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '10px' }}>Confirming your payment...</h1>
+            <p style={{ fontSize: '14px', color: '#64748b' }}>This will only take a moment.</p>
           </>
         )}
 
@@ -96,9 +93,11 @@ export default function ConfirmedPage() {
               {status === 'cash' ? 'Order placed!' : 'Payment confirmed!'}
             </h1>
             <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px', lineHeight: 1.6 }}>
-              {status === 'cash'
-                ? `Your order has been sent to ${order?.restaurants?.name}. Please have the correct cash ready.`
-                : `Your payment was successful and your order has been sent to ${order?.restaurants?.name}.`}
+              {order?.scheduled_for
+                ? `Your payment has been received. ${order?.restaurants?.name} will confirm your order shortly before your scheduled time of ${new Date(order.scheduled_for).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
+                : status === 'cash'
+                  ? `Your order has been sent to ${order?.restaurants?.name}. Please have the correct cash ready.`
+                  : `Your payment was successful and your order has been sent to ${order?.restaurants?.name}.`}
             </p>
             {order && (
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', marginBottom: '20px', textAlign: 'left' }}>
@@ -114,8 +113,8 @@ export default function ConfirmedPage() {
         {status === 'failed' && (
           <>
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px', color: '#ef4444', fontWeight: 800 }}>!</div>
-            <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '10px', color: '#ef4444' }}>Payment failed</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px', lineHeight: 1.6 }}>Your payment was not completed and your order has been cancelled. Please try again.</p>
+            <h1 style={{ fontFamily: 'Syne,sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '10px', color: '#ef4444' }}>Payment not completed</h1>
+            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px', lineHeight: 1.6 }}>Your payment was not completed and your order has been cancelled. If you believe you were charged, please contact us before placing a new order.</p>
             <Link href="/" style={{ display: 'block', padding: '13px', background: '#22c55e', color: '#080c14', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '14px' }}>Back to restaurants</Link>
           </>
         )}
