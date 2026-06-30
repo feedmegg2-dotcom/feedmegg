@@ -61,6 +61,7 @@ export default function TerminalPage() {
   const [preOrderLeadTime, setPreOrderLeadTime] = useState(30)
   const printPendingRef = useRef<Set<string>>(new Set())
   const [printPendingOrders, setPrintPendingOrders] = useState<any[]>([])
+  const [urgentPrintFailures, setUrgentPrintFailures] = useState<any[]>([])
   const [printerIp, setPrinterIp] = useState('')
   const [printerWidth, setPrinterWidth] = useState(80)
   const [autoPrint, setAutoPrint] = useState(true)
@@ -89,6 +90,31 @@ export default function TerminalPage() {
   const { triggerAutoPrint, manualReprint } = usePrinterAutoprint(restaurant?.id, printerIp, printerWidth)
   const triggerAutoPrintRef = useRef(triggerAutoPrint)
   useEffect(() => { triggerAutoPrintRef.current = triggerAutoPrint }, [triggerAutoPrint])
+
+  // FAILSAFE: every accepted/paid order MUST print. If triggerAutoPrint
+  // fails, throws, or doesn't resolve within 15s, escalate to an
+  // unmissable on-screen banner with a one-tap retry button.
+  async function safeAutoPrint(printOrder: any) {
+    let resolved = false
+    function escalate() {
+      setUrgentPrintFailures(prev => prev.some(p => p.id === printOrder.id) ? prev : [...prev, printOrder])
+      playAlertSound('siren')
+    }
+    const timeout = setTimeout(() => {
+      if (!resolved) escalate()
+    }, 15000)
+
+    try {
+      const result = await triggerAutoPrintRef.current(printOrder, 'paid')
+      resolved = true
+      clearTimeout(timeout)
+      if (!result) escalate()
+    } catch (e) {
+      resolved = true
+      clearTimeout(timeout)
+      escalate()
+    }
+  }
 
   useEffect(() => {
     // Load dismissed orders from localStorage after hydration
@@ -455,7 +481,7 @@ export default function TerminalPage() {
             total: o.total,
             paymentMethod: o.payment_method,
           }
-          triggerAutoPrintRef.current(printOrder, 'paid')
+          safeAutoPrint(printOrder)
         }
         printPendingRef.current.add(o.id)
       })
@@ -529,7 +555,7 @@ export default function TerminalPage() {
         paymentMethod: o.payment_method,
       }
       if (autoPrintRef.current) {
-        triggerAutoPrintRef.current(printOrder, 'paid')
+        safeAutoPrint(printOrder)
         printPendingRef.current.add(o.id)
       } else {
         setPrintPendingOrders(prev => [...prev.filter(p => p.id !== o.id), printOrder])
@@ -653,7 +679,7 @@ export default function TerminalPage() {
           paymentMethod: currentOrder.payment_method,
         }
         if (autoPrint || isCash) {
-          triggerAutoPrintRef.current(printOrder, 'paid')
+          safeAutoPrint(printOrder)
         } else {
           setPrintPendingOrders(prev => [...prev.filter(p => p.id !== currentOrder.id), printOrder])
         }
@@ -815,6 +841,34 @@ export default function TerminalPage() {
 
   return (
     <div style={{ background: colors.background, height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui,sans-serif', position: 'relative', overflow: 'hidden', touchAction: 'manipulation', transition: 'background 0.3s' }}>
+
+      {/* URGENT PRINT FAILURE BANNER - unmissable failsafe */}
+      {urgentPrintFailures.length > 0 && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#dc2626', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)', animation: 'urgentPulse 1.5s infinite' }}>
+          {urgentPrintFailures.map(o => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>⚠️</span>
+                <div>
+                  <div style={{ color: 'white', fontWeight: 800, fontSize: 'clamp(13px,2.2vw,15px)' }}>TICKET DID NOT PRINT — Order #{String(o.orderNumber).slice(-6).toUpperCase()}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(11px,1.8vw,12px)' }}>{o.customerName} • GBP{o.total?.toFixed(2)} — check the printer and tap Print Now</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={async () => {
+                  await manualReprint(o)
+                  setUrgentPrintFailures(prev => prev.filter(p => p.id !== o.id))
+                }} style={{ padding: '8px 16px', background: 'white', color: '#dc2626', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: 'clamp(12px,2vw,14px)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  🖨️ Print Now
+                </button>
+                <button onClick={() => setUrgentPrintFailures(prev => prev.filter(p => p.id !== o.id))} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', fontSize: 'clamp(11px,1.8vw,13px)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* TOP BAR */}
       <div style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, padding: 'clamp(6px,1.5vw,12px) clamp(8px,2vw,16px)', display: 'flex', alignItems: 'center', gap: 'clamp(6px,1.5vw,12px)', flexWrap: 'nowrap', position: 'relative', zIndex: 20, flexShrink: 0, transition: 'background 0.3s' }}>
@@ -1578,6 +1632,7 @@ export default function TerminalPage() {
 
       <style>{`
         @keyframes bounce-in { 0%{transform:scale(0.3);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
+        @keyframes urgentPulse { 0%,100%{background:#dc2626} 50%{background:#ef4444} }
         * { -webkit-tap-highlight-color: transparent; }
       `}</style>
     </div>
