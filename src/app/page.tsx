@@ -198,6 +198,16 @@ export default function HomePage() {
 
           {/* Search */}
           <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto 16px', zIndex: 100 }}>
+            {/* Pointer label */}
+            <div style={{ position: 'absolute', top: '-58px', right: 'clamp(-10px, -2vw, 30px)', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', pointerEvents: 'none', zIndex: 101 }}>
+              <div style={{ background: '#ef4444', color: 'white', padding: '6px 14px', borderRadius: '8px', fontSize: 'clamp(11px, 1.3vw, 13px)', fontWeight: 700, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(239,68,68,0.4)', fontFamily: '"Comic Sans MS", "Marker Felt", cursive, sans-serif', transform: 'rotate(-2deg)' }}>
+                Find the food you want to eat 👇
+              </div>
+              <svg width="40" height="34" viewBox="0 0 40 34" style={{ marginTop: '2px', marginRight: '24px' }}>
+                <path d="M 32 2 Q 8 4 12 28" stroke="#ef4444" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeDasharray="1 5" />
+                <path d="M 6 24 L 12 30 L 18 23" stroke="#ef4444" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
             <svg style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1f5f9" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input className="search-input" type="text" placeholder="Search restaurants, cuisines, or dishes..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
 
