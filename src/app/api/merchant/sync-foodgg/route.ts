@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       .from('restaurants')
       .select('*, menu_items(id, name)')
       .eq('id', restaurantId)
-      .single()
+      .maybeSingle()
 
     if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
           .from('menu_items')
           .select('is_available')
           .eq('id', item.id)
-          .single()
+          .maybeSingle()
 
         if (currentItem && currentItem.is_available !== shouldBeAvailable) {
           await supabase.from('menu_items').update({ is_available: shouldBeAvailable }).eq('id', item.id)
