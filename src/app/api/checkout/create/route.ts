@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendOrderConfirmation } from '@/lib/email'
 import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
+import { logSystemError } from '@/lib/errorLog'
 
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number, resetAt: number }>()
@@ -197,6 +198,12 @@ export async function POST(request: NextRequest) {
 
     if (orderError || !order) {
       console.error('Order creation error:', orderError)
+      logSystemError({
+        source: 'checkout-create',
+        message: 'Order creation failed - customer attempted to order but no order was created',
+        details: { error: orderError, restaurantId, customerEmail },
+        restaurantId,
+      })
       return NextResponse.json({ error: 'Failed to create order: ' + orderError?.message }, { status: 500 })
     }
 
@@ -319,6 +326,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Checkout error:', error)
+    logSystemError({
+      source: 'checkout-create',
+      message: 'Unhandled exception during checkout',
+      details: error,
+    })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
