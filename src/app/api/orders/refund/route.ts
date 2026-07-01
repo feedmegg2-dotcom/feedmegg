@@ -109,11 +109,22 @@ export async function POST(request: NextRequest) {
   const updates: any = {
     refund_amount: newTotalRefunded,
     refunded_at: new Date().toISOString(),
+    // If the SumUp call failed, this order genuinely still needs a manual
+    // refund - flagging it explicitly means staff can find it later even
+    // if they miss the one-time response message right now.
+    manual_refund_needed: order.payment_method === 'card' && !sumupRefunded,
   }
   if (isFullRefund) {
-    updates.status = 'refunded'
+    // Only mark the order as truly 'refunded' if the money actually moved
+    // (cash refunds always count, since there was nothing to fail). If the
+    // automatic SumUp call failed, keep the order's existing status rather
+    // than falsely showing it as refunded - the manual_refund_needed flag
+    // above is what staff should rely on to find and finish this later.
+    if (order.payment_method === 'cash' || sumupRefunded) {
+      updates.status = 'refunded'
+      updates.cancelled_at = new Date().toISOString()
+    }
     updates.rejection_reason = combinedReason || 'Refunded by restaurant'
-    updates.cancelled_at = new Date().toISOString()
   } else if (combinedReason) {
     // Keep a note of the most recent partial refund reason even though the
     // order stays active, so staff have an audit trail without losing status
