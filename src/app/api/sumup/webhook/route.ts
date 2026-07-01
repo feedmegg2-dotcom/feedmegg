@@ -94,11 +94,14 @@ export async function GET(request: NextRequest) {
     .maybeSingle()
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  // Unpaid pre-order whose payment link has expired - close it out so it
-  // never sits forever as an invisible unpaid order.
+  // Unpaid order whose payment link has expired - close it out so it never
+  // sits forever as an invisible unpaid order. Originally this only
+  // covered pre-orders, but ASAP orders left waiting on payment after
+  // merchant acceptance had no expiry check at all and could get stuck in
+  // 'waiting_payment' indefinitely if the customer abandoned the payment
+  // page - this now covers both.
   if (
-    order.status === 'pending' &&
-    order.scheduled_for &&
+    ['pending', 'waiting_payment'].includes(order.status) &&
     order.payment_method === 'card' &&
     !order.paid_at &&
     order.payment_link_expires_at &&
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
   ) {
     await supabase.from('orders').update({
       status: 'cancelled',
-      cancel_reason: 'Pre-order payment was never completed',
+      cancel_reason: order.scheduled_for ? 'Pre-order payment was never completed' : 'Payment was never completed',
       cancelled_at: new Date().toISOString(),
     }).eq('id', orderId)
     return NextResponse.json({ status: 'cancelled' })
