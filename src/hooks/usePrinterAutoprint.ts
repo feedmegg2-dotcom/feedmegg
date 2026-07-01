@@ -33,6 +33,7 @@ interface OrderForPrint {
 const ESC = '\x1B', GS = '\x1D'
 const INIT = ESC + '@'
 const BOLD_ON = ESC + 'E\x01', BOLD_OFF = ESC + 'E\x00'
+const INVERT_ON = GS + 'B\x01', INVERT_OFF = GS + 'B\x00'
 const ALIGN_LEFT = ESC + 'a\x00', ALIGN_CENTER = ESC + 'a\x01', ALIGN_RIGHT = ESC + 'a\x02'
 const SIZE_NORMAL = GS + '!\x00', SIZE_DOUBLE_HEIGHT = GS + '!\x01', SIZE_DOUBLE = GS + '!\x11'
 const CUT = GS + 'V\x41\x03', LF = '\n'
@@ -63,6 +64,22 @@ function renderElementESCPOS(el: any, order: OrderForPrint, cols: number): strin
   const size = sizeCmd(el.size || 'medium')
   const align = alignCmd(el.align || 'left')
   const divider = rep('-', cols)
+
+  // If invert is enabled, we render the element normally into a temp
+  // string first, then wrap it with INVERT_ON/OFF. Inverted text always
+  // centres and fills the full width for maximum visual impact.
+  if (el.invert) {
+    const innerEl = { ...el, invert: false }
+    const inner = renderElementESCPOS(innerEl, order, cols)
+    // Pad each non-empty line to full width so the black bar fills the ticket
+    const padded = inner.split('\n').map(line => {
+      if (!line.trim()) return line
+      const stripped = line.replace(/[\x00-\x1F\x7F-\x9F]/g, '') // strip control chars for length
+      const pad = Math.max(0, cols - stripped.length)
+      return line + rep(' ', pad)
+    }).join('\n')
+    return ALIGN_CENTER + INVERT_ON + padded + INVERT_OFF + ALIGN_LEFT
+  }
 
   switch (el.type) {
     case 'order_number':
