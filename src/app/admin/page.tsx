@@ -414,12 +414,32 @@ export default function AdminPage() {
 
   async function deleteRestaurant(id: string, name: string) {
     if (!confirm('Delete ' + name + ' and ALL its menu items? This cannot be undone!')) return
-    await supabase.from('item_option_group_links').delete().eq('menu_item_id', id)
-    await supabase.from('item_options').delete().eq('option_group_id', id)
+
+    // Resolve the real dependent IDs first - the previous version of this
+    // function used the restaurant's own ID in place of option_group_id/
+    // menu_item_id, which matched nothing and left orphaned item_options
+    // rows. Deleting item_option_groups while item_options still pointed
+    // at them then failed on a foreign key constraint, silently blocking
+    // the entire delete before it ever reached the restaurant itself.
+    const { data: menuItems } = await supabase.from('menu_items').select('id').eq('restaurant_id', id)
+    const menuItemIds = (menuItems || []).map((m: any) => m.id)
+
+    const { data: optionGroups } = await supabase.from('item_option_groups').select('id').eq('restaurant_id', id)
+    const optionGroupIds = (optionGroups || []).map((g: any) => g.id)
+
+    if (optionGroupIds.length > 0) {
+      await supabase.from('item_options').delete().in('option_group_id', optionGroupIds)
+      await supabase.from('item_option_group_links').delete().in('option_group_id', optionGroupIds)
+    }
+    if (menuItemIds.length > 0) {
+      await supabase.from('item_option_group_links').delete().in('menu_item_id', menuItemIds)
+    }
     await supabase.from('item_option_groups').delete().eq('restaurant_id', id)
     await supabase.from('menu_items').delete().eq('restaurant_id', id)
     await supabase.from('menu_categories').delete().eq('restaurant_id', id)
-    await supabase.from('restaurants').delete().eq('id', id)
+    await supabase.from('restaurant_hours').delete().eq('restaurant_id', id)
+    const { error: deleteError } = await supabase.from('restaurants').delete().eq('id', id)
+    if (deleteError) { setMsg('Could not delete ' + name + ': ' + deleteError.message); return }
     setMsg(name + ' deleted!')
     fetchAll()
   }
