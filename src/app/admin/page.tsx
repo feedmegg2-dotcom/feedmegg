@@ -27,6 +27,12 @@ export default function AdminPage() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('')
   const [orderTypeFilter, setOrderTypeFilter] = useState('')
   const [orderPayFilter, setOrderPayFilter] = useState('')
+  const [orderDateFrom, setOrderDateFrom] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return d.toISOString().split('T')[0]
+  })
+  const [orderDateTo, setOrderDateTo] = useState(() => new Date().toISOString().split('T')[0])
   const [categories, setCategories] = useState<any[]>([])
   const [menuItems, setMenuItems] = useState<any[]>([])
   const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null)
@@ -197,11 +203,32 @@ export default function AdminPage() {
   async function fetchAll() {
     const { data: r } = await supabase.from('restaurants').select('*, merchants(name,email)').order('name')
     const { data: m } = await supabase.from('merchants').select('*').order('name')
-    const { data: o } = await supabase.from('orders').select('*, restaurants(name), order_items(*)').order('created_at', { ascending: false }).limit(200)
     setRestaurants(r || [])
     setMerchants(m || [])
+    fetchOrdersInRange()
+  }
+
+  // Orders are date-range filtered at the database level rather than just
+  // pulling the most recent 200 - with a growing order history, a flat
+  // limit would eventually hide older orders entirely with no way to see
+  // them, and scrolling through thousands to find one from weeks ago isn't
+  // practical either.
+  async function fetchOrdersInRange() {
+    const fromIso = `${orderDateFrom}T00:00:00`
+    const toIso = `${orderDateTo}T23:59:59`
+    const { data: o } = await supabase.from('orders')
+      .select('*, restaurants(name), order_items(*)')
+      .gte('created_at', fromIso)
+      .lte('created_at', toIso)
+      .order('created_at', { ascending: false })
+      .limit(2000)
     setOrders(o || [])
   }
+
+  useEffect(() => {
+    if (!authed) return
+    fetchOrdersInRange()
+  }, [orderDateFrom, orderDateTo])
 
   async function fetchMenuForRestaurant(restId: string) {
     const { data: cats } = await supabase.from('menu_categories').select('*').eq('restaurant_id', restId).order('sort_order')
@@ -1518,7 +1545,31 @@ export default function AdminPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 800 }}>All Orders ({orders.length})</h2>
-              <button onClick={fetchAll} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 16px' }}>Refresh</button>
+              <button onClick={fetchOrdersInRange} className="btn-ghost" style={{ fontSize: '13px', padding: '8px 16px' }}>Refresh</button>
+            </div>
+            {/* Date range */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--sub)' }}>From</label>
+              <input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)}
+                style={{ padding: '7px 10px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+              <label style={{ fontSize: '12px', color: 'var(--sub)' }}>To</label>
+              <input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)}
+                style={{ padding: '7px 10px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+              {[
+                { label: 'Today', days: 0 },
+                { label: '7 days', days: 7 },
+                { label: '30 days', days: 30 },
+                { label: '90 days', days: 90 },
+              ].map(preset => (
+                <button key={preset.label} onClick={() => {
+                  const d = new Date()
+                  setOrderDateTo(d.toISOString().split('T')[0])
+                  d.setDate(d.getDate() - preset.days)
+                  setOrderDateFrom(d.toISOString().split('T')[0])
+                }} style={{ padding: '6px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--sub)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {preset.label}
+                </button>
+              ))}
             </div>
             {/* Search & filters */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '8px', marginBottom: '16px' }}>
