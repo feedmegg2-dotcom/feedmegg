@@ -295,11 +295,12 @@ interface ParsedHours { day: string; open_time: string | null; close_time: strin
 // Parses the "Opening Times" table on the /info page into per-day hours.
 function parseOpeningHoursTable(html: string): ParsedHours[] {
   const results: ParsedHours[] = []
-  const sectionMatch = html.match(/Opening Times[\s\S]{0,50}?(<table[\s\S]*?<\/table>|(?:<tr[\s\S]*?){1,7})/i)
-  const section = sectionMatch ? sectionMatch[1] : html
-
+  // Scan the whole page directly for day-name rows rather than first
+  // trying to locate an "Opening Times" heading - matching the same fix
+  // applied to parseDeliveryZonesTable, since a heading match is fragile
+  // to whitespace/nested tags a day name in a <td> doesn't have to deal with.
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  const rows = section.split(/<tr[\s>]/i)
+  const rows = html.split(/<tr[\s>]/i)
   for (const row of rows) {
     const tds: string[] = []
     const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
@@ -328,12 +329,13 @@ interface ParsedZone { parish: string; min_order: number; fee: number; free_deli
 // Parses the "Delivery" table on the /info page into per-parish zones.
 function parseDeliveryZonesTable(html: string): ParsedZone[] {
   const results: ParsedZone[] = []
-  const sectionMatch = html.match(/>Delivery<[\s\S]{0,50}?(<table[\s\S]*?<\/table>|(?:<tr[\s\S]*?){1,15})/i)
-  if (!sectionMatch) return results // restaurant may be collection-only, no delivery table at all
-  const section = sectionMatch[1]
-
+  // Scan the ENTIRE page for table rows starting with a real parish name,
+  // rather than first trying to locate a "Delivery" heading - a heading
+  // match is fragile (any whitespace or nested tags around the word breaks
+  // an exact pattern), whereas a parish name landing in a <td> next to
+  // price values is a far more reliable, self-contained signal on its own.
   const PARISHES = ['Castel', 'Forest', 'St Andrew', 'St Martin', 'St Peter Port', 'St Pierre du Bois', 'St Sampson', 'St Saviour', 'Torteval', 'Vale']
-  const rows = section.split(/<tr[\s>]/i)
+  const rows = html.split(/<tr[\s>]/i)
   for (const row of rows) {
     const tds: string[] = []
     const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
@@ -453,6 +455,30 @@ export async function POST(request: NextRequest) {
         address: finalAddress || undefined,
         parish: finalParish || parish,
       }).eq('id', restaurantId)
+    }
+
+    // Geocode the address into lat/lng so the map pin is positioned
+    // correctly without a manual step - uses the same free Nominatim
+    // (OpenStreetMap) lookup already used elsewhere in the admin panel.
+    let geocoded = false
+    if (finalAddress) {
+      try {
+        const geoQuery = `${finalAddress}, Guernsey`
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(geoQuery)}&format=json&limit=1`, {
+          headers: { 'User-Agent': 'feedme.gg restaurant import' },
+        })
+        const geoData = await geoRes.json()
+        if (geoData?.[0]) {
+          await supabase.from('restaurants').update({
+            lat: parseFloat(geoData[0].lat),
+            lng: parseFloat(geoData[0].lon),
+          }).eq('id', restaurantId)
+          geocoded = true
+        }
+      } catch (e) {
+        // Geocoding failed - not critical, restaurant can still be found by
+        // parish/address text, just won't have a precise map pin yet
+      }
     }
 
     // Opening hours - use real scraped hours if found, otherwise fall back
@@ -610,9 +636,11 @@ export async function POST(request: NextRequest) {
       optionFetchesCapped: totalOptionsFetched >= MAX_OPTION_FETCHES,
       hoursScraped: scrapedHours.length > 0,
       deliveryZonesScraped: scrapedZones.length,
+      geocoded,
       message: `Imported ${restaurantName} with ${totalCategories} categories, ${totalItems} menu items, and ${totalOptionGroups} option groups (${totalOptionsSaved} options)! `
         + (scrapedHours.length > 0 ? `Real opening hours were captured. ` : `No hours found - default 12:00-21:30 every day was set instead, please check these. `)
-        + (scrapedZones.length > 0 ? `${scrapedZones.length} delivery zones with real fees were set up.` : `No delivery zones found (likely collection-only, or check manually).`)
+        + (scrapedZones.length > 0 ? `${scrapedZones.length} delivery zones with real fees were set up. ` : `No delivery zones found (likely collection-only, or check manually). `)
+        + (geocoded ? `Map location was set automatically.` : `Could not auto-locate the map pin - set it manually in the restaurant's edit screen.`)
         + (totalOptionsFetched >= MAX_OPTION_FETCHES ? ` Note: option lookup was capped at ${MAX_OPTION_FETCHES} items to avoid a timeout - some items further down the menu may need their extras added manually.` : ''),
     })
 
