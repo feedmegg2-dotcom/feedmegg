@@ -128,11 +128,13 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
   const style: any = {
     fontSize,
     fontWeight: el.bold ? 700 : 400,
-    textAlign: el.align || 'left',
+    textAlign: el.invert ? 'center' : (el.align || 'left'),
     textTransform: el.caps ? 'uppercase' : 'none',
     fontFamily: '"Courier New", Courier, monospace',
     width: '100%',
-    padding: '1px 0',
+    padding: el.invert ? '2px 4px' : '1px 0',
+    background: el.invert ? '#000' : 'transparent',
+    color: el.invert ? '#fff' : 'inherit',
     lineHeight: 1.4,
     wordBreak: 'break-word',
     color: '#000',
@@ -494,12 +496,15 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
                       ))}
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
                     <button onClick={() => updateElement(selectedElement.id, { bold: !selectedElement.bold })} style={{ padding: '8px', background: selectedElement.bold ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.bold ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.bold ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
                       Bold {selectedElement.bold ? '✓' : ''}
                     </button>
                     <button onClick={() => updateElement(selectedElement.id, { caps: !selectedElement.caps })} style={{ padding: '8px', background: selectedElement.caps ? 'rgba(34,197,94,0.15)' : '#0f172a', border: `1px solid ${selectedElement.caps ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.caps ? '#22c55e' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
                       CAPS {selectedElement.caps ? '✓' : ''}
+                    </button>
+                    <button onClick={() => updateElement(selectedElement.id, { invert: !selectedElement.invert })} style={{ padding: '8px', background: selectedElement.invert ? 'rgba(255,255,255,0.9)' : '#0f172a', border: `1px solid ${selectedElement.invert ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.1)'}`, color: selectedElement.invert ? '#000' : '#94a3b8', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>
+                      ▌Invert {selectedElement.invert ? '✓' : ''}
                     </button>
                   </div>
                 </>
