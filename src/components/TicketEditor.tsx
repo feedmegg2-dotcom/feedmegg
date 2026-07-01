@@ -134,7 +134,7 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     width: '100%',
     padding: el.invert ? '2px 4px' : '1px 0',
     background: el.invert ? '#000' : 'transparent',
-    color: el.invert ? '#fff' : 'inherit',
+    color: el.invert ? '#fff' : '#000',
     lineHeight: 1.4,
     wordBreak: 'break-word',
   }
