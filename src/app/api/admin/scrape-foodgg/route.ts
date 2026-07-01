@@ -255,6 +255,104 @@ function parseOptionsPage(html: string): ParsedOptionGroup[] {
   return groups
 }
 
+// Converts a 12-hour time string like "3pm", "12am", "11:30pm" to 24-hour
+// "HH:MM" format. Returns null if it can't be parsed.
+function parseTime12h(text: string): string | null {
+  const m = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i)
+  if (!m) return null
+  let hour = parseInt(m[1])
+  const minute = m[2] || '00'
+  const period = m[3].toLowerCase()
+  if (period === 'am' && hour === 12) hour = 0
+  if (period === 'pm' && hour !== 12) hour += 12
+  return `${String(hour).padStart(2, '0')}:${minute}`
+}
+
+// Parses the address line that appears just below the restaurant name on
+// both the main page and /info page (e.g. "New Road, St Sampson, Guernsey"),
+// and identifies which parish it's in by matching against known parish names.
+function parseAddressAndParish(html: string): { address: string | null; parish: string | null } {
+  const h1Match = html.match(/<h1[^>]*>\s*[^<]+\s*<\/h1>([\s\S]{0,300})/i)
+  if (!h1Match) return { address: null, parish: null }
+  const afterH1 = cleanText(h1Match[1])
+  // The address is the first short line of text after the name, ending
+  // in "Guernsey" - grab up to and including that word.
+  const addrMatch = afterH1.match(/^[^.]{5,120}?Guernsey/i)
+  const address = addrMatch ? addrMatch[0].trim() : null
+
+  const PARISHES = ['St Peter Port', 'St Sampson', 'St Martin', 'St Saviour', 'St Pierre du Bois', 'St Andrew', 'Castel', 'Forest', 'Torteval', 'Vale']
+  let parish: string | null = null
+  if (address) {
+    for (const p of PARISHES) {
+      if (address.includes(p)) { parish = p; break }
+    }
+  }
+  return { address, parish }
+}
+
+interface ParsedHours { day: string; open_time: string | null; close_time: string | null; is_closed: boolean }
+
+// Parses the "Opening Times" table on the /info page into per-day hours.
+function parseOpeningHoursTable(html: string): ParsedHours[] {
+  const results: ParsedHours[] = []
+  const sectionMatch = html.match(/Opening Times[\s\S]{0,50}?(<table[\s\S]*?<\/table>|(?:<tr[\s\S]*?){1,7})/i)
+  const section = sectionMatch ? sectionMatch[1] : html
+
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const rows = section.split(/<tr[\s>]/i)
+  for (const row of rows) {
+    const tds: string[] = []
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
+    let tdm
+    while ((tdm = tdRegex.exec(row)) !== null) tds.push(cleanText(tdm[1]))
+    if (tds.length < 2) continue
+    const day = dayNames.find(d => tds[0].toLowerCase().includes(d.toLowerCase()))
+    if (!day) continue
+    const timeText = tds[1]
+    if (/closed/i.test(timeText)) {
+      results.push({ day, open_time: null, close_time: null, is_closed: true })
+      continue
+    }
+    const times = timeText.split(/-|–|to/i).map(t => t.trim())
+    const open_time = times[0] ? parseTime12h(times[0]) : null
+    const close_time = times[1] ? parseTime12h(times[1]) : null
+    if (open_time && close_time) {
+      results.push({ day, open_time, close_time, is_closed: false })
+    }
+  }
+  return results
+}
+
+interface ParsedZone { parish: string; min_order: number; fee: number; free_delivery_over: number | null }
+
+// Parses the "Delivery" table on the /info page into per-parish zones.
+function parseDeliveryZonesTable(html: string): ParsedZone[] {
+  const results: ParsedZone[] = []
+  const sectionMatch = html.match(/>Delivery<[\s\S]{0,50}?(<table[\s\S]*?<\/table>|(?:<tr[\s\S]*?){1,15})/i)
+  if (!sectionMatch) return results // restaurant may be collection-only, no delivery table at all
+  const section = sectionMatch[1]
+
+  const PARISHES = ['Castel', 'Forest', 'St Andrew', 'St Martin', 'St Peter Port', 'St Pierre du Bois', 'St Sampson', 'St Saviour', 'Torteval', 'Vale']
+  const rows = section.split(/<tr[\s>]/i)
+  for (const row of rows) {
+    const tds: string[] = []
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi
+    let tdm
+    while ((tdm = tdRegex.exec(row)) !== null) tds.push(cleanText(tdm[1]))
+    if (tds.length < 3) continue
+    const parish = PARISHES.find(p => tds[0].trim() === p)
+    if (!parish) continue
+    const prices = tds.slice(1).map(t => {
+      const m = t.match(/£([\d.]+)/)
+      return m ? parseFloat(m[1]) : null
+    })
+    const [min_order, fee, free_delivery_over] = prices
+    if (min_order === null || fee === null) continue
+    results.push({ parish, min_order, fee, free_delivery_over: free_delivery_over ?? null })
+  }
+  return results
+}
+
 function getCategoryName(html: string): string {
   const titleMatch = html.match(/<title>([^<]+)<\/title>/i)
   if (titleMatch) {
@@ -276,7 +374,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   try {
-    const { url, merchantId } = await request.json()
+    const { url, merchantId, maxOptionFetches } = await request.json()
     if (!url || !merchantId) return NextResponse.json({ error: 'URL and merchantId required' }, { status: 400 })
 
     const baseUrl = url.replace(/\/$/, '').replace(/#.*$/, '')
@@ -332,13 +430,78 @@ export async function POST(request: NextRequest) {
     if (restError || !restaurant) return NextResponse.json({ error: 'Failed: ' + restError?.message }, { status: 500 })
 
     const restaurantId = restaurant.id
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    // Fetch the restaurant's /info page - this is where food.gg keeps the
+    // full address, complete opening hours table, and per-parish delivery
+    // fee table, none of which appear on the main menu page.
+    let infoHtml = ''
+    try {
+      infoHtml = await fetchPage(`${baseUrl}/info`)
+    } catch (e) {
+      // If this fails we just fall back to defaults below - the rest of
+      // the import (menu items) is far more valuable than this metadata
+    }
+
+    // Address and parish - prefer /info page, fall back to the main page
+    const addressResult = parseAddressAndParish(infoHtml) 
+    const finalAddress = addressResult.address || parseAddressAndParish(mainHtml).address
+    const finalParish = addressResult.parish || parish
+
+    if (finalAddress || (finalParish && finalParish !== parish)) {
+      await supabase.from('restaurants').update({
+        address: finalAddress || undefined,
+        parish: finalParish || parish,
+      }).eq('id', restaurantId)
+    }
+
+    // Opening hours - use real scraped hours if found, otherwise fall back
+    // to sensible defaults so the restaurant is still immediately orderable
+    // rather than permanently stuck showing as closed.
+    const scrapedHours = infoHtml ? parseOpeningHoursTable(infoHtml) : []
+    if (scrapedHours.length > 0) {
+      const hoursToInsert = DAYS.map(day => {
+        const found = scrapedHours.find(h => h.day === day)
+        return found
+          ? { restaurant_id: restaurantId, day, open_time: found.open_time, close_time: found.close_time, is_closed: found.is_closed }
+          : { restaurant_id: restaurantId, day, open_time: '12:00', close_time: '21:30', is_closed: false }
+      })
+      await supabase.from('restaurant_hours').insert(hoursToInsert)
+    } else {
+      await supabase.from('restaurant_hours').insert(
+        DAYS.map(day => ({ restaurant_id: restaurantId, day, open_time: '12:00', close_time: '21:30', is_closed: false }))
+      )
+    }
+
+    // Delivery zones - use real per-parish fees/minimums if found. If the
+    // restaurant is collection-only (no delivery table on food.gg), no
+    // zones are created at all, matching that reality.
+    const scrapedZones = infoHtml ? parseDeliveryZonesTable(infoHtml) : []
+    if (scrapedZones.length > 0) {
+      await supabase.from('delivery_zones').insert(
+        scrapedZones.map(z => ({
+          restaurant_id: restaurantId,
+          parish: z.parish,
+          name: z.parish,
+          min_order: z.min_order,
+          fee: z.fee,
+          free_delivery_over: z.free_delivery_over,
+          is_active: true,
+        }))
+      )
+    }
+
     let totalItems = 0
     let totalCategories = 0
 
     let totalOptionsFetched = 0
     let totalOptionGroups = 0
     let totalOptionsSaved = 0
-    const MAX_OPTION_FETCHES = 60 // safety cap so a huge menu can't time out the function
+    // Default raised from 60 to 200 - the first real test (Il Faro, 137
+    // items) completed well within time at 60, so there's real headroom.
+    // Still overridable per-import via the request body if a future
+    // restaurant's menu is large enough to need adjusting either way.
+    const MAX_OPTION_FETCHES = typeof maxOptionFetches === 'number' ? maxOptionFetches : 200
 
     async function saveCategory(name: string, items: MenuItem[]) {
       if (items.length === 0 || !name) return
@@ -445,7 +608,11 @@ export async function POST(request: NextRequest) {
       sectionsFound: sectionUrls.length,
       optionGroups: totalOptionGroups, options: totalOptionsSaved,
       optionFetchesCapped: totalOptionsFetched >= MAX_OPTION_FETCHES,
-      message: `Imported ${restaurantName} with ${totalCategories} categories, ${totalItems} menu items, and ${totalOptionGroups} option groups (${totalOptionsSaved} options)!`
+      hoursScraped: scrapedHours.length > 0,
+      deliveryZonesScraped: scrapedZones.length,
+      message: `Imported ${restaurantName} with ${totalCategories} categories, ${totalItems} menu items, and ${totalOptionGroups} option groups (${totalOptionsSaved} options)! `
+        + (scrapedHours.length > 0 ? `Real opening hours were captured. ` : `No hours found - default 12:00-21:30 every day was set instead, please check these. `)
+        + (scrapedZones.length > 0 ? `${scrapedZones.length} delivery zones with real fees were set up.` : `No delivery zones found (likely collection-only, or check manually).`)
         + (totalOptionsFetched >= MAX_OPTION_FETCHES ? ` Note: option lookup was capped at ${MAX_OPTION_FETCHES} items to avoid a timeout - some items further down the menu may need their extras added manually.` : ''),
     })
 
