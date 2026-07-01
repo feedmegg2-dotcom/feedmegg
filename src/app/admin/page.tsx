@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers', 'customers']
-const ADMIN_USER_ID = 'e4e7926f-4fad-432e-9c0f-8829eaa71d6e'
+const ADMIN_USER_ID = 'add577f5-e16e-489a-a1a6-13ed9bef0900'
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
