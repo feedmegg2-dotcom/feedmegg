@@ -503,18 +503,25 @@ export async function POST(request: NextRequest) {
     // restaurant is collection-only (no delivery table on food.gg), no
     // zones are created at all, matching that reality.
     const scrapedZones = infoHtml ? parseDeliveryZonesTable(infoHtml) : []
+    let deliveryZonesSavedCount = 0
+    let deliveryZonesSaveError: string | null = null
     if (scrapedZones.length > 0) {
-      await supabase.from('delivery_zones').insert(
+      const { data: insertedZones, error: zonesError } = await supabase.from('delivery_zones').insert(
         scrapedZones.map(z => ({
           restaurant_id: restaurantId,
-          parish: z.parish,
           name: z.parish,
           min_order: z.min_order,
           fee: z.fee,
           free_delivery_over: z.free_delivery_over,
           is_active: true,
         }))
-      )
+      ).select()
+      if (zonesError) {
+        deliveryZonesSaveError = zonesError.message
+        console.error('Failed to save delivery zones:', zonesError)
+      } else {
+        deliveryZonesSavedCount = insertedZones?.length || 0
+      }
     }
 
     let totalItems = 0
@@ -635,11 +642,11 @@ export async function POST(request: NextRequest) {
       optionGroups: totalOptionGroups, options: totalOptionsSaved,
       optionFetchesCapped: totalOptionsFetched >= MAX_OPTION_FETCHES,
       hoursScraped: scrapedHours.length > 0,
-      deliveryZonesScraped: scrapedZones.length,
+      deliveryZonesScraped: deliveryZonesSavedCount,
       geocoded,
       message: `Imported ${restaurantName} with ${totalCategories} categories, ${totalItems} menu items, and ${totalOptionGroups} option groups (${totalOptionsSaved} options)! `
         + (scrapedHours.length > 0 ? `Real opening hours were captured. ` : `No hours found - default 12:00-21:30 every day was set instead, please check these. `)
-        + (scrapedZones.length > 0 ? `${scrapedZones.length} delivery zones with real fees were set up. ` : `No delivery zones found (likely collection-only, or check manually). `)
+        + (deliveryZonesSaveError ? `Delivery zones were found but failed to save (${deliveryZonesSaveError}) - please add them manually. ` : deliveryZonesSavedCount > 0 ? `${deliveryZonesSavedCount} delivery zones with real fees were set up. ` : `No delivery zones found (likely collection-only, or check manually). `)
         + (geocoded ? `Map location was set automatically.` : `Could not auto-locate the map pin - set it manually in the restaurant's edit screen.`)
         + (totalOptionsFetched >= MAX_OPTION_FETCHES ? ` Note: option lookup was capped at ${MAX_OPTION_FETCHES} items to avoid a timeout - some items further down the menu may need their extras added manually.` : ''),
     })
