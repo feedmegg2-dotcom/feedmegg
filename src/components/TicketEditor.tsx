@@ -137,7 +137,6 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
     color: el.invert ? '#fff' : 'inherit',
     lineHeight: 1.4,
     wordBreak: 'break-word',
-    color: '#000',
   }
 
   const isPreOrder = !!order.scheduled_for
