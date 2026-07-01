@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { id, is_active } = await request.json()
+    const { id, is_active, is_open } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: 'Missing restaurant ID' }, { status: 400 })
@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient()
 
+    const updates: any = {}
+    if (is_active !== undefined) updates.is_active = is_active
+    if (is_open !== undefined) updates.is_open = is_open
+
     const { data, error } = await supabase
       .from('restaurants')
-      .update({ is_active })
+      .update(updates)
       .eq('id', id)
       .select()
 
