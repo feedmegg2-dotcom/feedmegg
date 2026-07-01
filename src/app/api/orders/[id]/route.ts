@@ -135,7 +135,13 @@ export async function PATCH(
     })
 
   } else if (action === 'reject') {
-    const wasPaidByCard = (order.status === 'paid' || order.status === 'waiting_payment') && order.payment_method === 'card'
+    // IMPORTANT: 'waiting_payment' means a payment link was sent but the
+    // customer has NOT actually paid yet - no money has moved. Only
+    // order.paid_at being set (or status 'paid'/'complete') means a real
+    // charge exists that would need refunding. Treating 'waiting_payment'
+    // as "already paid" here would wrongly tell both the customer and
+    // staff that a refund is needed for a charge that never happened.
+    const wasPaidByCard = !!order.paid_at && order.payment_method === 'card'
 
     // Refunds are always processed manually by staff in the SumUp dashboard/app.
     // This route never calls SumUp's refund API - it just records the rejection
