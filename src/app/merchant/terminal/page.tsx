@@ -51,6 +51,7 @@ export default function TerminalPage() {
   const [historySearch, setHistorySearch] = useState('')
   const [historyStartDate, setHistoryStartDate] = useState<string>('')
   const [historyEndDate, setHistoryEndDate] = useState<string>('')
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [delivTime, setDelivTime] = useState(25)
   const [pickTime, setPickTime] = useState(15)
@@ -301,6 +302,31 @@ export default function TerminalPage() {
       }
     }, 15000)
   }
+
+  // Order History previously only ever showed today's paid/cancelled
+  // orders (from the live poll, which is itself scoped to today) - this
+  // fetches genuine historical orders directly from the database for
+  // whatever date range is selected, independent of the live poll.
+  async function fetchArchivedOrders() {
+    if (!restaurant?.id) return
+    setHistoryLoading(true)
+    const from = historyStartDate ? `${historyStartDate}T00:00:00` : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const to = historyEndDate ? `${historyEndDate}T23:59:59` : new Date().toISOString()
+    const { data } = await supabase.from('orders')
+      .select('*, order_items(*)')
+      .eq('restaurant_id', restaurant.id)
+      .in('status', ['paid', 'complete', 'cancelled', 'rejected', 'refunded'])
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    setArchivedOrders(data || [])
+    setHistoryLoading(false)
+  }
+
+  useEffect(() => {
+    if (screen === 'history') fetchArchivedOrders()
+  }, [screen, historyStartDate, historyEndDate, restaurant?.id])
 
   async function checkPrinterStatus() {
     try {
@@ -1672,12 +1698,16 @@ export default function TerminalPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', marginBottom: '14px' }}>
             <input type="text" value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search by order # or customer..." style={{ flex: 1, background: 'none', border: 'none', color: '#f8fafc', fontSize: 'clamp(12px,2vw,14px)', outline: 'none' }} />
           </div>
-          {[...archivedOrders, ...orders.filter(o => ['paid','cancelled'].includes(o.status))].filter(o => {
-            const orderDate = new Date(o.created_at).toISOString().split('T')[0]
+          {historyLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '13px' }}>Loading order history...</div>
+          ) : archivedOrders.filter(o => {
             const matchesSearch = !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())
-            const matchesStart = !historyStartDate || orderDate >= historyStartDate
-            const matchesEnd = !historyEndDate || orderDate <= historyEndDate
-            return matchesSearch && matchesStart && matchesEnd
+            return matchesSearch
+          }).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '13px' }}>No orders found for this date range.</div>
+          ) : archivedOrders.filter(o => {
+            const matchesSearch = !historySearch || o.order_number?.includes(historySearch) || o.customer_name?.toLowerCase().includes(historySearch.toLowerCase())
+            return matchesSearch
           }).map(o => {
             const isExpanded = expandedOrderId === o.id
             return (
