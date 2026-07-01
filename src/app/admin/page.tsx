@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
   const [password, setPassword] = useState('')
   const [adminEmail, setAdminEmail] = useState('glensmithdj@mail.com')
+  const [forgotPasswordMsg, setForgotPasswordMsg] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [restaurants, setRestaurants] = useState<any[]>([])
@@ -140,6 +141,20 @@ export default function AdminPage() {
   const [newMerchant, setNewMerchant] = useState({ name: '', email: '', phone: '', commission_rate: '4', password: '' })
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' })
+
+  async function sendPasswordReset() {
+    setForgotPasswordMsg('')
+    setAuthError('')
+    if (!adminEmail) { setAuthError('Enter your email first'); return }
+    // Explicitly set the redirect target here rather than relying on
+    // Supabase's dashboard-configured Site URL, which was sending recovery
+    // links to the homepage instead of a page that can actually process them.
+    const { error } = await supabase.auth.resetPasswordForEmail(adminEmail, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    if (error) { setAuthError(error.message); return }
+    setForgotPasswordMsg('Check your email for a password reset link.')
+  }
 
   async function checkPassword() {
     setAuthError('')
@@ -691,8 +706,12 @@ export default function AdminPage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Admin Access</h2>
             {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px', marginBottom: '14px', fontSize: '13px', color: 'var(--red)' }}>{authError}</div>}
+            {forgotPasswordMsg && <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', padding: '10px', marginBottom: '14px', fontSize: '13px', color: 'var(--green)' }}>{forgotPasswordMsg}</div>}
             <div style={{ marginBottom: '12px' }}><label>Admin Email</label><input className="input" type="email" placeholder="Email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} /></div>
-            <div style={{ marginBottom: '16px' }}><label>Admin Password</label><input className="input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
+            <div style={{ marginBottom: '10px' }}><label>Admin Password</label><input className="input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
+            <div style={{ textAlign: 'right', marginBottom: '16px' }}>
+              <button onClick={sendPasswordReset} style={{ background: 'none', border: 'none', color: 'var(--sub)', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Forgot password?</button>
+            </div>
             <button className="btn-primary" onClick={checkPassword} disabled={authLoading} style={{ width: '100%', padding: '13px', opacity: authLoading ? 0.6 : 1 }}>{authLoading ? 'Signing in...' : 'Access Admin Panel'}</button>
           </div>
         </div>
