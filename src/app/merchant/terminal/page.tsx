@@ -438,24 +438,30 @@ export default function TerminalPage() {
     // closes them out properly in the database instead of leaving them as
     // invisible zombie 'pending' rows forever.
     const nowTs = Date.now()
-    const expiredUnpaidPreOrders = data.filter((o: any) =>
-      o.status === 'pending' &&
-      o.scheduled_for &&
+    const expiredUnpaidOrders = data.filter((o: any) =>
+      ['pending', 'waiting_payment'].includes(o.status) &&
       o.payment_method === 'card' &&
       !o.paid_at &&
       o.payment_link_expires_at &&
       new Date(o.payment_link_expires_at).getTime() < nowTs
     )
-    if (expiredUnpaidPreOrders.length > 0) {
-      const expiredIds = expiredUnpaidPreOrders.map((o: any) => o.id)
-      await supabase.from('orders').update({
-        status: 'cancelled',
-        cancel_reason: 'Pre-order payment was never completed',
-        cancelled_at: new Date().toISOString(),
-      }).in('id', expiredIds)
+    if (expiredUnpaidOrders.length > 0) {
+      const expiredIds = expiredUnpaidOrders.map((o: any) => o.id)
+      const cancelReasons: Record<string, string> = {}
+      expiredUnpaidOrders.forEach((o: any) => {
+        cancelReasons[o.id] = o.scheduled_for ? 'Pre-order payment was never completed' : 'Payment was never completed'
+      })
+      // Update each order with its appropriate reason (pre-order vs ASAP wording)
+      await Promise.all(expiredUnpaidOrders.map((o: any) =>
+        supabase.from('orders').update({
+          status: 'cancelled',
+          cancel_reason: cancelReasons[o.id],
+          cancelled_at: new Date().toISOString(),
+        }).eq('id', o.id)
+      ))
       // Reflect the cancellation locally immediately so the UI doesn't
       // briefly show these before the next poll
-      data = data.map((o: any) => expiredIds.includes(o.id) ? { ...o, status: 'cancelled', cancel_reason: 'Pre-order payment was never completed' } : o)
+      data = data.map((o: any) => expiredIds.includes(o.id) ? { ...o, status: 'cancelled', cancel_reason: cancelReasons[o.id] } : o)
     }
 
     // AUTO-MOVE PRE-ORDERS to INCOMING at lead time
