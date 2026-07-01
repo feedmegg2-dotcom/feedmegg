@@ -57,7 +57,7 @@ const DEFAULT_TEMPLATES = [
     template_type: 'kitchen',
     copies: 1,
     elements: [
-      { id: '1', type: 'preorder_badge', size: 'xl', bold: true, align: 'center', caps: true },
+      { id: '1', type: 'preorder_badge', size: 'xl', bold: true, align: 'center', caps: true, invert: true },
       { id: '2', type: 'preorder_time', size: 'large', bold: true, align: 'center', caps: false },
       { id: '3', type: 'divider' },
       { id: '4', type: 'order_number', size: 'xl', bold: true, align: 'center', caps: true },
@@ -78,7 +78,7 @@ const DEFAULT_TEMPLATES = [
     elements: [
       { id: '1', type: 'restaurant_name', size: 'xl', bold: true, align: 'center', caps: true },
       { id: '2', type: 'divider' },
-      { id: '3', type: 'preorder_badge', size: 'large', bold: true, align: 'center', caps: true },
+      { id: '3', type: 'preorder_badge', size: 'large', bold: true, align: 'center', caps: true, invert: true },
       { id: '4', type: 'preorder_time', size: 'medium', bold: false, align: 'center', caps: false },
       { id: '5', type: 'order_number', size: 'large', bold: true, align: 'center', caps: false },
       { id: '6', type: 'customer_name', size: 'medium', bold: false, align: 'left', caps: false },
@@ -98,8 +98,8 @@ const DEFAULT_TEMPLATES = [
     template_type: 'delivery',
     copies: 1,
     elements: [
-      { id: '1', type: 'contactless', size: 'xl', bold: true, align: 'center', caps: true },
-      { id: '2', type: 'preorder_badge', size: 'large', bold: true, align: 'center', caps: true },
+      { id: '1', type: 'contactless', size: 'xl', bold: true, align: 'center', caps: true, invert: true },
+      { id: '2', type: 'preorder_badge', size: 'large', bold: true, align: 'center', caps: true, invert: true },
       { id: '3', type: 'preorder_time', size: 'medium', bold: true, align: 'center', caps: false },
       { id: '4', type: 'divider' },
       { id: '5', type: 'order_number', size: 'xl', bold: true, align: 'center', caps: true },
@@ -211,7 +211,7 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
       </div>
     )
     case 'preorder_badge': return isPreOrder ? (
-      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
+      <div style={{ ...style, padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
         *** PRE-ORDER ***
       </div>
     ) : null
@@ -221,7 +221,7 @@ function renderElement(el: any, order: any = SAMPLE_ORDER, printerWidth: number 
       </div>
     ) : null
     case 'contactless': return isContactless ? (
-      <div style={{ ...style, background: '#000', color: '#fff', padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
+      <div style={{ ...style, padding: '4px 8px', margin: '3px 0', textAlign: 'center' }}>
         *** CONTACTLESS DELIVERY ***
       </div>
     ) : null
@@ -292,7 +292,8 @@ export function TicketEditor({ restaurantId, restaurantName, onClose }: TicketEd
   }
 
   function addElement(type: string) {
-    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, text: type === 'custom_text' ? 'Your custom text here' : undefined, kitchen_number_size: type === 'items_list_with_numbers' ? 'xxxl' : undefined }
+    const defaultInvert = type === 'preorder_badge' || type === 'contactless'
+    const el = { id: Date.now().toString(), type, size: 'medium', bold: false, align: 'left', caps: false, invert: defaultInvert, text: type === 'custom_text' ? 'Your custom text here' : undefined, kitchen_number_size: type === 'items_list_with_numbers' ? 'xxxl' : undefined }
     const updated = { ...selectedTemplate, elements: [...(selectedTemplate.elements || []), el] }
     setSelectedTemplate(updated)
     setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? updated : t))
