@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase'
 
-const ADMIN_USER_ID = 'e4e7926f-4fad-432e-9c0f-8829eaa71d6e'
+const ADMIN_USER_ID = 'add577f5-e16e-489a-a1a6-13ed9bef0900'
 
 /**
  * Verifies the incoming request belongs to an authenticated admin session.
