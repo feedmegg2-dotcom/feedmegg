@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers', 'customers']
+const ADMIN_USER_ID = 'e4e7926f-4fad-432e-9c0f-8829eaa71d6e'
 const PARISHES = ['St Peter Port','St Sampson','Vale','Castel','St Martin','Forest','St Saviour','Torteval','St Pierre du Bois','St Andrew']
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
@@ -14,6 +15,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState('dashboard')
   const [authed, setAuthed] = useState(false)
   const [password, setPassword] = useState('')
+  const [adminEmail, setAdminEmail] = useState('glensmithdj@mail.com')
+  const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [restaurants, setRestaurants] = useState<any[]>([])
   const [merchants, setMerchants] = useState<any[]>([])
@@ -138,10 +141,38 @@ export default function AdminPage() {
   const [newCategory, setNewCategory] = useState({ name: '', sort_order: '1' })
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', emoji: 'food', calories: '', category_id: '' })
 
-  function checkPassword() {
-    if (password === 'feedmegg2026admin') { setAuthed(true); fetchAll(); fetchUnresolvedErrorCount() }
-    else setAuthError('Incorrect password')
+  async function checkPassword() {
+    setAuthError('')
+    setAuthLoading(true)
+    const { data, error } = await supabase.auth.signInWithPassword({ email: adminEmail, password })
+    setAuthLoading(false)
+    if (error || !data.user) {
+      setAuthError(error?.message || 'Login failed')
+      return
+    }
+    if (data.user.id !== ADMIN_USER_ID) {
+      await supabase.auth.signOut()
+      setAuthError('This account is not authorised for admin access')
+      return
+    }
+    setAuthed(true)
+    fetchAll()
+    fetchUnresolvedErrorCount()
   }
+
+  // Auto-authenticate on load if a valid admin session already exists,
+  // so a page refresh doesn't force logging in again every time.
+  useEffect(() => {
+    async function checkExistingSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && user.id === ADMIN_USER_ID) {
+        setAuthed(true)
+        fetchAll()
+        fetchUnresolvedErrorCount()
+      }
+    }
+    checkExistingSession()
+  }, [])
 
   useEffect(() => {
     if (!authed) return
@@ -660,8 +691,9 @@ export default function AdminPage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px' }}>Admin Access</h2>
             {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px', marginBottom: '14px', fontSize: '13px', color: 'var(--red)' }}>{authError}</div>}
+            <div style={{ marginBottom: '12px' }}><label>Admin Email</label><input className="input" type="email" placeholder="Email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} /></div>
             <div style={{ marginBottom: '16px' }}><label>Admin Password</label><input className="input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkPassword()} /></div>
-            <button className="btn-primary" onClick={checkPassword} style={{ width: '100%', padding: '13px' }}>Access Admin Panel</button>
+            <button className="btn-primary" onClick={checkPassword} disabled={authLoading} style={{ width: '100%', padding: '13px', opacity: authLoading ? 0.6 : 1 }}>{authLoading ? 'Signing in...' : 'Access Admin Panel'}</button>
           </div>
         </div>
       </div>
