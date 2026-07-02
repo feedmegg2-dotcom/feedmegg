@@ -51,9 +51,14 @@ export default function RestaurantPage() {
     if (!rest) { router.push('/'); return }
     setRestaurant(rest)
     // Fetch hours and zones
-    const { data: h } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', rest.id).order('id')
-    setHours(h || [])
-    const { data: z } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', rest.id).order('name')
+    const { data: h } = await supabase.from('restaurant_hours').select('*').eq('restaurant_id', rest.id)
+    // Sort into correct Monday-Sunday order - the database has no concept
+    // of day-of-week ordering, so sorting by id/created order gives a
+    // scrambled result. Sort client-side against the real weekly sequence.
+    const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    const sortedHours = (h || []).slice().sort((a: any, b: any) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day))
+    setHours(sortedHours)
+    const { data: z } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', rest.id).eq('is_active', true).order('name')
     setZones(z || [])
     const { data: cats } = await supabase
       .from('menu_categories')
