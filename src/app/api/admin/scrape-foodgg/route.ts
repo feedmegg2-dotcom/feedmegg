@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 
+// Writes live progress into scrape_jobs so the admin panel can poll and
+// show real-time updates during a long-running import, rather than the
+// person just staring at a static "Importing..." message with no idea
+// whether it's actually still working or has silently died.
+async function logProgress(jobId: string | undefined, updates: {
+  current_step?: string
+  log_append?: string
+  categories_done?: number
+  items_done?: number
+  options_done?: number
+  status?: string
+  error?: string
+  restaurant_name?: string
+}) {
+  if (!jobId) return
+  try {
+    const supabase = createAdminClient()
+    const patch: any = { updated_at: new Date().toISOString() }
+    if (updates.current_step !== undefined) patch.current_step = updates.current_step
+    if (updates.categories_done !== undefined) patch.categories_done = updates.categories_done
+    if (updates.items_done !== undefined) patch.items_done = updates.items_done
+    if (updates.options_done !== undefined) patch.options_done = updates.options_done
+    if (updates.status !== undefined) patch.status = updates.status
+    if (updates.error !== undefined) patch.error = updates.error
+    if (updates.restaurant_name !== undefined) patch.restaurant_name = updates.restaurant_name
+    if (updates.log_append) {
+      const { data: existing } = await supabase.from('scrape_jobs').select('log').eq('id', jobId).maybeSingle()
+      patch.log = [...(existing?.log || []), updates.log_append].slice(-50) // keep last 50 lines
+    }
+    await supabase.from('scrape_jobs').update(patch).eq('id', jobId)
+  } catch (e) {
+    // Progress logging must never break the actual import
+  }
+}
+
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
@@ -374,14 +409,22 @@ function getCategoryName(html: string): string {
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
+  let jobId: string | undefined
 
   try {
-    const { url, merchantId, maxOptionFetches } = await request.json()
+    const body = await request.json()
+    const { url, merchantId, maxOptionFetches } = body
+    jobId = body.jobId
     if (!url || !merchantId) return NextResponse.json({ error: 'URL and merchantId required' }, { status: 400 })
+
+    if (jobId) {
+      await supabase.from('scrape_jobs').insert({ id: jobId, status: 'running', current_step: 'Starting import...' })
+    }
 
     const baseUrl = url.replace(/\/$/, '').replace(/#.*$/, '')
     const slug = baseUrl.split('/').pop() || ''
 
+    await logProgress(jobId, { current_step: 'Fetching restaurant page...', log_append: 'Fetching restaurant page...' })
     const mainHtml = await fetchPage(baseUrl)
 
     const nameMatch = mainHtml.match(/<h1[^>]*>\s*([^<]+)\s*<\/h1>/)
@@ -429,14 +472,19 @@ export async function POST(request: NextRequest) {
       custom_message: `Thank you for ordering from ${restaurantName}!`,
     }).select().single()
 
-    if (restError || !restaurant) return NextResponse.json({ error: 'Failed: ' + restError?.message }, { status: 500 })
+    if (restError || !restaurant) {
+      await logProgress(jobId, { status: 'error', error: restError?.message || 'Failed to create restaurant' })
+      return NextResponse.json({ error: 'Failed: ' + restError?.message }, { status: 500 })
+    }
 
     const restaurantId = restaurant.id
+    await logProgress(jobId, { restaurant_name: restaurantName, current_step: `Found restaurant: ${restaurantName}`, log_append: `Found restaurant: ${restaurantName}` })
     const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
     // Fetch the restaurant's /info page - this is where food.gg keeps the
     // full address, complete opening hours table, and per-parish delivery
     // fee table, none of which appear on the main menu page.
+    await logProgress(jobId, { current_step: 'Fetching address, hours & delivery info...', log_append: 'Fetching address, hours & delivery info...' })
     let infoHtml = ''
     try {
       infoHtml = await fetchPage(`${baseUrl}/info`)
@@ -462,6 +510,7 @@ export async function POST(request: NextRequest) {
     // (OpenStreetMap) lookup already used elsewhere in the admin panel.
     let geocoded = false
     if (finalAddress) {
+      await logProgress(jobId, { current_step: 'Setting map location...', log_append: 'Setting map location...' })
       try {
         const geoQuery = `${finalAddress}, Guernsey`
         const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(geoQuery)}&format=json&limit=1`, {
@@ -545,6 +594,12 @@ export async function POST(request: NextRequest) {
       }).select().single()
       if (!cat) return
       totalCategories++
+      await logProgress(jobId, {
+        current_step: `Saving category: ${catName} (${items.length} items)`,
+        log_append: `Saved category: ${catName} (${items.length} items)`,
+        categories_done: totalCategories,
+        items_done: totalItems,
+      })
 
       // Phase 1: insert every item first (fast DB writes, no network calls)
       const savedItemPairs: { savedItem: any; item: MenuItem }[] = []
@@ -558,6 +613,7 @@ export async function POST(request: NextRequest) {
         totalItems++
         if (savedItem && item.addUrl) savedItemPairs.push({ savedItem, item })
       }
+      await logProgress(jobId, { items_done: totalItems })
 
       // Phase 2: fetch each item's customization/options page CONCURRENTLY
       // in small batches, rather than one at a time. Sequential fetching
@@ -569,6 +625,7 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < savedItemPairs.length; i += BATCH_SIZE) {
         if (totalOptionsFetched >= MAX_OPTION_FETCHES) break
         const batch = savedItemPairs.slice(i, i + BATCH_SIZE)
+        await logProgress(jobId, { current_step: `Checking extras for ${catName} (${Math.min(i + BATCH_SIZE, savedItemPairs.length)}/${savedItemPairs.length} items)...` })
         await Promise.all(batch.map(async ({ savedItem, item }) => {
           if (totalOptionsFetched >= MAX_OPTION_FETCHES) return
           totalOptionsFetched++
@@ -603,6 +660,7 @@ export async function POST(request: NextRequest) {
             // rather than failing the whole import over one item's extras
           }
         }))
+        await logProgress(jobId, { options_done: totalOptionsSaved })
       }
     }
 
@@ -648,6 +706,8 @@ export async function POST(request: NextRequest) {
       } catch (e) { /* skip failed sections */ }
     }
 
+    await logProgress(jobId, { status: 'done', current_step: 'Import complete!' })
+
     return NextResponse.json({
       success: true, restaurantId, restaurantName,
       categories: totalCategories, items: totalItems,
@@ -665,6 +725,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
+    await logProgress(jobId, { status: 'error', error: error.message })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
