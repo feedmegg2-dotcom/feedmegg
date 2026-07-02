@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [importUrl, setImportUrl] = useState('')
   const [importMerchantId, setImportMerchantId] = useState('')
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<{ current_step?: string; log?: string[]; categories_done?: number; items_done?: number; options_done?: number } | null>(null)
   const [editItem, setEditItem] = useState<any>(null)
   const [imageModal, setImageModal] = useState<any>(null)
   const [imageTab, setImageTab] = useState<'emoji' | 'photo'>('emoji')
@@ -467,19 +468,34 @@ export default function AdminPage() {
   async function importFromFoodGG() {
     if (!importUrl || !importMerchantId) { setMsg('Please enter a food.gg URL and select a merchant'); return }
     setImporting(true)
-    setMsg('Importing... this can take a minute or two for a large menu...')
+    setImportProgress({ current_step: 'Starting import...', log: [] })
+
+    const jobId = crypto.randomUUID()
+    const pollInterval = setInterval(async () => {
+      try {
+        const pRes = await fetch(`/api/admin/scrape-foodgg/progress?jobId=${jobId}`)
+        const pData = await pRes.json()
+        if (pData.job) setImportProgress(pData.job)
+      } catch (e) {
+        // Polling failures are non-critical - the main import request is
+        // still what determines final success/failure
+      }
+    }, 1000)
+
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 90000) // 90s client-side safety net
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minute client-side safety net
       const res = await fetch('/api/admin/scrape-foodgg', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: importUrl, merchantId: importMerchantId }),
+        body: JSON.stringify({ url: importUrl, merchantId: importMerchantId, jobId }),
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
+      clearInterval(pollInterval)
       const data = await res.json()
       setImporting(false)
+      setImportProgress(null)
       if (!res.ok) { setMsg('Error: ' + data.error); return }
       setMsg(data.message)
       setShowImport(false)
@@ -487,9 +503,11 @@ export default function AdminPage() {
       setImportMerchantId('')
       fetchAll()
     } catch (e: any) {
+      clearInterval(pollInterval)
       setImporting(false)
+      setImportProgress(null)
       if (e.name === 'AbortError') {
-        setMsg('Import timed out after 90 seconds - the restaurant may have partially imported. Check the restaurants list and delete/retry if needed.')
+        setMsg('Import timed out after 2 minutes - the restaurant may have partially imported. Check the restaurants list and delete/retry if needed.')
       } else {
         setMsg('Import failed: ' + (e.message || 'Unknown error'))
       }
@@ -875,16 +893,39 @@ export default function AdminPage() {
 
             {/* Import Modal */}
             {showImport && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setShowImport(false) }}>
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget && !importing) setShowImport(false) }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px' }}>
                   <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Import from food.gg</h3>
-                  <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>Paste a food.gg restaurant URL and we will automatically import the restaurant and its full menu.</p>
-                  <div style={{ marginBottom: '12px' }}><label>food.gg URL</label><input className="input" placeholder="https://www.food.gg/wickedwolf" value={importUrl} onChange={e => setImportUrl(e.target.value)} /></div>
-                  <div style={{ marginBottom: '20px' }}><label>Assign to Merchant</label><select className="input" value={importMerchantId} onChange={e => setImportMerchantId(e.target.value)}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-ghost" onClick={() => setShowImport(false)} style={{ flex: 1 }}>Cancel</button>
-                    <button className="btn-primary" onClick={importFromFoodGG} disabled={importing} style={{ flex: 2 }}>{importing ? 'Importing...' : 'Import Restaurant'}</button>
-                  </div>
+                  {!importing ? (
+                    <>
+                      <p style={{ fontSize: '13px', color: 'var(--sub)', marginBottom: '20px' }}>Paste a food.gg restaurant URL and we will automatically import the restaurant and its full menu.</p>
+                      <div style={{ marginBottom: '12px' }}><label>food.gg URL</label><input className="input" placeholder="https://www.food.gg/wickedwolf" value={importUrl} onChange={e => setImportUrl(e.target.value)} /></div>
+                      <div style={{ marginBottom: '20px' }}><label>Assign to Merchant</label><select className="input" value={importMerchantId} onChange={e => setImportMerchantId(e.target.value)}><option value="">Select merchant...</option>{merchants.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}</select></div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-ghost" onClick={() => setShowImport(false)} style={{ flex: 1 }}>Cancel</button>
+                        <button className="btn-primary" onClick={importFromFoodGG} style={{ flex: 2 }}>Import Restaurant</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                        <div style={{ width: '18px', height: '18px', border: '2px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{importProgress?.current_step || 'Working...'}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '12px', color: 'var(--sub)' }}>
+                        <div><strong style={{ color: 'var(--text)' }}>{importProgress?.categories_done || 0}</strong> categories</div>
+                        <div><strong style={{ color: 'var(--text)' }}>{importProgress?.items_done || 0}</strong> items</div>
+                        <div><strong style={{ color: 'var(--text)' }}>{importProgress?.options_done || 0}</strong> options</div>
+                      </div>
+                      <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', maxHeight: '180px', overflowY: 'auto', fontSize: '12px', fontFamily: 'monospace', color: 'var(--sub)' }}>
+                        {(importProgress?.log || []).map((line, i) => (
+                          <div key={i} style={{ padding: '2px 0' }}>{line}</div>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--sub)', marginTop: '12px', textAlign: 'center' }}>This can take a minute or two for a large menu - feel free to leave this open.</p>
+                    </>
+                  )}
+                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
                 </div>
               </div>
             )}
