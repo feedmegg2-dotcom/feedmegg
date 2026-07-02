@@ -428,10 +428,15 @@ export default function AdminPage() {
     try {
       const { data } = await supabase.from('delivery_zones').select('*').eq('restaurant_id', restId).order('name')
       if (data && data.length > 0) {
-        // Merge DB zones with all parishes so all 10 always show
+        // Merge DB zones with all parishes so all 10 always show. Any
+        // parish with NO real saved zone defaults to disabled - previously
+        // this defaulted to enabled:true, which wrongly implied delivery
+        // was offered to parishes that were never actually part of the
+        // real (e.g. scraped) data, and could result in genuinely
+        // undeliverable areas being saved as active if not manually unticked.
         const merged = PARISHES.map(p => {
           const saved = data.find((z: any) => z.name === p || z.parish === p)
-          return saved ? { ...saved, parish: saved.name || saved.parish, enabled: saved.is_active !== false } : { parish: p, name: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: restId }
+          return saved ? { ...saved, parish: saved.name || saved.parish, enabled: saved.is_active !== false } : { parish: p, name: p, fee: 2.50, min_order: 10, enabled: false, restaurant_id: restId }
         })
         setDeliveryZones(merged)
       } else {
