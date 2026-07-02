@@ -444,9 +444,14 @@ export default function AdminPage() {
 
   async function saveZones() {
     if (!zonesRestaurant) return
-    // Upsert zones - update existing, insert new
+    // Upsert zones - update existing, insert new. Every row is given a
+    // real id BEFORE sending to Supabase (rather than omitting it for new
+    // zones) - a single batch upsert containing a mix of rows with and
+    // without an id can end up sending an explicit null for the missing
+    // ones instead of falling back to the database's own default, since
+    // one INSERT statement covers the whole batch with a shared column list.
     const toUpsert = deliveryZones.map(z => ({
-      ...(z.id ? { id: z.id } : {}),
+      id: z.id || crypto.randomUUID(),
       restaurant_id: zonesRestaurant.id,
       name: z.parish || z.name,
       fee: parseFloat(z.fee) || 0,
