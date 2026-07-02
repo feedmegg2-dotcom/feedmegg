@@ -467,16 +467,34 @@ export default function AdminPage() {
   async function importFromFoodGG() {
     if (!importUrl || !importMerchantId) { setMsg('Please enter a food.gg URL and select a merchant'); return }
     setImporting(true)
-    setMsg('Importing... this may take 30 seconds...')
-    const res = await fetch('/api/admin/scrape-foodgg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: importUrl, merchantId: importMerchantId }) })
-    const data = await res.json()
-    setImporting(false)
-    if (!res.ok) { setMsg('Error: ' + data.error); return }
-    setMsg(data.message)
-    setShowImport(false)
-    setImportUrl('')
-    setImportMerchantId('')
-    fetchAll()
+    setMsg('Importing... this can take a minute or two for a large menu...')
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 90000) // 90s client-side safety net
+      const res = await fetch('/api/admin/scrape-foodgg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: importUrl, merchantId: importMerchantId }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      const data = await res.json()
+      setImporting(false)
+      if (!res.ok) { setMsg('Error: ' + data.error); return }
+      setMsg(data.message)
+      setShowImport(false)
+      setImportUrl('')
+      setImportMerchantId('')
+      fetchAll()
+    } catch (e: any) {
+      setImporting(false)
+      if (e.name === 'AbortError') {
+        setMsg('Import timed out after 90 seconds - the restaurant may have partially imported. Check the restaurants list and delete/retry if needed.')
+      } else {
+        setMsg('Import failed: ' + (e.message || 'Unknown error'))
+      }
+      fetchAll()
+    }
   }
 
   async function deleteRestaurant(id: string, name: string) {
