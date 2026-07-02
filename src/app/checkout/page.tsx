@@ -43,6 +43,7 @@ export default function CheckoutPage() {
     isPreOrder: false,
     preOrderDate: '',
     preOrderTime: '',
+    termsAccepted: false,
   })
 
   // Generate available time slots
@@ -374,6 +375,7 @@ export default function CheckoutPage() {
       if (form.addressMode !== 'saved' && !form.addressLine1) { setError('Please enter your delivery address'); return }
     }
     if (form.isPreOrder && !form.preOrderTime) { setError('Please select a time slot'); return }
+    if (!form.termsAccepted) { setError('Please agree to the Terms & Conditions to continue'); return }
     if (!meetsMinOrder) { setError(`Minimum order is GBP${(parseFloat(restaurant?.min_order) || 10).toFixed(2)}`); return }
     setError('')
     setLoading(true)
@@ -756,6 +758,19 @@ export default function CheckoutPage() {
             Minimum order GBP{(parseFloat(restaurant?.min_order) || 10).toFixed(2)} — add GBP{((parseFloat(restaurant?.min_order) || 10) - cartTotal).toFixed(2)} more
           </div>
         )}
+
+        <div onClick={() => setForm({...form, termsAccepted: !form.termsAccepted})}
+          style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '14px 16px', background: card, border: `1px solid ${form.termsAccepted ? 'rgba(34,197,94,0.3)' : border}`, borderRadius: '12px', marginBottom: '14px', cursor: 'pointer' }}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '5px', border: `2px solid ${form.termsAccepted ? '#22c55e' : sub}`, background: form.termsAccepted ? '#22c55e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px', transition: 'all 0.15s' }}>
+            {form.termsAccepted && <span style={{ color: '#080c14', fontSize: '13px', fontWeight: 800, lineHeight: 1 }}>✓</span>}
+          </div>
+          <div style={{ fontSize: '13px', color: text, lineHeight: 1.5 }}>
+            I agree to feedme.gg's{' '}
+            <a href="/terms" target="_blank" onClick={e => e.stopPropagation()} style={{ color: '#22c55e', textDecoration: 'underline' }}>Terms &amp; Conditions</a>
+            {' '}and{' '}
+            <a href="/privacy" target="_blank" onClick={e => e.stopPropagation()} style={{ color: '#22c55e', textDecoration: 'underline' }}>Privacy Policy</a>
+          </div>
+        </div>
 
         {error && (
           <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', fontSize: '13px', color: '#fca5a5', marginBottom: '14px' }}>{error}</div>
