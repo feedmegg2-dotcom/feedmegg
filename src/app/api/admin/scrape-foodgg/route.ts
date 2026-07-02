@@ -545,6 +545,9 @@ export async function POST(request: NextRequest) {
       }).select().single()
       if (!cat) return
       totalCategories++
+
+      // Phase 1: insert every item first (fast DB writes, no network calls)
+      const savedItemPairs: { savedItem: any; item: MenuItem }[] = []
       for (const item of items) {
         const { data: savedItem } = await supabase.from('menu_items').insert({
           restaurant_id: restaurantId, category_id: cat.id,
@@ -553,14 +556,24 @@ export async function POST(request: NextRequest) {
           is_available: true, tags: item.tags, allergens: [],
         }).select().single()
         totalItems++
+        if (savedItem && item.addUrl) savedItemPairs.push({ savedItem, item })
+      }
 
-        // Fetch this item's own customization page for checkbox/radio
-        // option groups (extra toppings, choice of side, etc.) - capped so
-        // a very large menu can't blow the function's execution time.
-        if (savedItem && item.addUrl && totalOptionsFetched < MAX_OPTION_FETCHES) {
+      // Phase 2: fetch each item's customization/options page CONCURRENTLY
+      // in small batches, rather than one at a time. Sequential fetching
+      // was the actual cause of imports appearing to hang forever on any
+      // restaurant with a big menu - each network round-trip adds up fast,
+      // and a serverless function has a hard execution time limit that
+      // sequential fetching could blow straight through with no warning.
+      const BATCH_SIZE = 8
+      for (let i = 0; i < savedItemPairs.length; i += BATCH_SIZE) {
+        if (totalOptionsFetched >= MAX_OPTION_FETCHES) break
+        const batch = savedItemPairs.slice(i, i + BATCH_SIZE)
+        await Promise.all(batch.map(async ({ savedItem, item }) => {
+          if (totalOptionsFetched >= MAX_OPTION_FETCHES) return
           totalOptionsFetched++
           try {
-            const fullAddUrl = item.addUrl.startsWith('http') ? item.addUrl : `https://www.food.gg${item.addUrl.startsWith('/') ? '' : '/'}${item.addUrl}`
+            const fullAddUrl = item.addUrl!.startsWith('http') ? item.addUrl! : `https://www.food.gg${item.addUrl!.startsWith('/') ? '' : '/'}${item.addUrl}`
             const optionsHtml = await fetchPage(fullAddUrl)
             const parsedGroups = parseOptionsPage(optionsHtml)
             for (const group of parsedGroups) {
@@ -574,22 +587,22 @@ export async function POST(request: NextRequest) {
               }).select().single()
               if (!savedGroup) continue
               totalOptionGroups++
-              for (const [idx, opt] of group.options.entries()) {
-                await supabase.from('item_options').insert({
+              await supabase.from('item_options').insert(
+                group.options.map((opt, idx) => ({
                   option_group_id: savedGroup.id,
                   name: opt.name,
                   price_adjustment: opt.price,
                   sort_order: idx + 1,
                   is_available: true,
-                })
-                totalOptionsSaved++
-              }
+                }))
+              )
+              totalOptionsSaved += group.options.length
             }
           } catch (e) {
             // Options page fetch/parse failed for this one item - skip it
             // rather than failing the whole import over one item's extras
           }
-        }
+        }))
       }
     }
 
