@@ -124,6 +124,9 @@ export default function AdminPage() {
 
   // Option groups - per item
   const [editingOptions, setEditingOptions] = useState<any>(null)
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null)
+  const [editOptionName, setEditOptionName] = useState('')
+  const [editOptionPrice, setEditOptionPrice] = useState('')
   const [optionGroups, setOptionGroups] = useState<any[]>([])
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
@@ -351,6 +354,16 @@ export default function AdminPage() {
 
   async function deleteOption(optionId: string, itemId: string) {
     await supabase.from('item_options').delete().eq('id', optionId)
+    fetchOptionGroups(itemId)
+  }
+
+  async function saveOptionEdit(optionId: string, itemId: string) {
+    if (!editOptionName.trim()) { setMsg('Option name cannot be empty'); return }
+    await supabase.from('item_options').update({
+      name: editOptionName.trim(),
+      price_adjustment: parseFloat(editOptionPrice) || 0,
+    }).eq('id', optionId)
+    setEditingOptionId(null)
     fetchOptionGroups(itemId)
   }
 
@@ -1412,11 +1425,11 @@ export default function AdminPage() {
 
             {/* OPTIONS EDITOR MODAL - per item */}
             {editingOptions && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) setEditingOptions(null) }}>
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={e => { if (e.target === e.currentTarget) { setEditingOptions(null); setEditingOptionId(null) } }}>
                 <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Options for {editingOptions.name}</h3>
-                    <button onClick={() => setEditingOptions(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
+                    <button onClick={() => { setEditingOptions(null); setEditingOptionId(null) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px' }}>x</button>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--sub)', marginBottom: '16px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
                     Add option groups specific to this item. For options that apply to multiple items use Shared Items.
@@ -1486,11 +1499,20 @@ export default function AdminPage() {
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {group.item_options?.map((opt: any) => (
-                          <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
-                            <span>{opt.name}</span>
-                            {opt.price_adjustment > 0 && <span style={{ color: 'var(--orange)' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
-                            <button onClick={() => deleteOption(opt.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
-                          </div>
+                          editingOptionId === opt.id ? (
+                            <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--green)', borderRadius: '6px', padding: '4px 6px' }}>
+                              <input className="input" value={editOptionName} onChange={e => setEditOptionName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveOptionEdit(opt.id, editingOptions.id)} style={{ width: '110px', padding: '4px 6px', fontSize: '12px' }} autoFocus />
+                              <input className="input" type="number" step="0.01" value={editOptionPrice} onChange={e => setEditOptionPrice(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveOptionEdit(opt.id, editingOptions.id)} style={{ width: '60px', padding: '4px 6px', fontSize: '12px' }} />
+                              <button onClick={() => saveOptionEdit(opt.id, editingOptions.id)} style={{ background: 'var(--green)', border: 'none', color: '#000', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                              <button onClick={() => setEditingOptionId(null)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '11px' }}>Cancel</button>
+                            </div>
+                          ) : (
+                            <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                              <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ cursor: 'pointer' }} title="Click to edit">{opt.name}</span>
+                              {opt.price_adjustment > 0 && <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ color: 'var(--orange)', cursor: 'pointer' }} title="Click to edit">+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                              <button onClick={() => deleteOption(opt.id, editingOptions.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
+                            </div>
+                          )
                         ))}
                       </div>
                       {showAddOption === group.id ? (
