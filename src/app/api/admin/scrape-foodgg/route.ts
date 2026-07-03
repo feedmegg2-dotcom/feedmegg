@@ -642,12 +642,13 @@ export async function POST(request: NextRequest) {
 
       // Phase 1: insert every item first (fast DB writes, no network calls)
       const savedItemPairs: { savedItem: any; item: MenuItem }[] = []
-      for (const item of items) {
+      for (const [idx, item] of items.entries()) {
         const { data: savedItem } = await supabase.from('menu_items').insert({
           restaurant_id: restaurantId, category_id: cat.id,
           name: item.name, description: item.description, price: item.price,
           emoji: getEmoji(name + ' ' + item.name),
           is_available: true, tags: item.tags, allergens: [],
+          sort_order: idx + 1,
         }).select().single()
         totalItems++
         if (savedItem && item.addUrl) savedItemPairs.push({ savedItem, item })
