@@ -181,10 +181,34 @@ function parseItems(html: string): MenuItem[] {
     const allCellTexts = tds.slice(0, -1).map(t => cleanText(t)).filter(t => t.length > 0)
     const sizePattern = /^\d+"$|^\d+"|^Small$|^Medium$|^Large$|^Regular$|^\d+$|^\d+ piece$/i
 
+    // A genuine variant label (size, flavour like "Chicken", "10\"") is
+    // short and simple. If the cell text is long, contains a comma
+    // (typical of an ingredient list), or has many words, it's almost
+    // certainly a completely independent, standalone dish that merely
+    // happens to be formatted in a similar table row - not a variant of
+    // whatever name is currently being carried forward. Treating it as a
+    // variant was wrongly merging unrelated dishes under one parent name
+    // and description (seen concretely: several distinct pasta dishes all
+    // getting merged under "Bolognese Everybody's").
+    function looksLikeFullDishName(text: string): boolean {
+      if (text.length > 28) return true
+      if (text.includes(',')) return true
+      if (text.split(/\s+/).length > 4) return true
+      return false
+    }
+
     if (currentName) {
       if (allCellTexts.length === 0 || (allCellTexts.length === 1 && allCellTexts[0] === '')) {
         // No variant - just the item with a price
         items.push({ name: currentName, description: currentDesc, price, tags: [...currentTags], addUrl })
+        currentName = ''; currentDesc = ''; currentTags = []
+      } else if (allCellTexts.length === 1 && looksLikeFullDishName(allCellTexts[0])) {
+        // This "variant" cell is actually its own standalone dish, not a
+        // modifier of the currently-tracked parent name - use its own text
+        // as the complete name, ignoring the unrelated carried-over
+        // name/description entirely.
+        const { name, desc } = splitNameDesc(tds[0], allCellTexts[0])
+        items.push({ name: name || allCellTexts[0], description: desc, price, tags: [], addUrl })
         currentName = ''; currentDesc = ''; currentTags = []
       } else if (allCellTexts.length === 1) {
         const cell = allCellTexts[0]
@@ -261,7 +285,7 @@ function parseOptionsPage(html: string): ParsedOptionGroup[] {
       // "Second Half") rather than this item - cut the window there so
       // that heading text never gets swept into this item's own name.
       const rawChunk = html.slice(thisStart, nextStart)
-      const headingBoundary = rawChunk.search(/<(?:h[1-6]|label|strong|b)[^>]*>/i)
+      const headingBoundary = rawChunk.search(/<h[1-6][^>]*>/i)
       if (headingBoundary > 0) nextStart = thisStart + headingBoundary
       const chunk = html.slice(thisStart, nextStart)
       const priceMatch = chunk.match(/£([\d.]+)/)
