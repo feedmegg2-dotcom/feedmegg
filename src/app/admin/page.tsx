@@ -1153,6 +1153,7 @@ export default function AdminPage() {
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer', background: dragOverItem === 'cat-' + cat.id ? 'rgba(34,197,94,0.08)' : 'transparent', borderTop: dragOverItem === 'cat-' + cat.id ? '2px solid #22c55e' : '2px solid transparent', transition: 'all 0.1s' }}
                         onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span draggable onDragStart={e => { e.stopPropagation(); dragItem.current = cat }} onClick={e => e.stopPropagation()} style={{ cursor: 'grab', color: 'var(--sub)', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
                           <span style={{ fontSize: '15px', fontWeight: 700 }}>{cat.name}</span>
                           <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
                         </div>
