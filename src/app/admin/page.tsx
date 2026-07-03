@@ -558,6 +558,27 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteOrder(id: string, orderNumber: string) {
+    if (!confirm(`Permanently delete order ${orderNumber || id}? This cannot be undone and should only be used for test/junk orders, not real customer orders.`)) return
+    try {
+      const res = await fetch('/api/admin/delete-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) {
+        setMsg('Could not delete order: ' + (result.error || 'Unknown error'))
+        return
+      }
+      setMsg(`Order ${result.orderNumber || ''} deleted!`)
+      setExpandedOrder(null)
+      fetchOrdersInRange()
+    } catch (e) {
+      setMsg('Network error while deleting order')
+    }
+  }
+
   async function addRestaurant() {
     if (!newRestaurant.name || !newRestaurant.slug || !newRestaurant.merchant_id) { setMsg('Please fill in name, slug and merchant'); return }
     const { error } = await supabase.from('restaurants').insert({ ...newRestaurant, min_order: parseFloat(newRestaurant.min_order), delivery_fee: parseFloat(newRestaurant.delivery_fee) || 2.50, delivery_time_mins: parseInt(newRestaurant.delivery_time_mins), pickup_time_mins: parseInt(newRestaurant.pickup_time_mins), is_open: false, is_active: true, accepts_delivery: true, accepts_pickup: true, accepts_preorders: true, slot_capacity: 5 })
@@ -1745,6 +1766,9 @@ export default function AdminPage() {
                             </div>
                             {o.notes && <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic', padding: '8px', background: 'rgba(249,115,22,0.06)', borderRadius: '6px' }}>Note: {o.notes}</div>}
                             {o.special_instructions && <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--sub)', fontStyle: 'italic' }}>Instructions: {o.special_instructions}</div>}
+                            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
+                              <button onClick={() => deleteOrder(o.id, o.order_number)} style={{ padding: '6px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Delete Order</button>
+                            </div>
                           </div>
                         )}
                       </div>
