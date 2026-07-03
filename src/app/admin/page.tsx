@@ -1158,8 +1158,6 @@ export default function AdminPage() {
                           <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'up') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}>up</button>
-                          <button onClick={e => { e.stopPropagation(); moveCategory(cat.id, 'down') }} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--sub)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}>dn</button>
                           <button onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '12px', cursor: 'pointer' }}>Delete</button>
                           <span style={{ color: 'var(--sub)', fontSize: '12px' }}>{expandedCat === cat.id ? 'v' : '>'}</span>
                         </div>
