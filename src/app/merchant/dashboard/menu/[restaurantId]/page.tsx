@@ -147,7 +147,7 @@ export default function MerchantMenuEditor() {
   }
 
   async function fetchMenu() {
-    const { data } = await supabase.from('menu_categories').select('*, menu_items(*)').eq('restaurant_id', restaurantId).order('sort_order')
+    const { data } = await supabase.from('menu_categories').select('*, menu_items(*)').eq('restaurant_id', restaurantId).order('sort_order').order('sort_order', { foreignTable: 'menu_items' })
     const sorted = (data || []).map((cat: any) => ({
       ...cat,
       menu_items: (cat.menu_items || []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -164,17 +164,17 @@ export default function MerchantMenuEditor() {
     // Get all restaurants for this merchant
     const { data: rests } = await supabase.from('restaurants').select('id').eq('merchant_id', merch.id)
     const restIds = (rests || []).map((r: any) => r.id)
-    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').in('restaurant_id', restIds).is('menu_item_id', null).order('sort_order')
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').in('restaurant_id', restIds).is('menu_item_id', null).order('sort_order').order('sort_order', { foreignTable: 'item_options' })
     setAllSharedGroups(data || [])
   }
 
   async function fetchOptionGroups(itemId: string) {
-    const { data: direct } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
+    const { data: direct } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order').order('sort_order', { foreignTable: 'item_options' })
     const { data: links } = await supabase.from('item_option_group_links').select('option_group_id').eq('menu_item_id', itemId)
     const linkedIds = (links || []).map((l: any) => l.option_group_id)
     let shared: any[] = []
     if (linkedIds.length > 0) {
-      const { data: sg } = await supabase.from('item_option_groups').select('*, item_options(*)').in('id', linkedIds)
+      const { data: sg } = await supabase.from('item_option_groups').select('*, item_options(*)').in('id', linkedIds).order('sort_order', { foreignTable: 'item_options' })
       shared = (sg || []).map((g: any) => ({ ...g, isShared: true }))
     }
     setOptionGroups(direct || [])
