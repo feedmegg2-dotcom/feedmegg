@@ -1839,7 +1839,7 @@ export default function AdminPage() {
 
         {tab === 'offers' && <OffersTab restaurants={restaurants} supabase={supabase} />}
 
-        {tab === 'customers' && <CustomersTab supabase={supabase} />}
+        {tab === 'customers' && <CustomersTab supabase={supabase} setTab={setTab} setOrderSearch={setOrderSearch} setOrderDateFrom={setOrderDateFrom} />}
 
       {/* EMOJI / PHOTO MODAL */}
       {imageModal && (
@@ -2138,7 +2138,7 @@ function OffersTab({ restaurants, supabase }: { restaurants: any[], supabase: an
   )
 }
 
-function CustomersTab({ supabase }: { supabase: any }) {
+function CustomersTab({ supabase, setTab, setOrderSearch, setOrderDateFrom }: { supabase: any; setTab: (t: string) => void; setOrderSearch: (s: string) => void; setOrderDateFrom: (d: string) => void }) {
   const [customers, setCustomers] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<any>(null)
@@ -2150,6 +2150,8 @@ function CustomersTab({ supabase }: { supabase: any }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [notes, setNotes] = useState('')
+  const [newCustomerPassword, setNewCustomerPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState('')
 
   useEffect(() => { fetchCustomers() }, [])
 
@@ -2165,6 +2167,8 @@ function CustomersTab({ supabase }: { supabase: any }) {
     setNotes(c.notes || '')
     setBanReason(c.ban_reason || '')
     setEmailSent(false)
+    setNewCustomerPassword('')
+    setPasswordMsg('')
     const { data } = await supabase.from('orders').select('*, restaurants(name)').eq('customer_phone', c.phone).order('created_at', { ascending: false }).limit(20)
     setOrders(data || [])
   }
@@ -2181,6 +2185,43 @@ function CustomersTab({ supabase }: { supabase: any }) {
     if (!selected) return
     await supabase.from('customers').update({ notes }).eq('id', selected.id)
     alert('Notes saved!')
+  }
+
+  async function resetCustomerPassword() {
+    if (!selected) return
+    setPasswordMsg('')
+    if (!newCustomerPassword || newCustomerPassword.length < 6) { setPasswordMsg('Password must be at least 6 characters'); return }
+    try {
+      const res = await fetch('/api/admin/reset-customer-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: selected.id, newPassword: newCustomerPassword }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) { setPasswordMsg(result.error || 'Failed to reset password'); return }
+      setPasswordMsg('Password updated successfully!')
+      setNewCustomerPassword('')
+    } catch (e) {
+      setPasswordMsg('Network error - please try again')
+    }
+  }
+
+  async function deleteCustomerAccount() {
+    if (!selected) return
+    if (!confirm(`Permanently delete ${selected.name || selected.email}'s account? Their addresses and login will be removed. Their past orders will be kept for records. This cannot be undone.`)) return
+    try {
+      const res = await fetch('/api/admin/delete-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: selected.id }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) { alert('Could not delete customer: ' + (result.error || 'Unknown error')); return }
+      setSelected(null)
+      fetchCustomers()
+    } catch (e) {
+      alert('Network error while deleting customer')
+    }
   }
 
   async function sendEmail() {
@@ -2274,6 +2315,33 @@ function CustomersTab({ supabase }: { supabase: any }) {
             </button>
           </div>
 
+          {/* Reset Password */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Reset Password</div>
+            <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '8px' }}>
+              {selected.auth_id ? 'Sets a new password for this customer\'s login directly - no email confirmation required.' : 'This customer has no linked login account (guest checkout only) - there is no password to reset.'}
+            </div>
+            {selected.auth_id && (
+              <>
+                <input type="password" placeholder="New password (min 6 characters)" value={newCustomerPassword} onChange={e => setNewCustomerPassword(e.target.value)}
+                  style={{ ...inputStyle, marginBottom: '8px' }} />
+                {passwordMsg && <div style={{ fontSize: '12px', color: passwordMsg.includes('success') ? '#22c55e' : '#ef4444', marginBottom: '8px' }}>{passwordMsg}</div>}
+                <button onClick={resetCustomerPassword} style={{ width: '100%', padding: '8px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Set New Password
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Delete Account */}
+          <div style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: '#ef4444' }}>Delete Account</div>
+            <div style={{ fontSize: '11px', color: 'var(--sub)', marginBottom: '10px' }}>Permanently removes this customer's login, saved addresses, and profile. Their past orders are kept for your own records.</div>
+            <button onClick={deleteCustomerAccount} style={{ width: '100%', padding: '8px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Delete Customer Account
+            </button>
+          </div>
+
           {/* Notes */}
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
             <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Internal Notes</div>
@@ -2304,7 +2372,18 @@ function CustomersTab({ supabase }: { supabase: any }) {
 
           {/* Order history */}
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>Order History ({orders.length})</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700 }}>Order History ({orders.length})</div>
+              {selected.phone && (
+                <button onClick={() => {
+                  setOrderSearch(selected.phone)
+                  setOrderDateFrom('2020-01-01') // wide enough to catch this customer's full history
+                  setTab('orders')
+                }} style={{ padding: '5px 12px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  View in Orders tab →
+                </button>
+              )}
+            </div>
             {orders.length === 0 ? <div style={{ color: 'var(--sub)', fontSize: '13px' }}>No orders found</div> : (
               <div style={{ display: 'grid', gap: '8px' }}>
                 {orders.map(o => (
