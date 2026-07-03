@@ -255,7 +255,14 @@ function parseOptionsPage(html: string): ParsedOptionGroup[] {
     let j = i
     while (j < matches.length && matches[j].type === groupType && matches[j].groupKey === groupKey) {
       const thisStart = matches[j].index
-      const nextStart = j + 1 < matches.length ? matches[j + 1].index : Math.min(html.length, thisStart + 400)
+      let nextStart = j + 1 < matches.length ? matches[j + 1].index : Math.min(html.length, thisStart + 400)
+      // If a heading (h1-h6/label/strong/b) appears between this input and
+      // the next one, it almost certainly belongs to the NEXT group (e.g.
+      // "Second Half") rather than this item - cut the window there so
+      // that heading text never gets swept into this item's own name.
+      const rawChunk = html.slice(thisStart, nextStart)
+      const headingBoundary = rawChunk.search(/<(?:h[1-6]|label|strong|b)[^>]*>/i)
+      if (headingBoundary > 0) nextStart = thisStart + headingBoundary
       const chunk = html.slice(thisStart, nextStart)
       const priceMatch = chunk.match(/£([\d.]+)/)
       const price = priceMatch ? parseFloat(priceMatch[1]) : 0
@@ -264,6 +271,14 @@ function parseOptionsPage(html: string): ParsedOptionGroup[] {
       let label = cleanText(chunk).replace(/£[\d.]+/, '').trim()
       // Drop leading input-value leftovers / checkbox artefacts
       label = label.replace(/^(checkbox|radio)\b/i, '').trim()
+      // Hard safety net: if any raw HTML tag characters survived cleaning
+      // (e.g. an unclosed or malformed tag at a group boundary confusing
+      // the regex-based stripper), cut everything from that point onward
+      // rather than ever saving a name containing raw markup. This was
+      // seen concretely on a restaurant with two back-to-back radio groups
+      // sharing identical option text, where the boundary between them
+      // leaked a stray "<div class=..." fragment into the last item's name.
+      if (label.includes('<')) label = label.split('<')[0].trim()
       if (label && label.length > 1 && label.length < 60) {
         optionEntries.push({ name: label, price })
       }
