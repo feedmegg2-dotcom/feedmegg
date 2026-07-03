@@ -226,8 +226,36 @@ export default function CheckoutPage() {
 
     const now = new Date()
     const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-    const todayName = days[now.getDay()]
+    const todayIdx = now.getDay()
+    const todayName = days[todayIdx]
+    const yesterdayName = days[(todayIdx + 6) % 7]
     const todayHours = hours.find(h => h.day === todayName)
+    const yesterdayHours = hours.find(h => h.day === yesterdayName)
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+
+    // Many takeaways trade past midnight (e.g. 17:00 - 00:30). A close
+    // time that's numerically SMALLER than the open time means it wraps
+    // into the next calendar day, not that the restaurant closed before
+    // it opened. Previously this was never accounted for, so a restaurant
+    // open until 00:30 would incorrectly show as closed the moment the
+    // close_time's raw minute value (30) was compared against the
+    // current time (e.g. 1266 minutes for 21:06) - 1266 >= 30 looks
+    // "past closing" numerically even though it's actually mid-shift.
+    //
+    // First: check if we're in the early hours of today, still within
+    // YESTERDAY's overnight session that hasn't technically closed yet.
+    if (yesterdayHours && !yesterdayHours.is_closed) {
+      const [yOpenH, yOpenM] = yesterdayHours.open_time.split(':').map(Number)
+      const [yCloseH, yCloseM] = yesterdayHours.close_time.split(':').map(Number)
+      const yOpenMins = yOpenH * 60 + yOpenM
+      const yCloseMins = yCloseH * 60 + yCloseM
+      const yesterdayWrapsMidnight = yCloseMins <= yOpenMins
+      if (yesterdayWrapsMidnight && nowMins < yCloseMins) {
+        setIsOpen(true)
+        setClosedMessage('')
+        return
+      }
+    }
 
     if (!todayHours || todayHours.is_closed) {
       setIsOpen(false)
@@ -238,9 +266,9 @@ export default function CheckoutPage() {
     // Check current time is within opening hours
     const [openH, openM] = todayHours.open_time.split(':').map(Number)
     const [closeH, closeM] = todayHours.close_time.split(':').map(Number)
-    const nowMins = now.getHours() * 60 + now.getMinutes()
     const openMins = openH * 60 + openM
     const closeMins = closeH * 60 + closeM
+    const wrapsMidnight = closeMins <= openMins
 
     if (nowMins < openMins) {
       setIsOpen(false)
@@ -248,7 +276,10 @@ export default function CheckoutPage() {
       return
     }
 
-    if (nowMins >= closeMins) {
+    // If today's session wraps past midnight, being at or after opening
+    // time means we're open regardless of how the close time compares
+    // numerically - it closes tomorrow, not today.
+    if (!wrapsMidnight && nowMins >= closeMins) {
       setIsOpen(false)
       setClosedMessage(`Closed - reopens ${getNextOpenDay(hours, days, now.getDay())}`)
       return
