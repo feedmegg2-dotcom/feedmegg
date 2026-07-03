@@ -15,6 +15,11 @@ export default function AccountPage() {
   const [customer, setCustomer] = useState<any>(null)
   const [addresses, setAddresses] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
+  const [splitterOrderId, setSplitterOrderId] = useState<string | null>(null)
+  const [splitPeople, setSplitPeople] = useState<string[]>(['Person 1', 'Person 2'])
+  const [splitNewPersonName, setSplitNewPersonName] = useState('')
+  const [splitAssignments, setSplitAssignments] = useState<Record<string, Set<string>>>({})
+  const [splitExtrasEvenly, setSplitExtrasEvenly] = useState(true)
   const [tab, setTab] = useState<'profile'|'addresses'|'orders'>('profile')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -228,6 +233,86 @@ export default function AccountPage() {
   const inputStyle: any = { width: '100%', padding: '10px 14px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 
   if (loading) return <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: sub }}>Loading...</div>
+
+  // Bill splitter helpers - each order's items are expanded into
+  // individual units (one per quantity) so, e.g., "2x Coke" can be split
+  // between two different people rather than only as one shared line.
+  function getSplitUnits(order: any): { id: string; name: string; price: number }[] {
+    const units: { id: string; name: string; price: number }[] = []
+    for (const item of order.order_items || []) {
+      const qty = item.quantity || item.qty || 1
+      const unitPrice = parseFloat(item.price) || 0
+      for (let i = 0; i < qty; i++) {
+        units.push({ id: `${item.id}-${i}`, name: item.name || item.item_name, price: unitPrice })
+      }
+    }
+    return units
+  }
+
+  function toggleSplitAssignment(unitId: string, person: string) {
+    setSplitAssignments(prev => {
+      const current = new Set(prev[unitId] || [])
+      if (current.has(person)) current.delete(person)
+      else current.add(person)
+      return { ...prev, [unitId]: current }
+    })
+  }
+
+  function addSplitPerson() {
+    const name = splitNewPersonName.trim() || `Person ${splitPeople.length + 1}`
+    setSplitPeople([...splitPeople, name])
+    setSplitNewPersonName('')
+  }
+
+  function removeSplitPerson(name: string) {
+    setSplitPeople(splitPeople.filter(p => p !== name))
+    setSplitAssignments(prev => {
+      const updated: Record<string, Set<string>> = {}
+      for (const [unitId, assigned] of Object.entries(prev)) {
+        const next = new Set(assigned)
+        next.delete(name)
+        updated[unitId] = next
+      }
+      return updated
+    })
+  }
+
+  function calculateSplitTotals(order: any): { perPerson: Record<string, number>; unassignedTotal: number } {
+    const units = getSplitUnits(order)
+    const perPerson: Record<string, number> = {}
+    splitPeople.forEach(p => { perPerson[p] = 0 })
+    let unassignedTotal = 0
+
+    for (const unit of units) {
+      const assigned = splitAssignments[unit.id]
+      if (!assigned || assigned.size === 0) {
+        unassignedTotal += unit.price
+        continue
+      }
+      const share = unit.price / assigned.size
+      assigned.forEach(person => {
+        if (perPerson[person] !== undefined) perPerson[person] += share
+      })
+    }
+
+    if (splitExtrasEvenly && splitPeople.length > 0) {
+      const itemsSubtotal = units.reduce((s, u) => s + u.price, 0)
+      const extras = Math.max(0, (order?.total || 0) - itemsSubtotal)
+      const extraShare = extras / splitPeople.length
+      splitPeople.forEach(p => { perPerson[p] += extraShare })
+    }
+
+    return { perPerson, unassignedTotal }
+  }
+
+  function openSplitterFor(orderId: string) {
+    if (splitterOrderId === orderId) {
+      setSplitterOrderId(null)
+    } else {
+      setSplitterOrderId(orderId)
+      setSplitAssignments({}) // fresh start for a different order
+    }
+  }
 
   return (
     <div style={{ background: bg, minHeight: '100vh', color: text, fontFamily: 'system-ui,sans-serif' }}>
@@ -451,7 +536,8 @@ export default function AccountPage() {
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {orders.map(order => (
-                  <div key={order.id} style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <div key={order.id} style={{ background: card, border: `1px solid ${border}`, borderRadius: '16px', padding: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {order.restaurants?.logo_url
@@ -478,7 +564,83 @@ export default function AccountPage() {
                         style={{ padding: '7px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3b82f6', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                         🧾 Receipt
                       </a>
+                      {order.order_items && order.order_items.length > 0 && (
+                        <button onClick={() => openSplitterFor(order.id)}
+                          style={{ padding: '7px 14px', background: splitterOrderId === order.id ? 'rgba(168,85,247,0.2)' : 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+                          {splitterOrderId === order.id ? '✕ Close' : '🧮 Split bill'}
+                        </button>
+                      )}
                     </div>
+                  </div>
+
+                  {splitterOrderId === order.id && (() => {
+                    const units = getSplitUnits(order)
+                    const { perPerson, unassignedTotal } = calculateSplitTotals(order)
+                    return (
+                      <div style={{ borderTop: `1px solid ${border}`, marginTop: '16px', paddingTop: '16px' }}>
+                        <p style={{ fontSize: '12px', color: sub, marginBottom: '14px' }}>Add everyone in your group, then tap who had what.</p>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                          {splitPeople.map(p => (
+                            <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '13px' }}>
+                              {p}
+                              <button onClick={() => removeSplitPerson(p)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '13px', padding: 0 }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+                          <input placeholder="Add a name..." value={splitNewPersonName} onChange={e => setSplitNewPersonName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addSplitPerson()}
+                            style={{ flex: 1, padding: '10px 12px', background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${border}`, borderRadius: '8px', color: text, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                          <button onClick={addSplitPerson} style={{ padding: '10px 16px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add</button>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '10px', marginBottom: '18px' }}>
+                          {units.map(unit => (
+                            <div key={unit.id} style={{ background: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '10px', padding: '10px 12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+                                <span>{unit.name}</span>
+                                <span style={{ color: sub }}>GBP{unit.price.toFixed(2)}</span>
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {splitPeople.map(p => {
+                                  const isSelected = splitAssignments[unit.id]?.has(p)
+                                  return (
+                                    <button key={p} onClick={() => toggleSplitAssignment(unit.id, p)}
+                                      style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${isSelected ? '#22c55e' : border}`, background: isSelected ? 'rgba(34,197,94,0.15)' : 'transparent', color: isSelected ? '#22c55e' : sub, fontSize: '12px', fontWeight: isSelected ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                      {p}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {splitPeople.length > 1 && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: sub, marginBottom: '14px', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={splitExtrasEvenly} onChange={e => setSplitExtrasEvenly(e.target.checked)} />
+                            Split delivery fee/tip evenly across everyone
+                          </label>
+                        )}
+
+                        <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '14px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Who owes what</div>
+                          {splitPeople.map(p => (
+                            <div key={p} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '6px' }}>
+                              <span>{p}</span>
+                              <strong>GBP{(perPerson[p] || 0).toFixed(2)}</strong>
+                            </div>
+                          ))}
+                          {unassignedTotal > 0.01 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#f97316', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${border}` }}>
+                              <span>Not yet assigned to anyone</span>
+                              <strong>GBP{unassignedTotal.toFixed(2)}</strong>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   </div>
                 ))}
               </div>
