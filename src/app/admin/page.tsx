@@ -239,13 +239,13 @@ export default function AdminPage() {
   }
 
   async function fetchOptionGroups(itemId: string) {
-    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order')
+    const { data } = await supabase.from('item_option_groups').select('*, item_options(*)').eq('menu_item_id', itemId).order('sort_order').order('sort_order', { foreignTable: 'item_options' })
     setOptionGroups(data || [])
     // Also fetch shared groups linked to this item
     const { data: links } = await supabase.from('item_option_group_links').select('option_group_id').eq('menu_item_id', itemId)
     const linkedIds = (links || []).map((l: any) => l.option_group_id)
     if (linkedIds.length > 0) {
-      const { data: sg } = await supabase.from('item_option_groups').select('*, item_options(*)').in('id', linkedIds)
+      const { data: sg } = await supabase.from('item_option_groups').select('*, item_options(*)').in('id', linkedIds).order('sort_order', { foreignTable: 'item_options' })
       setSharedOptionGroups(sg || [])
     } else {
       setSharedOptionGroups([])
@@ -307,8 +307,8 @@ export default function AdminPage() {
   }
 
   async function fetchSharedGroups(restId: string) {
-    const { data: restGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order')
-    const { data: globalGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').is('restaurant_id', null).is('menu_item_id', null).order('sort_order')
+    const { data: restGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').eq('restaurant_id', restId).is('menu_item_id', null).order('sort_order').order('sort_order', { foreignTable: 'item_options' })
+    const { data: globalGroups } = await supabase.from('item_option_groups').select('*, item_options(*), item_option_group_links(menu_item_id)').is('restaurant_id', null).is('menu_item_id', null).order('sort_order').order('sort_order', { foreignTable: 'item_options' })
     setSharedGroups([...(restGroups || []), ...(globalGroups || [])])
   }
 
