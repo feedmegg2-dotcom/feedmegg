@@ -111,6 +111,9 @@ export default function MerchantMenuEditor() {
 
   // Options
   const [editingOptions, setEditingOptions] = useState<any>(null)
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null)
+  const [editOptionName, setEditOptionName] = useState('')
+  const [editOptionPrice, setEditOptionPrice] = useState('')
   const [optionGroups, setOptionGroups] = useState<any[]>([])
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
@@ -320,6 +323,26 @@ export default function MerchantMenuEditor() {
     await supabase.from('item_options').delete().eq('option_group_id', groupId)
     await supabase.from('item_option_groups').delete().eq('id', groupId)
     fetchOptionGroups(itemId)
+  }
+
+  async function saveOptionEdit(optionId: string, itemId: string) {
+    if (!editOptionName.trim()) return
+    await supabase.from('item_options').update({
+      name: editOptionName.trim(),
+      price_adjustment: parseFloat(editOptionPrice) || 0,
+    }).eq('id', optionId)
+    setEditingOptionId(null)
+    fetchOptionGroups(itemId)
+  }
+
+  async function saveSharedOptionEdit(optionId: string) {
+    if (!editOptionName.trim()) return
+    await supabase.from('item_options').update({
+      name: editOptionName.trim(),
+      price_adjustment: parseFloat(editOptionPrice) || 0,
+    }).eq('id', optionId)
+    setEditingOptionId(null)
+    fetchSharedGroups()
   }
 
   async function moveGroup(groupId: string, direction: 'up'|'down', itemId: string) {
@@ -569,11 +592,20 @@ export default function MerchantMenuEditor() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
                   {group.item_options?.map((opt: any) => (
-                    <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
-                      <span>{opt.name}</span>
-                      {opt.price_adjustment > 0 && <span style={{ color: '#f97316' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
-                      <button onClick={async () => { await supabase.from('item_options').delete().eq('id', opt.id); fetchSharedGroups() }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
-                    </div>
+                    editingOptionId === opt.id ? (
+                      <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid #22c55e', borderRadius: '6px', padding: '4px 6px' }}>
+                        <input value={editOptionName} onChange={e => setEditOptionName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveSharedOptionEdit(opt.id)} style={{ width: '100px', padding: '3px 6px', fontSize: '12px', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                        <input type="number" step="0.01" value={editOptionPrice} onChange={e => setEditOptionPrice(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveSharedOptionEdit(opt.id)} style={{ width: '55px', padding: '3px 6px', fontSize: '12px', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '4px', color: 'inherit', outline: 'none' }} />
+                        <button onClick={() => saveSharedOptionEdit(opt.id)} style={{ background: '#22c55e', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                        <button onClick={() => setEditingOptionId(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                      </div>
+                    ) : (
+                      <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px' }}>
+                        <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ cursor: 'pointer' }} title="Click to edit">{opt.name}</span>
+                        {opt.price_adjustment > 0 && <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ color: '#f97316', cursor: 'pointer' }} title="Click to edit">+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                        <button onClick={async () => { await supabase.from('item_options').delete().eq('id', opt.id); fetchSharedGroups() }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}>x</button>
+                      </div>
+                    )
                   ))}
                 </div>
                 {showAddSharedOption === group.id ? (
@@ -682,11 +714,20 @@ export default function MerchantMenuEditor() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
                   {group.item_options?.map((opt: any) => (
-                    <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '3px 8px', fontSize: '12px' }}>
-                      <span>{opt.name}</span>
-                      {opt.price_adjustment > 0 && <span style={{ color: '#f97316' }}>+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
-                      <button onClick={async () => { await supabase.from('item_options').delete().eq('id', opt.id); fetchOptionGroups(editingOptions.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', padding: '0 2px' }}>x</button>
-                    </div>
+                    editingOptionId === opt.id ? (
+                      <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid #22c55e', borderRadius: '6px', padding: '3px 6px' }}>
+                        <input value={editOptionName} onChange={e => setEditOptionName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveOptionEdit(opt.id, editingOptions.id)} style={{ width: '100px', padding: '3px 6px', fontSize: '12px', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                        <input type="number" step="0.01" value={editOptionPrice} onChange={e => setEditOptionPrice(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveOptionEdit(opt.id, editingOptions.id)} style={{ width: '55px', padding: '3px 6px', fontSize: '12px', background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '4px', color: 'inherit', outline: 'none' }} />
+                        <button onClick={() => saveOptionEdit(opt.id, editingOptions.id)} style={{ background: '#22c55e', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                        <button onClick={() => setEditingOptionId(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                      </div>
+                    ) : (
+                      <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '3px 8px', fontSize: '12px' }}>
+                        <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ cursor: 'pointer' }} title="Click to edit">{opt.name}</span>
+                        {opt.price_adjustment > 0 && <span onClick={() => { setEditingOptionId(opt.id); setEditOptionName(opt.name); setEditOptionPrice(String(opt.price_adjustment || 0)) }} style={{ color: '#f97316', cursor: 'pointer' }} title="Click to edit">+GBP{parseFloat(opt.price_adjustment).toFixed(2)}</span>}
+                        <button onClick={async () => { await supabase.from('item_options').delete().eq('id', opt.id); fetchOptionGroups(editingOptions.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', padding: '0 2px' }}>x</button>
+                      </div>
+                    )
                   ))}
                 </div>
                 {showAddOption === group.id ? (
