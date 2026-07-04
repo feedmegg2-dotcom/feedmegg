@@ -125,6 +125,8 @@ export default function AdminPage() {
   // Option groups - per item
   const [editingOptions, setEditingOptions] = useState<any>(null)
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editGroupName, setEditGroupName] = useState('')
   const [editOptionName, setEditOptionName] = useState('')
   const [editOptionPrice, setEditOptionPrice] = useState('')
   const [optionGroups, setOptionGroups] = useState<any[]>([])
@@ -365,6 +367,13 @@ export default function AdminPage() {
     }).eq('id', optionId)
     setEditingOptionId(null)
     fetchOptionGroups(itemId)
+  }
+
+  async function saveGroupName(groupId: string, refetch: () => void) {
+    if (!editGroupName.trim()) { setMsg('Group name cannot be empty'); return }
+    await supabase.from('item_option_groups').update({ name: editGroupName.trim() }).eq('id', groupId)
+    setEditingGroupId(null)
+    refetch()
   }
 
   // Shared group functions
@@ -1259,7 +1268,15 @@ export default function AdminPage() {
                     <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <div>
-                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          {editingGroupId === group.id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <input value={editGroupName} onChange={e => setEditGroupName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGroupName(group.id, () => fetchSharedGroups(selectedRestaurant.id))} style={{ padding: '4px 8px', fontSize: '13px', fontWeight: 700, background: 'var(--bg3)', border: '1px solid var(--green)', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                              <button onClick={() => saveGroupName(group.id, () => fetchSharedGroups(selectedRestaurant.id))} style={{ background: 'var(--green)', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                              <button onClick={() => setEditingGroupId(null)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                            </span>
+                          ) : (
+                            <span onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name) }} style={{ fontSize: '14px', fontWeight: 700, cursor: 'pointer' }} title="Click to rename">{group.name}</span>
+                          )}
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
                           {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
                           <span style={{ fontSize: '11px', color: 'var(--sub)', marginLeft: '8px' }}>{group.item_option_group_links?.length || 0} items linked</span>
@@ -1494,7 +1511,15 @@ export default function AdminPage() {
                     <div key={group.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <div>
-                          <span style={{ fontSize: '14px', fontWeight: 700 }}>{group.name}</span>
+                          {editingGroupId === group.id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <input value={editGroupName} onChange={e => setEditGroupName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGroupName(group.id, () => fetchOptionGroups(editingOptions.id))} style={{ padding: '4px 8px', fontSize: '13px', fontWeight: 700, background: 'var(--bg3)', border: '1px solid var(--green)', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                              <button onClick={() => saveGroupName(group.id, () => fetchOptionGroups(editingOptions.id))} style={{ background: 'var(--green)', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                              <button onClick={() => setEditingGroupId(null)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                            </span>
+                          ) : (
+                            <span onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name) }} style={{ fontSize: '14px', fontWeight: 700, cursor: 'pointer' }} title="Click to rename">{group.name}</span>
+                          )}
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: group.type === 'single' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)', color: group.type === 'single' ? 'var(--blue)' : '#a855f7', marginLeft: '8px' }}>{group.type}</span>
                           {group.required && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', color: 'var(--red)', marginLeft: '4px' }}>required</span>}
                         </div>
