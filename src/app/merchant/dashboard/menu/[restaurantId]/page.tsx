@@ -114,6 +114,8 @@ export default function MerchantMenuEditor() {
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null)
   const [editOptionName, setEditOptionName] = useState('')
   const [editOptionPrice, setEditOptionPrice] = useState('')
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editGroupName, setEditGroupName] = useState('')
   const [optionGroups, setOptionGroups] = useState<any[]>([])
   const [sharedOptionGroups, setSharedOptionGroups] = useState<any[]>([])
   const [showAddGroup, setShowAddGroup] = useState(false)
@@ -345,6 +347,13 @@ export default function MerchantMenuEditor() {
     fetchSharedGroups()
   }
 
+  async function saveGroupName(groupId: string, refetch: () => void) {
+    if (!editGroupName.trim()) return
+    await supabase.from('item_option_groups').update({ name: editGroupName.trim() }).eq('id', groupId)
+    setEditingGroupId(null)
+    refetch()
+  }
+
   async function moveGroup(groupId: string, direction: 'up'|'down', itemId: string) {
     const idx = optionGroups.findIndex((g: any) => g.id === groupId)
     if (direction === 'up' && idx === 0) return
@@ -573,7 +582,15 @@ export default function MerchantMenuEditor() {
               <div key={group.id} style={{ background: '#0d1321', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '14px', padding: '16px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div>
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#a855f7' }}>{group.name}</span>
+                    {editingGroupId === group.id ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <input value={editGroupName} onChange={e => setEditGroupName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGroupName(group.id, fetchSharedGroups)} style={{ padding: '4px 8px', fontSize: '14px', fontWeight: 700, background: 'rgba(0,0,0,0.2)', border: '1px solid #a855f7', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                        <button onClick={() => saveGroupName(group.id, fetchSharedGroups)} style={{ background: '#22c55e', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                        <button onClick={() => setEditingGroupId(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                      </span>
+                    ) : (
+                      <span onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name) }} style={{ fontSize: '15px', fontWeight: 700, color: '#a855f7', cursor: 'pointer' }} title="Click to rename">{group.name}</span>
+                    )}
                     <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '8px' }}>{group.item_options?.length} options</span>
                     {group.required && <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: '6px' }}>Required</span>}
                   </div>
@@ -695,7 +712,15 @@ export default function MerchantMenuEditor() {
               <div key={group.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <div>
-                    <span style={{ fontSize: '13px', fontWeight: 700 }}>{group.name}</span>
+                    {editingGroupId === group.id ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <input value={editGroupName} onChange={e => setEditGroupName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGroupName(group.id, () => fetchOptionGroups(editingOptions.id))} style={{ padding: '3px 6px', fontSize: '13px', fontWeight: 700, background: 'rgba(0,0,0,0.2)', border: '1px solid #22c55e', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                        <button onClick={() => saveGroupName(group.id, () => fetchOptionGroups(editingOptions.id))} style={{ background: '#22c55e', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                        <button onClick={() => setEditingGroupId(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                      </span>
+                    ) : (
+                      <span onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name) }} style={{ fontSize: '13px', fontWeight: 700, cursor: 'pointer' }} title="Click to rename">{group.name}</span>
+                    )}
                     {group.required && <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: '6px' }}>Required</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
