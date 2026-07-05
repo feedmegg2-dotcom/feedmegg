@@ -127,6 +127,8 @@ export default function AdminPage() {
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null)
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editGroupName, setEditGroupName] = useState('')
+  const [editingCatId, setEditingCatId] = useState<string | null>(null)
+  const [editCatName, setEditCatName] = useState('')
   const [editOptionName, setEditOptionName] = useState('')
   const [editOptionPrice, setEditOptionPrice] = useState('')
   const [optionGroups, setOptionGroups] = useState<any[]>([])
@@ -241,6 +243,13 @@ export default function AdminPage() {
     const { data: items } = await supabase.from('menu_items').select('*, menu_categories(name)').eq('restaurant_id', restId).order('sort_order')
     setCategories(cats || [])
     setMenuItems(items || [])
+  }
+
+  async function saveCategoryName(catId: string, restId: string) {
+    if (!editCatName.trim()) { setMsg('Category name cannot be empty'); return }
+    await supabase.from('menu_categories').update({ name: editCatName.trim() }).eq('id', catId)
+    setEditingCatId(null)
+    fetchMenuForRestaurant(restId)
   }
 
   async function fetchOptionGroups(itemId: string) {
@@ -1197,7 +1206,15 @@ export default function AdminPage() {
                         onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span draggable onDragStart={e => { e.stopPropagation(); dragItem.current = cat }} onClick={e => e.stopPropagation()} style={{ cursor: 'grab', color: 'var(--sub)', fontSize: '18px', padding: '0 6px', userSelect: 'none' }}>&#8661;</span>
-                          <span style={{ fontSize: '15px', fontWeight: 700 }}>{cat.name}</span>
+                          {editingCatId === cat.id ? (
+                            <span onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <input value={editCatName} onChange={e => setEditCatName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveCategoryName(cat.id, selectedRestaurant.id)} style={{ padding: '4px 8px', fontSize: '14px', fontWeight: 700, background: 'var(--bg3)', border: '1px solid var(--green)', borderRadius: '4px', color: 'inherit', outline: 'none' }} autoFocus />
+                              <button onClick={() => saveCategoryName(cat.id, selectedRestaurant.id)} style={{ background: 'var(--green)', border: 'none', color: '#000', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                              <button onClick={() => setEditingCatId(null)} style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', fontSize: '11px' }}>x</button>
+                            </span>
+                          ) : (
+                            <span onClick={e => { e.stopPropagation(); setEditingCatId(cat.id); setEditCatName(cat.name) }} style={{ fontSize: '15px', fontWeight: 700, cursor: 'pointer' }} title="Click to rename">{cat.name}</span>
+                          )}
                           <span style={{ fontSize: '11px', color: 'var(--sub)' }}>{menuItems.filter(i => i.category_id === cat.id).length} items</span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
