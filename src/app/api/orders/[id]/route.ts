@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
+import { getSumupAccountForNewPayment, getSumupAccountForOrder } from '@/lib/sumupAccount'
 import { sendOrderConfirmation, sendOrderRejection } from '@/lib/email'
 
 // PATCH /api/orders/[id]/accept
@@ -47,57 +48,56 @@ export async function PATCH(
         .eq('id', orderId)
     }
 
-    // Generate SumUp payment link (for card payments only) - but skip
-    // entirely if this is a pre-order that's already been paid ahead of
-    // time, otherwise we'd charge the customer a second time.
+    // Generate SumUp payment link (card payments only). Skip entirely if the
+    // customer already paid in advance, otherwise they'd be charged twice.
     let paymentLink = null
     let paymentLinkExpiresAt = null
     let sumupCheckoutId = order.sumup_checkout_id || null
+    let paymentAccountLabel: string | null = order.payment_account || null
     const alreadyPaidInAdvance = !!order.paid_at
 
     if (order.payment_method === 'card' && !alreadyPaidInAdvance) {
       const restaurant = order.restaurants
 
-      console.log('SumUp debug - restaurant:', JSON.stringify({
-        id: restaurant?.id,
-        hasApiKey: !!restaurant?.sumup_api_key,
-        hasMerchantCode: !!restaurant?.sumup_merchant_code,
-        apiKeyStart: restaurant?.sumup_api_key?.substring(0, 10),
-      }))
+      // Use the account recorded at checkout, so the payment matches the one
+      // used when the order was placed. Older orders have none recorded, so
+      // they use the restaurant's own keys, or the platform default.
+      const account = order.payment_account
+        ? await getSumupAccountForOrder(order.payment_account, restaurant || {})
+        : await getSumupAccountForNewPayment(restaurant || {})
 
-      if (restaurant?.sumup_api_key && restaurant?.sumup_merchant_code) {
+      if (!account) {
+        console.error('No SumUp account available for order', order.id)
+      } else {
+        paymentAccountLabel = account.label
         try {
           const linkData = await generatePaymentLink({
             orderId: order.id,
             orderNumber: order.order_number,
             amount: order.total,
-            merchantApiKey: restaurant.sumup_api_key,
-            merchantCode: restaurant.sumup_merchant_code,
+            merchantApiKey: account.apiKey,
+            merchantCode: account.merchantCode,
             customerEmail: order.customer_email,
-            restaurantName: restaurant.name,
+            restaurantName: restaurant?.name || '',
           })
           paymentLink = linkData.paymentUrl
           paymentLinkExpiresAt = linkData.expiresAt
           sumupCheckoutId = linkData.checkoutId
-          console.log('SumUp link generated:', paymentLink)
         } catch (error: any) {
           console.error('SumUp link generation failed:', error)
           // If duplicate, fetch the existing checkout
           if (error.message?.includes('DUPLICATED_CHECKOUT')) {
             try {
-              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, restaurant.sumup_api_key)
+              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, account.apiKey)
               if (existing) {
                 paymentLink = existing.paymentUrl
                 sumupCheckoutId = existing.checkoutId
-                console.log('Using existing SumUp checkout:', paymentLink)
               }
             } catch (e2) {
               console.error('Failed to fetch existing checkout:', e2)
             }
           }
         }
-      } else {
-        console.error('SumUp credentials missing - apiKey:', !!restaurant?.sumup_api_key, 'merchantCode:', !!restaurant?.sumup_merchant_code)
       }
     }
 
@@ -112,6 +112,7 @@ export async function PATCH(
         sumup_checkout_id: sumupCheckoutId,
         payment_link_sent_at: paymentLink ? new Date().toISOString() : order.payment_link_sent_at,
         payment_link_expires_at: paymentLinkExpiresAt,
+        payment_account: paymentAccountLabel,
       })
       .eq('id', orderId)
 
