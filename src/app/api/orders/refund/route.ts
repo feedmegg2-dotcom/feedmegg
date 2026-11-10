@@ -4,6 +4,7 @@ import { issueRefund } from '@/lib/sumup'
 import { sendOrderRejection } from '@/lib/email'
 import { requireAdmin, requireMerchantForRestaurant } from '@/lib/adminAuth'
 import { logSystemError } from '@/lib/errorLog'
+import { getSumupAccountForOrder } from '@/lib/sumupAccount'
 
 // PIN-gated refund action. Once the correct refund PIN is entered on the
 // terminal, this route automatically calls SumUp's refund API to send the
@@ -78,18 +79,23 @@ export async function POST(request: NextRequest) {
   // call - just record it.
   let sumupRefunded = false
   let sumupError: string | null = null
+  // Refund through the SumUp account that originally took this payment,
+  // even if the restaurant has since changed its own keys.
+  const refundAccount = order.payment_method === 'card' && order.sumup_payment_id
+    ? await getSumupAccountForOrder(order.payment_account, order.restaurants || {})
+    : null
   if (order.payment_method === 'card') {
     if (!order.sumup_payment_id) {
       sumupError = 'No SumUp transaction ID on this order - cannot auto-refund'
-    } else if (!order.restaurants?.sumup_api_key) {
-      sumupError = 'No SumUp API key configured for this restaurant'
+    } else if (!refundAccount) {
+      sumupError = 'No SumUp account configured for this payment'
     } else {
       try {
         await issueRefund({
           transactionId: order.sumup_payment_id,
           amount: refundAmount,
           reason: combinedReason || 'Refund issued by restaurant',
-          merchantApiKey: order.restaurants.sumup_api_key,
+          merchantApiKey: refundAccount.apiKey,
         })
         sumupRefunded = true
       } catch (e: any) {
