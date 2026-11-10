@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { sendOrderConfirmation } from '@/lib/email'
 import { generatePaymentLink, fetchExistingCheckout } from '@/lib/sumup'
 import { logSystemError } from '@/lib/errorLog'
+import { getSumupAccountForNewPayment } from '@/lib/sumupAccount'
 
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number, resetAt: number }>()
@@ -78,6 +79,18 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (!restaurant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+
+    // Which SumUp account takes card payments for this restaurant: its own
+    // keys if set, otherwise the platform default from the admin panel.
+    // If neither is set, refuse card orders clearly rather than letting the
+    // customer get stuck with no way to pay.
+    let paymentAccount: Awaited<ReturnType<typeof getSumupAccountForNewPayment>> = null
+    if ((paymentMethod || 'card') !== 'cash') {
+      paymentAccount = await getSumupAccountForNewPayment(restaurant)
+      if (!paymentAccount) {
+        return NextResponse.json({ error: 'Card payments are not available for this restaurant right now. Please pay by cash or try again later.' }, { status: 400 })
+      }
+    }
 
     // Check restaurant is open (skip for pre-orders)
     if (!scheduledFor) {
@@ -181,6 +194,7 @@ export async function POST(request: NextRequest) {
         delivery_lng: deliveryLng || null,
         order_type: orderType,
         payment_method: paymentMethod || 'card',
+        payment_account: paymentAccount?.label || null,
         contactless_delivery: contactlessDelivery || false,
         scheduled_for: scheduledFor || null,
         status: 'pending',
@@ -252,14 +266,14 @@ export async function POST(request: NextRequest) {
     let preOrderSumupCheckoutId: string | null = null
     let preOrderPaymentLinkExpiresAt: string | null = null
     if (scheduledFor && paymentMethod !== 'cash') {
-      if (restaurant.sumup_api_key && restaurant.sumup_merchant_code) {
+      if (paymentAccount) {
         try {
           const linkData = await generatePaymentLink({
             orderId: order.id,
             orderNumber: order.order_number,
             amount: order.total,
-            merchantApiKey: restaurant.sumup_api_key,
-            merchantCode: restaurant.sumup_merchant_code,
+            merchantApiKey: paymentAccount.apiKey,
+            merchantCode: paymentAccount.merchantCode,
             customerEmail: order.customer_email,
             restaurantName: restaurant.name,
           })
@@ -270,7 +284,7 @@ export async function POST(request: NextRequest) {
           console.error('Pre-order SumUp link generation failed:', linkError)
           if (linkError.message?.includes('DUPLICATED_CHECKOUT')) {
             try {
-              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, restaurant.sumup_api_key)
+              const existing = await fetchExistingCheckout(`ORDER-${order.order_number}`, paymentAccount.apiKey)
               if (existing) {
                 preOrderPaymentLink = existing.paymentUrl
                 preOrderSumupCheckoutId = existing.checkoutId
