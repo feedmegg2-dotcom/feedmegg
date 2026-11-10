@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
+import DefaultSumupSettings from '@/components/DefaultSumupSettings'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers', 'customers']
 const ADMIN_USER_ID = 'add577f5-e16e-489a-a1a6-13ed9bef0900'
@@ -902,6 +903,7 @@ export default function AdminPage() {
         {/* RESTAURANTS */}
         {tab === 'restaurants' && (
           <div>
+            <DefaultSumupSettings />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Restaurants</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
