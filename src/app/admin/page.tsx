@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import DefaultSumupSettings from '@/components/DefaultSumupSettings'
+import RestaurantTerminals from '@/components/RestaurantTerminals'
 
 const TABS = ['dashboard', 'restaurants', 'menus', 'merchants', 'orders', 'commissions', 'offers', 'customers']
 const ADMIN_USER_ID = 'add577f5-e16e-489a-a1a6-13ed9bef0900'
@@ -52,6 +53,7 @@ export default function AdminPage() {
   const [hoursRestaurant, setHoursRestaurant] = useState<any>(null)
   const [restaurantHours, setRestaurantHours] = useState<any[]>([])
   const [showZones, setShowZones] = useState(false)
+  const [terminalsRestaurant, setTerminalsRestaurant] = useState<any>(null)
   const [zonesRestaurant, setZonesRestaurant] = useState<any>(null)
   const [importUrl, setImportUrl] = useState('')
   const [importMerchantId, setImportMerchantId] = useState('')
@@ -904,6 +906,7 @@ export default function AdminPage() {
         {tab === 'restaurants' && (
           <div>
             <DefaultSumupSettings />
+            {terminalsRestaurant && <RestaurantTerminals restaurant={terminalsRestaurant} onClose={() => setTerminalsRestaurant(null)} />}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Restaurants</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -946,6 +949,7 @@ export default function AdminPage() {
                     <button onClick={() => setEditRestaurant(r)} className="btn-ghost" style={{ fontSize: '11px', padding: '5px 10px' }}>Edit</button>
                     <button onClick={() => { setZonesRestaurant(r); setDeliveryZones(PARISHES.map(p => ({ parish: p, fee: 2.50, min_order: 10, enabled: true, restaurant_id: r.id }))); setShowZones(true); fetchZones(r.id) }} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Zones</button>
                     <button onClick={() => { setHoursRestaurant(r); setRestaurantHours(DAYS.map(d => ({ day: d, open_time: '12:00', close_time: '21:30', is_closed: false, restaurant_id: r.id }))); setShowHours(true); fetchHours(r.id) }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#EAB308', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Hours</button>
+                    <button onClick={() => setTerminalsRestaurant(r)} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Terminals</button>
                     <button onClick={() => { setSelectedRestaurant(r); setTab('menus'); fetchMenuForRestaurant(r.id) }} className="btn-primary" style={{ fontSize: '11px', padding: '5px 10px' }}>Menu</button>
                     <a href={`/merchant/dashboard/slots/${r.id}`} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', textDecoration: 'none' }}>Slots</a>
                     <a href={`/merchant/dashboard/tickets/${r.id}`} style={{ background: 'rgba(20,184,166,0.1)', border: '1px solid rgba(20,184,166,0.3)', color: '#14b8a6', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer', textDecoration: 'none' }}>Tickets</a>
