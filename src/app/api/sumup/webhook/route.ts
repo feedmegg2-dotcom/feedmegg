@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { logSystemError } from '@/lib/errorLog'
+import { getSumupAccountForOrder } from '@/lib/sumupAccount'
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
@@ -19,12 +20,12 @@ export async function POST(request: NextRequest) {
 
       let order = null
       if (checkoutId) {
-        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key)').eq('sumup_checkout_id', checkoutId).maybeSingle()
+        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key, sumup_merchant_code)').eq('sumup_checkout_id', checkoutId).maybeSingle()
         order = data
       }
       if (!order && reference) {
         const orderNumber = reference.replace(/^ORDER-/, '')
-        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key)').eq('order_number', orderNumber).maybeSingle()
+        const { data } = await supabase.from('orders').select('*, restaurants(sumup_api_key, sumup_merchant_code)').eq('order_number', orderNumber).maybeSingle()
         order = data
       }
 
@@ -36,15 +37,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, note: 'already paid' })
       }
 
-      if (!order.sumup_checkout_id || !order.restaurants?.sumup_api_key) {
-        console.error('Webhook: missing checkout ID or API key, cannot verify - ignoring')
+      // Use the SumUp account that actually took this payment
+      const account = await getSumupAccountForOrder(order.payment_account, order.restaurants || {})
+      if (!order.sumup_checkout_id || !account) {
+        console.error('Webhook: missing checkout ID or SumUp account, cannot verify - ignoring')
         return NextResponse.json({ success: true, note: 'cannot verify, ignored' })
       }
 
       // Re-verify directly with SumUp before trusting the webhook
       try {
         const verifyRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${order.sumup_checkout_id}`, {
-          headers: { 'Authorization': `Bearer ${order.restaurants.sumup_api_key}` }
+          headers: { 'Authorization': `Bearer ${account.apiKey}` }
         })
         const checkout = await verifyRes.json()
 
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
   const { data: order } = await supabase
     .from('orders')
-    .select('*, restaurants(sumup_api_key)')
+    .select('*, restaurants(sumup_api_key, sumup_merchant_code)')
     .eq('id', orderId)
     .maybeSingle()
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
@@ -117,10 +120,11 @@ export async function GET(request: NextRequest) {
 
   if (order.paid_at) return NextResponse.json({ status: order.status === 'pending' ? 'paid' : order.status, paymentLink: order.sumup_link })
 
-  if (order.sumup_checkout_id && order.restaurants?.sumup_api_key) {
+  const getAccount = await getSumupAccountForOrder(order.payment_account, order.restaurants || {})
+  if (order.sumup_checkout_id && getAccount) {
     try {
       const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${order.sumup_checkout_id}`, {
-        headers: { 'Authorization': `Bearer ${order.restaurants.sumup_api_key}` }
+        headers: { 'Authorization': `Bearer ${getAccount.apiKey}` }
       })
       const checkout = await response.json()
       if (checkout.status === 'PAID') {
