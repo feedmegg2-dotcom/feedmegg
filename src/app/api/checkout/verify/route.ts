@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { getSumupAccountForOrder } from '@/lib/sumupAccount'
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
@@ -7,19 +8,23 @@ export async function POST(request: NextRequest) {
   try {
     const { orderId } = await request.json()
 
-    // Get order with restaurant sumup key
+    // Get order with the restaurant's SumUp details
     const { data: order } = await supabase
       .from('orders')
-      .select('*, restaurants(sumup_api_key, name)')
+      .select('*, restaurants(sumup_api_key, sumup_merchant_code, name)')
       .eq('id', orderId)
       .maybeSingle()
 
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     if (!order.sumup_checkout_id) return NextResponse.json({ status: 'pending' })
 
+    // Use the SumUp account that actually took this payment
+    const account = await getSumupAccountForOrder(order.payment_account, order.restaurants || {})
+    if (!account) return NextResponse.json({ status: 'pending' })
+
     // Check SumUp checkout status
     const res = await fetch(`https://api.sumup.com/v0.1/checkouts/${order.sumup_checkout_id}`, {
-      headers: { 'Authorization': `Bearer ${order.restaurants.sumup_api_key}` }
+      headers: { 'Authorization': `Bearer ${account.apiKey}` }
     })
 
     const data = await res.json()
